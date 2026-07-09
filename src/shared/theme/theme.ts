@@ -1,10 +1,21 @@
 import { DarkTheme, DefaultTheme, type Theme as NavigationTheme } from '@react-navigation/native';
 import { MD3DarkTheme, MD3LightTheme, type MD3Theme } from 'react-native-paper';
 
-import { darkColors, elevation, lightColors, radius, spacing, typography } from './tokens';
+import {
+  darkColors,
+  darkSemanticColors,
+  elevation,
+  lightColors,
+  lightSemanticColors,
+  radius,
+  spacing,
+  typography,
+  type AppSemanticColors,
+} from './tokens';
 
 export type AppTheme = MD3Theme & {
   app: {
+    colors: AppSemanticColors;
     elevation: typeof elevation;
     radius: typeof radius;
     spacing: typeof spacing;
@@ -21,7 +32,10 @@ const appTokens = {
 
 export const appLightTheme: AppTheme = {
   ...MD3LightTheme,
-  app: appTokens,
+  app: {
+    ...appTokens,
+    colors: lightSemanticColors,
+  },
   colors: {
     ...MD3LightTheme.colors,
     background: lightColors.background,
@@ -29,10 +43,12 @@ export const appLightTheme: AppTheme = {
     onBackground: lightColors.onBackground,
     onPrimary: lightColors.onPrimary,
     onSurface: lightColors.onSurface,
+    onSurfaceVariant: lightColors.onSurfaceVariant,
     outline: lightColors.border,
     primary: lightColors.primary,
     primaryContainer: lightColors.primaryContainer,
-    secondary: lightColors.success,
+    secondary: lightColors.secondary,
+    secondaryContainer: lightColors.secondaryContainer,
     surface: lightColors.surface,
     surfaceVariant: lightColors.surfaceMuted,
   },
@@ -40,7 +56,10 @@ export const appLightTheme: AppTheme = {
 
 export const appDarkTheme: AppTheme = {
   ...MD3DarkTheme,
-  app: appTokens,
+  app: {
+    ...appTokens,
+    colors: darkSemanticColors,
+  },
   colors: {
     ...MD3DarkTheme.colors,
     background: darkColors.background,
@@ -48,10 +67,12 @@ export const appDarkTheme: AppTheme = {
     onBackground: darkColors.onBackground,
     onPrimary: darkColors.onPrimary,
     onSurface: darkColors.onSurface,
+    onSurfaceVariant: darkColors.onSurfaceVariant,
     outline: darkColors.border,
     primary: darkColors.primary,
     primaryContainer: darkColors.primaryContainer,
-    secondary: darkColors.success,
+    secondary: darkColors.secondary,
+    secondaryContainer: darkColors.secondaryContainer,
     surface: darkColors.surface,
     surfaceVariant: darkColors.surfaceMuted,
   },

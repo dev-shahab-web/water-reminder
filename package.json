@@ -1,5 +1,5 @@
 {
-  "name": "rn-enterprise-starter",
+  "name": "water-reminder",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {

@@ -1,12 +1,14 @@
 import * as SplashScreen from 'expo-splash-screen';
 import { type PropsWithChildren, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
+import { appConfig } from '@core/config';
 import { logger } from '@core/logger';
 import { initializeDatabase } from '@platform/database';
 import { initializeNotifications } from '@platform/notifications';
 import { initializeStorage } from '@platform/storage';
+import { BrandMark } from '@shared/components';
 import type { AppTheme } from '@shared/theme';
 
 SplashScreen.preventAutoHideAsync().catch((error: unknown) => {
@@ -45,7 +47,25 @@ export function ApplicationBootstrap({ children }: PropsWithChildren) {
 
   if (!isReady) {
     return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View
+        accessibilityLabel="Loading Water Reminder"
+        accessibilityRole="progressbar"
+        style={[styles.container, { backgroundColor: theme.app.colors.surfaceBase }]}
+      >
+        <BrandMark size={92} />
+        <Text
+          style={[
+            styles.title,
+            {
+              color: theme.app.colors.textPrimary,
+              fontFamily: theme.app.typography.fontFamily.display,
+              fontSize: theme.app.typography.fontSize.title,
+              lineHeight: theme.app.typography.lineHeight.title,
+            },
+          ]}
+        >
+          {appConfig.name}
+        </Text>
         <ActivityIndicator color={theme.colors.primary} />
       </View>
     );
@@ -58,6 +78,10 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     flex: 1,
+    gap: 16,
     justifyContent: 'center',
+  },
+  title: {
+    fontWeight: '800',
   },
 });
