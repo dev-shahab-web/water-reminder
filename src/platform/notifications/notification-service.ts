@@ -7,6 +7,26 @@ export type NotificationRegistrationStatus = {
   status: Notifications.PermissionStatus;
 };
 
+export const requestNotificationPermissions = async (): Promise<NotificationRegistrationStatus> => {
+  const existingPermissions = await Notifications.getPermissionsAsync();
+
+  if (existingPermissions.granted || !existingPermissions.canAskAgain) {
+    return {
+      canAskAgain: existingPermissions.canAskAgain,
+      granted: existingPermissions.granted,
+      status: existingPermissions.status,
+    };
+  }
+
+  const requestedPermissions = await Notifications.requestPermissionsAsync();
+
+  return {
+    canAskAgain: requestedPermissions.canAskAgain,
+    granted: requestedPermissions.granted,
+    status: requestedPermissions.status,
+  };
+};
+
 export const initializeNotifications = async (): Promise<NotificationRegistrationStatus> => {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({

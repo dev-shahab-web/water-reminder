@@ -1,27 +1,45 @@
+import { router } from 'expo-router';
+import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
 import { appConfig } from '@core/config';
+import { useOnboardingState } from '@modules/onboarding';
 import { AppScreen, BrandMark } from '@shared/components';
 import type { AppTheme } from '@shared/theme';
 
-const foundationPrinciples = [
+const homeSignals = [
   {
-    label: 'Offline-first',
-    value: 'Core experience works without internet.',
+    label: 'Today',
+    value: 'Your hydration habit is ready.',
   },
   {
-    label: 'Privacy-first',
-    value: 'No mandatory accounts or unnecessary data.',
+    label: 'Privacy',
+    value: 'No account needed.',
   },
   {
-    label: 'Calm by design',
-    value: 'Useful, quiet, and respectful from launch.',
+    label: 'Reminders',
+    value: 'Gentle support when enabled.',
   },
 ] as const;
 
 export default function HomeScreen() {
   const theme = useTheme<AppTheme>();
+  const { state } = useOnboardingState();
+
+  useEffect(() => {
+    if (!state.onboardingCompleted) {
+      router.replace('/onboarding');
+    }
+  }, [state.onboardingCompleted]);
+
+  if (!state.onboardingCompleted) {
+    return (
+      <AppScreen style={styles.screen}>
+        <BrandMark size={112} />
+      </AppScreen>
+    );
+  }
 
   return (
     <AppScreen style={styles.screen}>
@@ -58,9 +76,9 @@ export default function HomeScreen() {
       </View>
 
       <View
-        accessibilityLabel="Experience foundation"
+        accessibilityLabel="Home summary"
         style={[
-          styles.principles,
+          styles.summary,
           {
             backgroundColor: theme.colors.surface,
             borderColor: theme.app.colors.borderSubtle,
@@ -68,8 +86,36 @@ export default function HomeScreen() {
           },
         ]}
       >
-        {foundationPrinciples.map((principle) => (
-          <View key={principle.label} style={styles.principleRow}>
+        <View style={styles.goalBlock}>
+          <Text
+            style={[
+              styles.goalLabel,
+              {
+                color: theme.app.colors.textSecondary,
+                fontSize: theme.app.typography.fontSize.label,
+                lineHeight: theme.app.typography.lineHeight.label,
+              },
+            ]}
+          >
+            Daily goal
+          </Text>
+          <Text
+            style={[
+              styles.goalValue,
+              {
+                color: theme.app.colors.textPrimary,
+                fontFamily: theme.app.typography.fontFamily.display,
+                fontSize: theme.app.typography.fontSize.title,
+                lineHeight: theme.app.typography.lineHeight.title,
+              },
+            ]}
+          >
+            {state.hydrationGoal} ml
+          </Text>
+        </View>
+
+        {homeSignals.map((signal) => (
+          <View key={signal.label} style={styles.summaryRow}>
             <View
               style={[
                 styles.dot,
@@ -78,10 +124,10 @@ export default function HomeScreen() {
                 },
               ]}
             />
-            <View style={styles.principleCopy}>
+            <View style={styles.summaryCopy}>
               <Text
                 style={[
-                  styles.principleLabel,
+                  styles.summaryLabel,
                   {
                     color: theme.app.colors.textPrimary,
                     fontSize: theme.app.typography.fontSize.label,
@@ -89,11 +135,11 @@ export default function HomeScreen() {
                   },
                 ]}
               >
-                {principle.label}
+                {signal.label}
               </Text>
               <Text
                 style={[
-                  styles.principleValue,
+                  styles.summaryValue,
                   {
                     color: theme.app.colors.textSecondary,
                     fontSize: theme.app.typography.fontSize.caption,
@@ -101,7 +147,7 @@ export default function HomeScreen() {
                   },
                 ]}
               >
-                {principle.value}
+                {signal.value}
               </Text>
             </View>
           </View>
@@ -125,25 +171,36 @@ const styles = StyleSheet.create({
   motto: {
     textAlign: 'center',
   },
-  principleCopy: {
-    flex: 1,
-    gap: 2,
+  goalBlock: {
+    alignItems: 'center',
+    gap: 4,
   },
-  principleLabel: {
+  goalLabel: {
     fontWeight: '700',
+    textTransform: 'uppercase',
   },
-  principleRow: {
-    flexDirection: 'row',
-    gap: 12,
+  goalValue: {
+    fontWeight: '800',
   },
-  principleValue: {},
-  principles: {
+  summary: {
     alignSelf: 'stretch',
     borderWidth: 1,
-    gap: 16,
+    gap: 18,
     maxWidth: 440,
     padding: 20,
   },
+  summaryCopy: {
+    flex: 1,
+    gap: 2,
+  },
+  summaryLabel: {
+    fontWeight: '700',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  summaryValue: {},
   screen: {
     alignItems: 'center',
     justifyContent: 'center',
