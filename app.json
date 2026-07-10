@@ -11,6 +11,7 @@
       "icon": "./assets/images/icon.png"
     },
     "android": {
+      "package": "com.shahab.waterreminder",
       "adaptiveIcon": {
         "backgroundColor": "#DFF6F1",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

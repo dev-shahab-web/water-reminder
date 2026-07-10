@@ -1,4 +1,4 @@
-import { DarkTheme, DefaultTheme, type Theme as NavigationTheme } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme } from 'expo-router';
 import { MD3DarkTheme, MD3LightTheme, type MD3Theme } from 'react-native-paper';
 
 import {
@@ -12,6 +12,8 @@ import {
   typography,
   type AppSemanticColors,
 } from './tokens';
+
+type NavigationTheme = typeof DefaultTheme;
 
 export type AppTheme = MD3Theme & {
   app: {
