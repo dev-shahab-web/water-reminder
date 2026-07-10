@@ -1,5 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 
+import { runDatabaseMigrations } from './migrations';
+
 export type AppDatabase = SQLite.SQLiteDatabase;
 
 const DATABASE_NAME = 'water_reminder.db';
@@ -11,6 +13,7 @@ export const initializeDatabase = async (): Promise<AppDatabase> => {
     database = await SQLite.openDatabaseAsync(DATABASE_NAME);
     await database.execAsync('PRAGMA foreign_keys = ON;');
     await database.execAsync('PRAGMA journal_mode = WAL;');
+    await runDatabaseMigrations(database);
   }
 
   return database;

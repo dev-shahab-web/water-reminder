@@ -1,16 +1,11 @@
-import { configureStore, type UnknownAction } from '@reduxjs/toolkit';
+import { configureStore } from '@reduxjs/toolkit';
 
-type RootStateShape = Record<string, never>;
-
-const initialState: RootStateShape = {};
-
-const rootReducer = (
-  state: RootStateShape = initialState,
-  _action: UnknownAction,
-): RootStateShape => state;
+import { hydrationReducer } from '@modules/hydration';
 
 export const store = configureStore({
-  reducer: rootReducer,
+  reducer: {
+    hydration: hydrationReducer,
+  },
 });
 
 export type AppDispatch = typeof store.dispatch;
