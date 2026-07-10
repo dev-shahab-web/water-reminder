@@ -1,4 +1,6 @@
+import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import Animated, { Easing, FadeInDown, FadeOutUp, useReducedMotion } from 'react-native-reanimated';
 import { useTheme } from 'react-native-paper';
 
 import { SecondaryButton, SectionHeader } from '@shared/components';
@@ -13,8 +15,19 @@ type HydrationTimelineProps = {
   onEditEntry: (entry: HydrationEntry) => void;
 };
 
-export function HydrationTimeline({ entries, onDeleteEntry, onEditEntry }: HydrationTimelineProps) {
+export const HydrationTimeline = memo(function HydrationTimeline({
+  entries,
+  onDeleteEntry,
+  onEditEntry,
+}: HydrationTimelineProps) {
   const theme = useTheme<AppTheme>();
+  const reduceMotion = useReducedMotion();
+  const entering = reduceMotion
+    ? undefined
+    : FadeInDown.duration(180).easing(Easing.out(Easing.cubic));
+  const exiting = reduceMotion
+    ? undefined
+    : FadeOutUp.duration(140).easing(Easing.out(Easing.cubic));
 
   if (entries.length === 0) {
     return (
@@ -32,8 +45,10 @@ export function HydrationTimeline({ entries, onDeleteEntry, onEditEntry }: Hydra
       <SectionHeader subtitle="Recent entries from today." title="Today's timeline" />
       <View style={styles.list}>
         {entries.map((entry) => (
-          <View
+          <Animated.View
             key={entry.id}
+            entering={entering}
+            exiting={exiting}
             style={[
               styles.item,
               {
@@ -87,12 +102,12 @@ export function HydrationTimeline({ entries, onDeleteEntry, onEditEntry }: Hydra
                 style={styles.smallButton}
               />
             </View>
-          </View>
+          </Animated.View>
         ))}
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   amount: {
@@ -105,6 +120,7 @@ const styles = StyleSheet.create({
   },
   itemActions: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   itemCopy: {

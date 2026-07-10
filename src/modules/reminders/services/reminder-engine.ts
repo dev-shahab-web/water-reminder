@@ -1,0 +1,180 @@
+import {
+  cancelLocalNotifications,
+  requestNotificationPermissions,
+  scheduleLocalNotification,
+} from '@platform/notifications';
+
+import type {
+  ReminderPauseOption,
+  ReminderPreferences,
+  ReminderScheduleInput,
+  ReminderStatus,
+} from '../types';
+import {
+  getLastReminderScheduleSignature,
+  getReminderPreferences,
+  setLastReminderScheduleSignature,
+  setReminderPreferences,
+} from '../repository/reminder-preferences-storage';
+import { buildReminderScheduleSignature, calculateReminderSchedule } from '../utils/scheduler';
+import { addMinutes, getCurrentTimezone, getEndOfLocalDay } from '../utils/time';
+
+export const loadReminderPreferences = (): ReminderPreferences => {
+  const preferences = getReminderPreferences();
+  const timezone = getCurrentTimezone();
+
+  if (preferences.timezone === timezone) {
+    return preferences;
+  }
+
+  return setReminderPreferences({ ...preferences, timezone });
+};
+
+export const getReminderStatus = ({
+  goalAmount,
+  hasPermission,
+  preferences,
+  totalAmount,
+}: {
+  goalAmount: number;
+  hasPermission: boolean;
+  preferences: ReminderPreferences;
+  totalAmount: number;
+}): ReminderStatus => {
+  const now = new Date();
+
+  if (totalAmount >= goalAmount) {
+    return 'complete';
+  }
+
+  if (!preferences.enabled) {
+    return 'disabled';
+  }
+
+  if (!hasPermission) {
+    return 'blocked';
+  }
+
+  if (
+    preferences.pausedUntilIso !== undefined &&
+    new Date(preferences.pausedUntilIso).getTime() > now.getTime()
+  ) {
+    return 'paused';
+  }
+
+  return 'active';
+};
+
+export const reconcileReminderSchedule = async (
+  input: Omit<ReminderScheduleInput, 'now'>,
+): Promise<ReminderPreferences> => {
+  const preferences = {
+    ...input.preferences,
+    timezone: getCurrentTimezone(),
+  };
+  const signature = buildReminderScheduleSignature({
+    goalAmount: input.goalAmount,
+    preferences,
+    totalAmount: input.totalAmount,
+  });
+
+  if (getLastReminderScheduleSignature() === signature) {
+    return preferences;
+  }
+
+  await cancelLocalNotifications(preferences.scheduledNotificationIds);
+
+  const schedule = calculateReminderSchedule({
+    ...input,
+    now: new Date(),
+    preferences,
+  });
+  const scheduledNotificationIds = (
+    await Promise.all(schedule.map((item) => scheduleLocalNotification(item)))
+  ).filter((identifier): identifier is string => identifier !== undefined);
+  const nextPreferences = setReminderPreferences({
+    ...preferences,
+    scheduledNotificationIds,
+  });
+
+  setLastReminderScheduleSignature(signature);
+
+  return nextPreferences;
+};
+
+export const enableReminders = async (
+  preferences: ReminderPreferences,
+): Promise<{ granted: boolean; preferences: ReminderPreferences }> => {
+  const permission = await requestNotificationPermissions();
+
+  if (!permission.granted) {
+    await cancelLocalNotifications(preferences.scheduledNotificationIds);
+    return {
+      granted: false,
+      preferences: setReminderPreferences({
+        ...preferences,
+        enabled: false,
+        scheduledNotificationIds: [],
+      }),
+    };
+  }
+
+  return {
+    granted: true,
+    preferences: setReminderPreferences({
+      ...preferences,
+      enabled: true,
+      pausedUntilIso: undefined,
+    }),
+  };
+};
+
+export const disableReminders = async (
+  preferences: ReminderPreferences,
+): Promise<ReminderPreferences> => {
+  await cancelLocalNotifications(preferences.scheduledNotificationIds);
+
+  return setReminderPreferences({
+    ...preferences,
+    enabled: false,
+    scheduledNotificationIds: [],
+  });
+};
+
+export const updateReminderSchedulePreference = (
+  preferences: ReminderPreferences,
+  updates: Partial<Pick<ReminderPreferences, 'intervalMinutes' | 'sleepTime' | 'wakeTime'>>,
+): ReminderPreferences => {
+  return setReminderPreferences({
+    ...preferences,
+    ...updates,
+  });
+};
+
+export const pauseReminders = async (
+  preferences: ReminderPreferences,
+  option: ReminderPauseOption,
+): Promise<ReminderPreferences> => {
+  const now = new Date();
+  const pausedUntil =
+    option === '30min'
+      ? addMinutes(now, 30)
+      : option === '1hour'
+        ? addMinutes(now, 60)
+        : getEndOfLocalDay(now);
+
+  await cancelLocalNotifications(preferences.scheduledNotificationIds);
+
+  return setReminderPreferences({
+    ...preferences,
+    pausedUntilIso: pausedUntil.toISOString(),
+    scheduledNotificationIds: [],
+  });
+};
+
+export const resumeReminders = (preferences: ReminderPreferences): ReminderPreferences => {
+  return setReminderPreferences({
+    ...preferences,
+    pausedUntilIso: undefined,
+  });
+};

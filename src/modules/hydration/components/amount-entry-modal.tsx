@@ -1,4 +1,13 @@
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useTheme } from 'react-native-paper';
 
 import { PrimaryButton, SecondaryButton, SectionHeader } from '@shared/components';
@@ -31,7 +40,10 @@ export function AmountEntryModal({
 
   return (
     <Modal animationType="fade" onRequestClose={onCancel} transparent visible={visible}>
-      <View style={styles.backdrop}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.backdrop}
+      >
         <Pressable
           accessibilityLabel="Close amount entry"
           style={styles.scrim}
@@ -52,8 +64,11 @@ export function AmountEntryModal({
             accessibilityLabel="Water amount in milliliters"
             keyboardType="number-pad"
             onChangeText={onChangeAmount}
+            onSubmitEditing={onSave}
             placeholder="250"
             placeholderTextColor={theme.app.colors.textSecondary}
+            returnKeyType="done"
+            selectTextOnFocus
             style={[
               styles.input,
               {
@@ -103,7 +118,7 @@ export function AmountEntryModal({
             <SecondaryButton label="Cancel" onPress={onCancel} />
           </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -113,6 +128,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backdrop: {
+    alignItems: 'center',
     flex: 1,
     justifyContent: 'flex-end',
   },
@@ -135,7 +151,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 18,
     margin: 16,
+    maxWidth: 520,
     padding: 20,
+    width: '100%',
   },
   supportingText: {},
 });

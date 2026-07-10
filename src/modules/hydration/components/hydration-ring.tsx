@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
@@ -15,6 +15,7 @@ import { useTheme } from 'react-native-paper';
 import type { AppTheme } from '@shared/theme';
 
 type HydrationRingProps = {
+  attentionKey?: string;
   goalAmount: number;
   message: string;
   remainingAmount: number;
@@ -23,8 +24,10 @@ type HydrationRingProps = {
 
 const RING_SIZE = 260;
 const SEGMENT_COUNT = 48;
+const SEGMENT_INDEXES = Array.from({ length: SEGMENT_COUNT }, (_, index) => index);
 
-export function HydrationRing({
+export const HydrationRing = memo(function HydrationRing({
+  attentionKey,
   goalAmount,
   message,
   remainingAmount,
@@ -36,12 +39,13 @@ export function HydrationRing({
   const ripple = useSharedValue(0);
   const pulse = useSharedValue(1);
   const previousAmount = useRef(totalAmount);
+  const previousAttentionKey = useRef(attentionKey);
 
   const cappedProgress = Math.min(totalAmount / goalAmount, 1);
   const isComplete = totalAmount >= goalAmount;
 
   useEffect(() => {
-    const duration = reduceMotion ? 0 : 280;
+    const duration = reduceMotion ? 0 : 260;
     progress.value = withTiming(cappedProgress, {
       duration,
       easing: Easing.out(Easing.cubic),
@@ -50,7 +54,15 @@ export function HydrationRing({
     if (totalAmount !== previousAmount.current) {
       ripple.value = 0;
       ripple.value = withTiming(1, {
-        duration: reduceMotion ? 0 : 300,
+        duration: reduceMotion ? 0 : 280,
+        easing: Easing.out(Easing.cubic),
+      });
+    }
+
+    if (attentionKey !== undefined && attentionKey !== previousAttentionKey.current) {
+      ripple.value = 0;
+      ripple.value = withTiming(1, {
+        duration: reduceMotion ? 0 : 280,
         easing: Easing.out(Easing.cubic),
       });
     }
@@ -69,7 +81,17 @@ export function HydrationRing({
     }
 
     previousAmount.current = totalAmount;
-  }, [cappedProgress, goalAmount, progress, pulse, reduceMotion, ripple, totalAmount]);
+    previousAttentionKey.current = attentionKey;
+  }, [
+    attentionKey,
+    cappedProgress,
+    goalAmount,
+    progress,
+    pulse,
+    reduceMotion,
+    ripple,
+    totalAmount,
+  ]);
 
   const waterStyle = useAnimatedStyle(() => ({
     transform: [{ scaleY: progress.value }],
@@ -165,7 +187,7 @@ export function HydrationRing({
         </View>
       </View>
 
-      {Array.from({ length: SEGMENT_COUNT }).map((_, index) => (
+      {SEGMENT_INDEXES.map((index) => (
         <ProgressSegment
           key={index}
           index={index}
@@ -176,7 +198,7 @@ export function HydrationRing({
       ))}
     </Animated.View>
   );
-}
+});
 
 type AnimatedAmountProps = {
   amount: number;
@@ -194,11 +216,11 @@ function AnimatedAmount({ amount }: AnimatedAmountProps) {
       opacity.value = reduceMotion ? 1 : 0.3;
       translateY.value = reduceMotion ? 0 : 6;
       opacity.value = withTiming(1, {
-        duration: reduceMotion ? 0 : 180,
+        duration: reduceMotion ? 0 : 160,
         easing: Easing.out(Easing.cubic),
       });
       translateY.value = withTiming(0, {
-        duration: reduceMotion ? 0 : 180,
+        duration: reduceMotion ? 0 : 160,
         easing: Easing.out(Easing.cubic),
       });
       previousAmount.current = amount;

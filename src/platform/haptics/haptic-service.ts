@@ -52,3 +52,14 @@ export const playDeleteConfirmationHaptic = async (): Promise<void> => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
   });
 };
+
+export const playReminderPauseHaptic = async (): Promise<void> => {
+  await safelyPlayHaptic(async () => {
+    if (Platform.OS === 'android') {
+      await Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Toggle_Off);
+      return;
+    }
+
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  });
+};

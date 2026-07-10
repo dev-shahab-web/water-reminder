@@ -1,6 +1,7 @@
-import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import Animated, { Easing, FadeInDown, FadeOutUp, useReducedMotion } from 'react-native-reanimated';
 import { useTheme } from 'react-native-paper';
 
 import { appConfig } from '@core/config';
@@ -9,23 +10,11 @@ import {
   HydrationRing,
   HydrationTimeline,
   QuickAddButton,
-  calculateHydrationSummary,
-  editHydrationEntry,
   getGreeting,
-  getSuccessMicrocopy,
-  loadTodayHydration,
-  logHydration,
-  removeHydrationEntry,
-  type HydrationEntry,
-  type HydrationEntrySource,
+  useHomeHydration,
 } from '@modules/hydration';
 import { useOnboardingState } from '@modules/onboarding';
-import {
-  playDeleteConfirmationHaptic,
-  playErrorHaptic,
-  playGoalCompleteHaptic,
-  playWaterLogHaptic,
-} from '@platform/haptics';
+import { ReminderCard, useReminders } from '@modules/reminders';
 import {
   AppScreen,
   BrandMark,
@@ -34,41 +23,43 @@ import {
   SectionHeader,
 } from '@shared/components';
 import type { AppTheme } from '@shared/theme';
-import { useAppDispatch, useAppSelector } from '@state/store/hooks';
 
 const quickAddAmounts = [250, 500, 750] as const;
-const maxSingleEntryAmount = 5000;
-const largeEntryAmount = 1500;
-
-type AmountModalState = {
-  entry?: HydrationEntry;
-  mode: 'custom' | 'edit';
-};
 
 export default function HomeScreen() {
   const theme = useTheme<AppTheme>();
+  const params = useLocalSearchParams<{ reminderPulse?: string }>();
   const { state } = useOnboardingState();
-  const dispatch = useAppDispatch();
-  const { entries, errorMessage, status } = useAppSelector((rootState) => rootState.hydration);
-  const [amountModal, setAmountModal] = useState<AmountModalState | undefined>();
-  const [amountInput, setAmountInput] = useState('');
-  const [amountError, setAmountError] = useState<string | undefined>();
-  const [lastLoggedEntry, setLastLoggedEntry] = useState<HydrationEntry | undefined>();
-  const [successMessage, setSuccessMessage] = useState(getGreeting());
+  const reduceMotion = useReducedMotion();
+  const {
+    amountError,
+    amountInput,
+    amountModal,
+    changeAmountInput,
+    closeAmountModal,
+    confirmDeleteEntry,
+    errorMessage,
+    guidanceMessage,
+    isSaving,
+    lastLoggedEntry,
+    logAmount,
+    openCustomAmount,
+    openEditEntry,
+    saveAmount,
+    successMessage,
+    summary,
+    undoRecentLog,
+  } = useHomeHydration(state.hydrationGoal, state.onboardingCompleted);
+  const reminders = useReminders({
+    goalAmount: summary.goalAmount,
+    totalAmount: summary.totalAmount,
+  });
 
   useEffect(() => {
     if (!state.onboardingCompleted) {
       router.replace('/onboarding');
-      return;
     }
-
-    void dispatch(loadTodayHydration());
-  }, [dispatch, state.onboardingCompleted]);
-
-  const summary = useMemo(
-    () => calculateHydrationSummary(entries, state.hydrationGoal),
-    [entries, state.hydrationGoal],
-  );
+  }, [state.onboardingCompleted]);
 
   if (!state.onboardingCompleted) {
     return (
@@ -78,170 +69,16 @@ export default function HomeScreen() {
     );
   }
 
-  const validateAmountInput = (): number | undefined => {
-    const parsedAmount = Number.parseInt(amountInput, 10);
-
-    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      setAmountError('Enter an amount greater than zero.');
-      void playErrorHaptic();
-      return undefined;
-    }
-
-    if (parsedAmount > maxSingleEntryAmount) {
-      setAmountError('That amount is too large for one entry.');
-      void playErrorHaptic();
-      return undefined;
-    }
-
-    setAmountError(undefined);
-    return parsedAmount;
-  };
-
-  const playLogFeedback = async ({
-    nextTotal,
-    previousTotal,
-  }: {
-    nextTotal: number;
-    previousTotal: number;
-  }) => {
-    if (previousTotal < summary.goalAmount && nextTotal >= summary.goalAmount) {
-      await playGoalCompleteHaptic();
-      return;
-    }
-
-    await playWaterLogHaptic();
-  };
-
-  const handleLogAmount = async (
-    amount: number,
-    source: HydrationEntrySource,
-  ): Promise<boolean> => {
-    const previousTotal = summary.totalAmount;
-
-    try {
-      const entry = await dispatch(logHydration({ amount, source })).unwrap();
-      const nextTotal = previousTotal + entry.amount;
-      const goalReached = previousTotal < summary.goalAmount && nextTotal >= summary.goalAmount;
-
-      setLastLoggedEntry(entry);
-      setSuccessMessage(
-        getSuccessMicrocopy({
-          entryCount: entries.length + 1,
-          goalReached,
-        }),
-      );
-
-      await playLogFeedback({ nextTotal, previousTotal });
-      return true;
-    } catch {
-      await playErrorHaptic();
-      return false;
-    }
-  };
-
-  const handleCustomSave = async () => {
-    const amount = validateAmountInput();
-
-    if (amount === undefined) {
-      return;
-    }
-
-    if (amountModal?.mode === 'edit' && amountModal.entry !== undefined) {
-      const previousTotal = summary.totalAmount;
-      const nextTotal = previousTotal - amountModal.entry.amount + amount;
-
-      try {
-        const updatedEntry = await dispatch(
-          editHydrationEntry({ amount, id: amountModal.entry.id }),
-        ).unwrap();
-
-        if (lastLoggedEntry?.id === updatedEntry.id) {
-          setLastLoggedEntry(updatedEntry);
-        }
-
-        setSuccessMessage('Updated.');
-
-        if (previousTotal < summary.goalAmount && nextTotal >= summary.goalAmount) {
-          await playGoalCompleteHaptic();
-        }
-      } catch {
-        await playErrorHaptic();
-        return;
-      }
-    } else {
-      const wasLogged = await handleLogAmount(amount, 'custom');
-
-      if (!wasLogged) {
-        return;
-      }
-    }
-
-    setAmountModal(undefined);
-    setAmountInput('');
-  };
-
-  const openCustomAmount = () => {
-    setAmountError(undefined);
-    setAmountInput('');
-    setAmountModal({ mode: 'custom' });
-  };
-
-  const openEditEntry = (entry: HydrationEntry) => {
-    setAmountError(undefined);
-    setAmountInput(String(entry.amount));
-    setAmountModal({ entry, mode: 'edit' });
-  };
-
-  const handleUndoRecentLog = async () => {
-    if (lastLoggedEntry === undefined) {
-      return;
-    }
-
-    try {
-      await dispatch(removeHydrationEntry(lastLoggedEntry.id)).unwrap();
-      setLastLoggedEntry(undefined);
-      setSuccessMessage('Removed.');
-    } catch {
-      await playErrorHaptic();
-    }
-  };
-
-  const confirmDeleteEntry = (entry: HydrationEntry) => {
-    Alert.alert('Delete entry?', `${entry.amount} ml will be removed from today.`, [
-      {
-        style: 'cancel',
-        text: 'Cancel',
-      },
-      {
-        onPress: async () => {
-          try {
-            await dispatch(removeHydrationEntry(entry.id)).unwrap();
-            await playDeleteConfirmationHaptic();
-            setSuccessMessage('Entry deleted.');
-
-            if (lastLoggedEntry?.id === entry.id) {
-              setLastLoggedEntry(undefined);
-            }
-          } catch {
-            await playErrorHaptic();
-          }
-        },
-        style: 'destructive',
-        text: 'Delete',
-      },
-    ]);
-  };
-
-  const isSaving = status === 'saving';
-  const parsedAmountInput = Number.parseInt(amountInput, 10);
-  const guidanceMessage =
-    parsedAmountInput > largeEntryAmount
-      ? 'That is a large single entry. Save it only if it reflects one drink.'
-      : undefined;
   const ringMessage =
     summary.totalAmount >= summary.goalAmount
       ? "Nice work. You've finished today's hydration."
       : successMessage;
+  const undoEntering = reduceMotion
+    ? undefined
+    : FadeInDown.duration(180).easing(Easing.out(Easing.cubic));
+  const undoExiting = reduceMotion
+    ? undefined
+    : FadeOutUp.duration(140).easing(Easing.out(Easing.cubic));
 
   return (
     <AppScreen scrollable style={styles.screen}>
@@ -278,6 +115,7 @@ export default function HomeScreen() {
       </View>
 
       <HydrationRing
+        attentionKey={params.reminderPulse}
         goalAmount={summary.goalAmount}
         message={ringMessage}
         remainingAmount={summary.remainingAmount}
@@ -285,14 +123,16 @@ export default function HomeScreen() {
       />
 
       <View style={styles.metricRow}>
-        <Metric label="Current" value={`${summary.totalAmount} ml`} />
+        <Metric label="Today" value={`${summary.totalAmount} ml`} />
         <Metric label="Remaining" value={`${summary.remainingAmount} ml`} />
         <Metric label="Goal" value={`${summary.goalAmount} ml`} />
       </View>
 
       {lastLoggedEntry === undefined ? null : (
-        <View
+        <Animated.View
           accessibilityRole="alert"
+          entering={undoEntering}
+          exiting={undoExiting}
           style={[
             styles.undoBanner,
             {
@@ -317,10 +157,10 @@ export default function HomeScreen() {
           <SecondaryButton
             accessibilityLabel={`Undo ${lastLoggedEntry.amount} milliliter log`}
             label="Undo"
-            onPress={handleUndoRecentLog}
+            onPress={undoRecentLog}
             style={styles.undoButton}
           />
-        </View>
+        </Animated.View>
       )}
 
       {errorMessage === undefined ? null : (
@@ -351,7 +191,7 @@ export default function HomeScreen() {
               amount={amount}
               disabled={isSaving}
               onPress={() => {
-                void handleLogAmount(amount, 'quick_add');
+                void logAmount(amount, 'quick_add');
               }}
             />
           ))}
@@ -364,6 +204,27 @@ export default function HomeScreen() {
         />
       </View>
 
+      <ReminderCard
+        enabled={reminders.preferences.enabled}
+        intervalMinutes={reminders.preferences.intervalMinutes}
+        onIntervalChange={reminders.updateInterval}
+        onPause={(option) => {
+          void reminders.pause(option);
+        }}
+        onResume={reminders.resume}
+        onSleepTimeChange={reminders.updateSleepTime}
+        onToggleEnabled={() => {
+          void reminders.toggleEnabled();
+        }}
+        onWakeTimeChange={reminders.updateWakeTime}
+        permissionMessage={reminders.permissionMessage}
+        preview={reminders.preview}
+        sleepTime={reminders.preferences.sleepTime}
+        status={reminders.status}
+        summary={reminders.summary}
+        wakeTime={reminders.preferences.wakeTime}
+      />
+
       <HydrationTimeline
         entries={summary.entries}
         onDeleteEntry={confirmDeleteEntry}
@@ -373,15 +234,10 @@ export default function HomeScreen() {
       <AmountEntryModal
         errorMessage={amountError}
         guidanceMessage={guidanceMessage}
-        onCancel={() => {
-          setAmountModal(undefined);
-        }}
-        onChangeAmount={(value) => {
-          setAmountInput(value.replace(/\D/g, ''));
-          setAmountError(undefined);
-        }}
+        onCancel={closeAmountModal}
+        onChangeAmount={changeAmountInput}
         onSave={() => {
-          void handleCustomSave();
+          void saveAmount();
         }}
         saveLabel={amountModal?.mode === 'edit' ? 'Save changes' : 'Log water'}
         title={amountModal?.mode === 'edit' ? 'Edit entry' : 'Custom amount'}
@@ -462,7 +318,8 @@ const styles = StyleSheet.create({
   },
   metric: {
     borderWidth: 1,
-    flex: 1,
+    flexBasis: 150,
+    flexGrow: 1,
     gap: 4,
     minWidth: 0,
     padding: 12,
@@ -473,6 +330,7 @@ const styles = StyleSheet.create({
   },
   metricRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
   },
   metricValue: {
@@ -480,6 +338,7 @@ const styles = StyleSheet.create({
   },
   quickAddRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
   screen: {
