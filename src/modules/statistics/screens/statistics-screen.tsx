@@ -1,10 +1,9 @@
 import { router } from 'expo-router';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { useTheme } from 'react-native-paper';
+import { StyleSheet, View } from 'react-native';
 
 import { useOnboardingState } from '@modules/onboarding';
 import { AppScreen, PrimaryButton, SecondaryButton, SectionHeader } from '@shared/components';
-import type { AppTheme } from '@shared/theme';
+import { SkeletonCard } from '@shared/motion';
 
 import { InsightList } from '../components/insight-list';
 import { MonthlyHeatmap } from '../components/monthly-heatmap';
@@ -15,26 +14,14 @@ import type { DailyHydrationTotal, StatisticsDashboardData } from '../types/stat
 import { formatHour } from '../utils/insights';
 
 export function StatisticsScreen() {
-  const theme = useTheme<AppTheme>();
   const { state } = useOnboardingState();
   const statistics = useStatisticsDashboard(state.hydrationGoal);
 
   if (statistics.status === 'loading') {
     return (
       <AppScreen style={styles.stateScreen}>
-        <ActivityIndicator color={theme.colors.primary} />
-        <Text
-          style={[
-            styles.stateText,
-            {
-              color: theme.app.colors.textSecondary,
-              fontSize: theme.app.typography.fontSize.body,
-              lineHeight: theme.app.typography.lineHeight.body,
-            },
-          ]}
-        >
-          Loading statistics.
-        </Text>
+        <SkeletonCard rows={2} />
+        <SkeletonCard rows={4} />
       </AppScreen>
     );
   }
@@ -190,8 +177,5 @@ const styles = StyleSheet.create({
   stateScreen: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  stateText: {
-    textAlign: 'center',
   },
 });

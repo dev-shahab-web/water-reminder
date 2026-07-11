@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
 import { SecondaryButton, SectionHeader } from '@shared/components';
+import { AnimatedCard } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 
 import type { HydrationEntry } from '../../types';
@@ -26,9 +27,10 @@ export function HistoryEntryList({ entries, onDeleteEntry, onEditEntry }: Histor
     <View style={styles.section}>
       <SectionHeader subtitle={`${entries.length} entries for this day.`} title="Entries" />
       <View style={styles.list}>
-        {entries.map((entry) => (
-          <View
+        {entries.map((entry, index) => (
+          <AnimatedCard
             key={entry.id}
+            delay={Math.min(index * 28, 160)}
             style={[
               styles.item,
               {
@@ -82,7 +84,7 @@ export function HistoryEntryList({ entries, onDeleteEntry, onEditEntry }: Histor
                 style={styles.action}
               />
             </View>
-          </View>
+          </AnimatedCard>
         ))}
       </View>
     </View>

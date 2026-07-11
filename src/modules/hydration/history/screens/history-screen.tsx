@@ -1,11 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { useTheme } from 'react-native-paper';
+import { StyleSheet, View } from 'react-native';
 
 import { AmountEntryModal } from '@modules/hydration';
 import { useOnboardingState } from '@modules/onboarding';
 import { AppScreen, PrimaryButton, SecondaryButton, SectionHeader } from '@shared/components';
-import type { AppTheme } from '@shared/theme';
+import { EmptyState, SkeletonCard } from '@shared/motion';
 
 import { HistoryDayNavigation } from '../components/history-day-navigation';
 import { HistoryDaySummary } from '../components/history-day-summary';
@@ -14,7 +13,6 @@ import { useHydrationHistory } from '../hooks/use-hydration-history';
 import { isToday } from '../../utils/date';
 
 export function HistoryScreen() {
-  const theme = useTheme<AppTheme>();
   const params = useLocalSearchParams<{ date?: string }>();
   const { state } = useOnboardingState();
   const history = useHydrationHistory(state.hydrationGoal, params.date);
@@ -27,19 +25,8 @@ export function HistoryScreen() {
           accessibilityRole="progressbar"
           style={styles.state}
         >
-          <ActivityIndicator color={theme.colors.primary} />
-          <Text
-            style={[
-              styles.stateText,
-              {
-                color: theme.app.colors.textSecondary,
-                fontSize: theme.app.typography.fontSize.body,
-                lineHeight: theme.app.typography.lineHeight.body,
-              },
-            ]}
-          >
-            Loading this day.
-          </Text>
+          <SkeletonCard rows={2} />
+          <SkeletonCard rows={3} />
         </View>
       );
     }
@@ -64,21 +51,20 @@ export function HistoryScreen() {
     if (history.entries.length === 0) {
       return (
         <View style={styles.state}>
-          <SectionHeader
-            subtitle={getEmptySubtitle({
+          <EmptyState
+            actionLabel="Go to Home"
+            message={getEmptySubtitle({
               hasAnyEntries: history.hasAnyEntries,
               selectedIsToday: isToday(history.selectedDate),
             })}
+            onAction={() => {
+              router.push('/');
+            }}
             title={getEmptyTitle({
               hasAnyEntries: history.hasAnyEntries,
               selectedIsToday: isToday(history.selectedDate),
             })}
-          />
-          <PrimaryButton
-            label="Go to Home"
-            onPress={() => {
-              router.push('/');
-            }}
+            variant="history"
           />
         </View>
       );
@@ -179,8 +165,5 @@ const styles = StyleSheet.create({
   },
   state: {
     gap: 16,
-  },
-  stateText: {
-    textAlign: 'center',
   },
 });

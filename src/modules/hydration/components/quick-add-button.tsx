@@ -1,14 +1,8 @@
 import { memo } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
+import { AnimatedPressableScale } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 
 type QuickAddButtonProps = {
@@ -23,45 +17,27 @@ export const QuickAddButton = memo(function QuickAddButton({
   onPress,
 }: QuickAddButtonProps) {
   const theme = useTheme<AppTheme>();
-  const reduceMotion = useReducedMotion();
-  const scale = useSharedValue(1);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const animatePress = (nextScale: number) => {
-    scale.value = withTiming(nextScale, {
-      duration: reduceMotion ? 0 : 120,
-      easing: Easing.out(Easing.cubic),
-    });
-  };
 
   return (
-    <Pressable
+    <AnimatedPressableScale
       accessibilityLabel={`Add ${amount} milliliters of water`}
       accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
-      onPressIn={() => {
-        if (!disabled) {
-          animatePress(0.98);
-        }
-      }}
-      onPressOut={() => {
-        animatePress(1);
-      }}
+      pressedScale={0.975}
       style={({ pressed }) => [
         styles.button,
         {
           backgroundColor: theme.colors.surface,
           borderColor: theme.app.colors.borderSubtle,
           borderRadius: theme.app.radius.md,
+          elevation: disabled ? 0 : 1,
           opacity: disabled ? 0.48 : pressed ? 0.76 : 1,
+          shadowColor: theme.app.colors.hydrationProgress,
         },
       ]}
     >
-      <Animated.View style={[styles.content, animatedStyle]}>
+      <View style={styles.content}>
         <Text
           style={[
             styles.amount,
@@ -86,8 +62,8 @@ export const QuickAddButton = memo(function QuickAddButton({
         >
           ml
         </Text>
-      </Animated.View>
-    </Pressable>
+      </View>
+    </AnimatedPressableScale>
   );
 });
 
@@ -104,6 +80,12 @@ const styles = StyleSheet.create({
     minHeight: 72,
     minWidth: 88,
     padding: 12,
+    shadowOffset: {
+      height: 3,
+      width: 0,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
   content: {
     alignItems: 'center',

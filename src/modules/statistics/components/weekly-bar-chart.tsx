@@ -1,6 +1,15 @@
+import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useTheme } from 'react-native-paper';
 
+import { motionDuration } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 
 import type { DailyHydrationPoint } from '../types/statistics';
@@ -47,18 +56,19 @@ export function WeeklyBarChart({ goalAmount, points }: WeeklyBarChartProps) {
                       },
                     ]}
                   />
-                  <View
-                    style={[
-                      styles.bar,
-                      {
-                        backgroundColor: point.goalAchieved
-                          ? theme.app.colors.hydrationComplete
-                          : theme.app.colors.hydrationProgress,
-                        borderRadius: theme.app.radius.md,
-                        height: barHeight,
-                      },
-                    ]}
-                  />
+                  <AnimatedBar height={barHeight}>
+                    <View
+                      style={[
+                        styles.barFill,
+                        {
+                          backgroundColor: point.goalAchieved
+                            ? theme.app.colors.hydrationComplete
+                            : theme.app.colors.hydrationProgress,
+                          borderRadius: theme.app.radius.md,
+                        },
+                      ]}
+                    />
+                  </AnimatedBar>
                 </View>
                 <Text
                   style={[
@@ -93,6 +103,24 @@ export function WeeklyBarChart({ goalAmount, points }: WeeklyBarChartProps) {
   );
 }
 
+function AnimatedBar({ children, height }: { children: React.ReactNode; height: number }) {
+  const reduceMotion = useReducedMotion();
+  const progress = useSharedValue(reduceMotion ? 1 : 0);
+
+  React.useEffect(() => {
+    progress.value = withTiming(1, {
+      duration: reduceMotion ? 0 : motionDuration.standard,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [progress, reduceMotion]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    height: Math.max(height * progress.value, 4),
+  }));
+
+  return <Animated.View style={[styles.bar, animatedStyle]}>{children}</Animated.View>;
+}
+
 const styles = StyleSheet.create({
   amountLabel: {
     fontWeight: '700',
@@ -102,6 +130,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     position: 'absolute',
     width: '100%',
+  },
+  barFill: {
+    flex: 1,
   },
   barGroup: {
     alignItems: 'center',

@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
+import { AnimatedCard } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 
 import type { StatisticsInsight } from '../types/statistics';
@@ -14,9 +15,10 @@ export function InsightList({ insights }: InsightListProps) {
 
   return (
     <View style={styles.list}>
-      {insights.map((insight) => (
-        <View
+      {insights.map((insight, index) => (
+        <AnimatedCard
           key={`${insight.title}-${insight.detail}`}
+          delay={Math.min(index * 34, 180)}
           style={[
             styles.item,
             {
@@ -50,7 +52,7 @@ export function InsightList({ insights }: InsightListProps) {
           >
             {insight.detail}
           </Text>
-        </View>
+        </AnimatedCard>
       ))}
     </View>
   );

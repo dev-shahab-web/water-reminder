@@ -16,6 +16,7 @@ import {
 import { useOnboardingState } from '@modules/onboarding';
 import { ReminderCard, useReminders } from '@modules/reminders';
 import { useStatisticsPreview } from '@modules/statistics';
+import { AnimatedCard } from '@shared/motion';
 import {
   AppScreen,
   BrandMark,
@@ -114,6 +115,14 @@ export default function HomeScreen() {
             {getGreeting()}
           </Text>
         </View>
+        <SecondaryButton
+          accessibilityLabel="Open Settings"
+          label="Settings"
+          onPress={() => {
+            router.push('/settings' as never);
+          }}
+          style={styles.settingsButton}
+        />
       </View>
 
       <HydrationRing
@@ -124,11 +133,11 @@ export default function HomeScreen() {
         totalAmount={summary.totalAmount}
       />
 
-      <View style={styles.metricRow}>
+      <AnimatedCard style={styles.metricRow}>
         <Metric label="Today" value={`${summary.totalAmount} ml`} />
         <Metric label="Remaining" value={`${summary.remainingAmount} ml`} />
         <Metric label="Goal" value={`${summary.goalAmount} ml`} />
-      </View>
+      </AnimatedCard>
 
       {lastLoggedEntry === undefined ? null : (
         <Animated.View
@@ -272,7 +281,7 @@ function StatisticsPreviewCard({
   const theme = useTheme<AppTheme>();
 
   return (
-    <View
+    <AnimatedCard
       style={[
         styles.statisticsPreview,
         {
@@ -294,7 +303,7 @@ function StatisticsPreviewCard({
           router.push('/statistics' as never);
         }}
       />
-    </View>
+    </AnimatedCard>
   );
 }
 
@@ -398,6 +407,11 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: 14,
+  },
+  settingsButton: {
+    minHeight: 44,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
   },
   statisticsPreview: {
     borderWidth: 1,

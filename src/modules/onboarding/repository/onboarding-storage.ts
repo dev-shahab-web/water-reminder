@@ -57,3 +57,16 @@ export const completeOnboarding = ({
 
   return nextState;
 };
+
+export const setHydrationGoal = (hydrationGoal: number): OnboardingState => {
+  const storage = getStorage();
+  const currentState = getOnboardingState();
+  const nextState: OnboardingState = {
+    ...currentState,
+    hydrationGoal: clampHydrationGoal(hydrationGoal),
+  };
+
+  storage.set(onboardingStorageKeys.hydrationGoal, nextState.hydrationGoal);
+
+  return nextState;
+};

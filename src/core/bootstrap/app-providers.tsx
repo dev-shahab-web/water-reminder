@@ -1,10 +1,11 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'expo-router';
-import { type PropsWithChildren, useMemo } from 'react';
+import { type PropsWithChildren, useMemo, useSyncExternalStore } from 'react';
 import { useColorScheme } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import { Provider as ReduxProvider } from 'react-redux';
 
+import { getSettingsState, subscribeToSettings } from '@modules/settings/storage/settings-storage';
 import { queryClient } from '@query/client';
 import {
   appDarkTheme,
@@ -16,7 +17,11 @@ import { store } from '@state/store';
 
 export function AppProviders({ children }: PropsWithChildren) {
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
+  const settings = useSyncExternalStore(subscribeToSettings, getSettingsState, getSettingsState);
+  const isDark =
+    settings.themePreference === 'system'
+      ? colorScheme === 'dark'
+      : settings.themePreference === 'dark';
 
   const paperTheme = useMemo(() => (isDark ? appDarkTheme : appLightTheme), [isDark]);
   const navigationTheme = useMemo(

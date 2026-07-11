@@ -64,6 +64,41 @@ export const hasAnyHydrationEntries = async (): Promise<boolean> => {
   return (row?.entryCount ?? 0) > 0;
 };
 
+export const getHydrationEntryCount = async (): Promise<number> => {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<{ entryCount: number }>(
+    `
+      SELECT COUNT(*) AS entryCount
+      FROM hydration_entries;
+    `,
+    [],
+  );
+
+  return row?.entryCount ?? 0;
+};
+
+export const getHydrationDatabaseSizeBytes = async (): Promise<number> => {
+  const database = await getDatabase();
+  const pageCount = await database.getFirstAsync<{ page_count: number }>('PRAGMA page_count;', []);
+  const pageSize = await database.getFirstAsync<{ page_size: number }>('PRAGMA page_size;', []);
+
+  return (pageCount?.page_count ?? 0) * (pageSize?.page_size ?? 0);
+};
+
+export const getAllHydrationEntries = async (): Promise<HydrationEntry[]> => {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<HydrationEntryRow>(
+    `
+      SELECT id, timestamp, amount, source, createdAt, updatedAt
+      FROM hydration_entries
+      ORDER BY timestamp DESC;
+    `,
+    [],
+  );
+
+  return rows.map(mapRowToEntry);
+};
+
 export const addHydrationEntry = async ({
   amount,
   source,
@@ -128,4 +163,37 @@ export const deleteHydrationEntry = async (id: string): Promise<string> => {
   await database.runAsync('DELETE FROM hydration_entries WHERE id = ?;', [id]);
 
   return id;
+};
+
+export const deleteAllHydrationEntries = async (): Promise<void> => {
+  const database = await getDatabase();
+
+  await database.runAsync('DELETE FROM hydration_entries;', []);
+};
+
+export const replaceHydrationEntries = async (
+  entries: readonly HydrationEntry[],
+): Promise<void> => {
+  const database = await getDatabase();
+
+  await database.execAsync('BEGIN TRANSACTION;');
+
+  try {
+    await database.runAsync('DELETE FROM hydration_entries;', []);
+
+    for (const entry of entries) {
+      await database.runAsync(
+        `
+          INSERT INTO hydration_entries (id, timestamp, amount, source, createdAt, updatedAt)
+          VALUES (?, ?, ?, ?, ?, ?);
+        `,
+        [entry.id, entry.timestamp, entry.amount, entry.source, entry.createdAt, entry.updatedAt],
+      );
+    }
+
+    await database.execAsync('COMMIT;');
+  } catch (error) {
+    await database.execAsync('ROLLBACK;');
+    throw error;
+  }
 };

@@ -1,7 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, useColorScheme, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
-import type { AppTheme } from '@shared/theme';
+import { appDarkTheme, appLightTheme, type AppTheme } from '@shared/theme';
 
 type BrandMarkProps = {
   label?: string;
@@ -9,7 +9,14 @@ type BrandMarkProps = {
 };
 
 export function BrandMark({ label = 'Water Reminder', size = 112 }: BrandMarkProps) {
-  const theme = useTheme<AppTheme>();
+  const colorScheme = useColorScheme();
+  const providedTheme = useTheme<Partial<AppTheme>>();
+  const theme =
+    providedTheme.app === undefined
+      ? colorScheme === 'dark'
+        ? appDarkTheme
+        : appLightTheme
+      : (providedTheme as AppTheme);
   const dropWidth = size * 0.38;
   const dropHeight = size * 0.56;
 

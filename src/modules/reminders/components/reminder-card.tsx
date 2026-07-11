@@ -1,8 +1,9 @@
 import { memo, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
 import { PrimaryButton, SecondaryButton, SectionHeader } from '@shared/components';
+import { AnimatedCard, AnimatedPressableScale } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 
 import type { ReminderIntervalMinutes, ReminderPauseOption, ReminderStatus } from '../types';
@@ -52,7 +53,7 @@ export const ReminderCard = memo(function ReminderCard({
   const theme = useTheme<AppTheme>();
 
   return (
-    <View
+    <AnimatedCard
       style={[
         styles.card,
         {
@@ -83,6 +84,8 @@ export const ReminderCard = memo(function ReminderCard({
       >
         {preview}
       </Text>
+
+      {enabled ? null : <ReminderOffState />}
 
       {permissionMessage === undefined ? null : (
         <Text
@@ -155,7 +158,7 @@ export const ReminderCard = memo(function ReminderCard({
           </ControlGroup>
         </>
       ) : null}
-    </View>
+    </AnimatedCard>
   );
 });
 
@@ -182,6 +185,38 @@ function ControlGroup({ children, label }: ControlGroupProps) {
         {label}
       </Text>
       {children}
+    </View>
+  );
+}
+
+function ReminderOffState() {
+  const theme = useTheme<AppTheme>();
+
+  return (
+    <View style={styles.reminderOffState}>
+      <View
+        accessibilityElementsHidden
+        importantForAccessibility="no"
+        style={[
+          styles.reminderGlyph,
+          {
+            borderColor: theme.app.colors.hydrationProgress,
+            borderRadius: theme.app.radius.full,
+          },
+        ]}
+      />
+      <Text
+        style={[
+          styles.reminderOffText,
+          {
+            color: theme.app.colors.textSecondary,
+            fontSize: theme.app.typography.fontSize.caption,
+            lineHeight: theme.app.typography.lineHeight.caption,
+          },
+        ]}
+      >
+        Reminders are quiet until you turn them on.
+      </Text>
     </View>
   );
 }
@@ -229,11 +264,12 @@ function OptionButton({ accessibilityLabel, label, onPress, selected }: OptionBu
   const theme = useTheme<AppTheme>();
 
   return (
-    <Pressable
+    <AnimatedPressableScale
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
+      pressedScale={0.97}
       style={({ pressed }) => [
         styles.optionButton,
         {
@@ -258,7 +294,7 @@ function OptionButton({ accessibilityLabel, label, onPress, selected }: OptionBu
       >
         {label}
       </Text>
-    </Pressable>
+    </AnimatedPressableScale>
   );
 }
 
@@ -345,4 +381,17 @@ const styles = StyleSheet.create({
   },
   permissionMessage: {},
   preview: {},
+  reminderGlyph: {
+    borderWidth: 2,
+    height: 28,
+    width: 28,
+  },
+  reminderOffState: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  reminderOffText: {
+    flex: 1,
+  },
 });

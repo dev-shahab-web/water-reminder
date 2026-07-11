@@ -4,6 +4,7 @@ import Animated, { Easing, FadeInDown, FadeOutUp, useReducedMotion } from 'react
 import { useTheme } from 'react-native-paper';
 
 import { SecondaryButton, SectionHeader } from '@shared/components';
+import { EmptyState } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 
 import type { HydrationEntry } from '../types';
@@ -32,8 +33,13 @@ export const HydrationTimeline = memo(function HydrationTimeline({
   if (entries.length === 0) {
     return (
       <View style={styles.section}>
+        <EmptyState
+          message="Water you log today will appear here."
+          title="No entries yet."
+          variant="glass"
+        />
         <SectionHeader
-          subtitle="Add your first drink to start today's progress."
+          subtitle="Add water from Quick add when you're ready."
           title="No water logged yet today."
         />
       </View>

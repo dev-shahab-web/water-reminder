@@ -2,14 +2,12 @@ import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
 import type { AppTheme } from '@shared/theme';
 import { addNotificationResponseListener } from '@platform/notifications';
 
 export function AppShell() {
-  const colorScheme = useColorScheme();
   const theme = useTheme<AppTheme>();
 
   useEffect(() => {
@@ -42,7 +40,7 @@ export function AppShell() {
           headerShown: false,
         }}
       />
-      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style={theme.dark ? 'light' : 'dark'} />
     </>
   );
 }

@@ -7,11 +7,11 @@ import Animated, {
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
-  withSequence,
   withTiming,
 } from 'react-native-reanimated';
 import { useTheme } from 'react-native-paper';
 
+import { AnimatedCounter, motionDuration } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 
 type HydrationRingProps = {
@@ -37,7 +37,7 @@ export const HydrationRing = memo(function HydrationRing({
   const reduceMotion = useReducedMotion();
   const progress = useSharedValue(Math.min(totalAmount / goalAmount, 1));
   const ripple = useSharedValue(0);
-  const pulse = useSharedValue(1);
+  const completionGlow = useSharedValue(totalAmount >= goalAmount ? 1 : 0);
   const previousAmount = useRef(totalAmount);
   const previousAttentionKey = useRef(attentionKey);
 
@@ -45,7 +45,7 @@ export const HydrationRing = memo(function HydrationRing({
   const isComplete = totalAmount >= goalAmount;
 
   useEffect(() => {
-    const duration = reduceMotion ? 0 : 260;
+    const duration = reduceMotion ? 0 : motionDuration.standard;
     progress.value = withTiming(cappedProgress, {
       duration,
       easing: Easing.out(Easing.cubic),
@@ -54,7 +54,7 @@ export const HydrationRing = memo(function HydrationRing({
     if (totalAmount !== previousAmount.current) {
       ripple.value = 0;
       ripple.value = withTiming(1, {
-        duration: reduceMotion ? 0 : 280,
+        duration: reduceMotion ? 0 : 300,
         easing: Easing.out(Easing.cubic),
       });
     }
@@ -62,48 +62,41 @@ export const HydrationRing = memo(function HydrationRing({
     if (attentionKey !== undefined && attentionKey !== previousAttentionKey.current) {
       ripple.value = 0;
       ripple.value = withTiming(1, {
-        duration: reduceMotion ? 0 : 280,
+        duration: reduceMotion ? 0 : 300,
         easing: Easing.out(Easing.cubic),
       });
     }
 
-    if (previousAmount.current < goalAmount && totalAmount >= goalAmount) {
-      pulse.value = withSequence(
-        withTiming(reduceMotion ? 1 : 1.03, {
-          duration: reduceMotion ? 0 : 180,
-          easing: Easing.out(Easing.cubic),
-        }),
-        withTiming(1, {
-          duration: reduceMotion ? 0 : 220,
-          easing: Easing.out(Easing.cubic),
-        }),
-      );
-    }
+    completionGlow.value = withTiming(isComplete ? 1 : 0, {
+      duration: reduceMotion ? 0 : motionDuration.slow,
+      easing: Easing.out(Easing.cubic),
+    });
 
     previousAmount.current = totalAmount;
     previousAttentionKey.current = attentionKey;
   }, [
     attentionKey,
     cappedProgress,
+    completionGlow,
     goalAmount,
+    isComplete,
     progress,
-    pulse,
     reduceMotion,
     ripple,
     totalAmount,
   ]);
 
   const waterStyle = useAnimatedStyle(() => ({
-    transform: [{ scaleY: progress.value }],
+    transform: [{ translateY: (1 - progress.value) * (RING_SIZE - 36) }],
   }));
 
   const rippleStyle = useAnimatedStyle(() => ({
-    opacity: reduceMotion ? 0 : 0.32 * (1 - ripple.value),
-    transform: [{ scale: 0.55 + ripple.value * 0.72 }],
+    opacity: reduceMotion ? 0 : 0.34 * (1 - ripple.value),
+    transform: [{ scale: 0.64 + ripple.value * 0.66 }],
   }));
 
-  const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulse.value }],
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: reduceMotion ? completionGlow.value * 0.22 : completionGlow.value * 0.36,
   }));
 
   return (
@@ -124,9 +117,20 @@ export const HydrationRing = memo(function HydrationRing({
           height: RING_SIZE,
           width: RING_SIZE,
         },
-        pulseStyle,
       ]}
     >
+      <Animated.View
+        style={[
+          styles.completeGlow,
+          {
+            backgroundColor: theme.app.colors.hydrationComplete,
+            borderRadius: RING_SIZE / 2,
+            height: RING_SIZE,
+            width: RING_SIZE,
+          },
+          glowStyle,
+        ]}
+      />
       <View
         style={[
           styles.glass,
@@ -145,7 +149,16 @@ export const HydrationRing = memo(function HydrationRing({
             },
             waterStyle,
           ]}
-        />
+        >
+          <View
+            style={[
+              styles.waterSurface,
+              {
+                backgroundColor: theme.app.colors.hydrationProgress,
+              },
+            ]}
+          />
+        </Animated.View>
         <Animated.View
           style={[
             styles.ripple,
@@ -206,34 +219,10 @@ type AnimatedAmountProps = {
 
 function AnimatedAmount({ amount }: AnimatedAmountProps) {
   const theme = useTheme<AppTheme>();
-  const reduceMotion = useReducedMotion();
-  const opacity = useSharedValue(1);
-  const translateY = useSharedValue(0);
-  const previousAmount = useRef(amount);
-
-  useEffect(() => {
-    if (previousAmount.current !== amount) {
-      opacity.value = reduceMotion ? 1 : 0.3;
-      translateY.value = reduceMotion ? 0 : 6;
-      opacity.value = withTiming(1, {
-        duration: reduceMotion ? 0 : 160,
-        easing: Easing.out(Easing.cubic),
-      });
-      translateY.value = withTiming(0, {
-        duration: reduceMotion ? 0 : 160,
-        easing: Easing.out(Easing.cubic),
-      });
-      previousAmount.current = amount;
-    }
-  }, [amount, opacity, reduceMotion, translateY]);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ translateY: translateY.value }],
-  }));
 
   return (
-    <Animated.Text
+    <AnimatedCounter
+      value={amount}
       style={[
         styles.amount,
         {
@@ -242,11 +231,8 @@ function AnimatedAmount({ amount }: AnimatedAmountProps) {
           fontSize: theme.app.typography.fontSize.display,
           lineHeight: theme.app.typography.lineHeight.display,
         },
-        animatedStyle,
       ]}
-    >
-      {amount}
-    </Animated.Text>
+    />
   );
 }
 
@@ -303,6 +289,9 @@ const styles = StyleSheet.create({
     gap: 2,
     paddingHorizontal: 28,
   },
+  completeGlow: {
+    position: 'absolute',
+  },
   container: {
     alignItems: 'center',
     alignSelf: 'center',
@@ -340,7 +329,11 @@ const styles = StyleSheet.create({
     height: '100%',
     opacity: 0.76,
     position: 'absolute',
-    transformOrigin: 'bottom',
+    width: '100%',
+  },
+  waterSurface: {
+    height: 2,
+    opacity: 0.44,
     width: '100%',
   },
 });

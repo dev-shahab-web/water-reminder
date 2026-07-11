@@ -1,6 +1,8 @@
 import { StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useTheme } from 'react-native-paper';
 
+import { motionDuration } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 
 import type { DailyHydrationPoint } from '../types/statistics';
@@ -11,6 +13,7 @@ type MonthlyHeatmapProps = {
 
 export function MonthlyHeatmap({ points }: MonthlyHeatmapProps) {
   const theme = useTheme<AppTheme>();
+  const reduceMotion = useReducedMotion();
 
   return (
     <View
@@ -19,12 +22,17 @@ export function MonthlyHeatmap({ points }: MonthlyHeatmapProps) {
         .join('. ')}
       style={styles.grid}
     >
-      {points.map((point) => {
+      {points.map((point, index) => {
         const intensity = Math.min(point.percentComplete, 1);
 
         return (
-          <View
+          <Animated.View
             key={point.dateKey}
+            entering={
+              reduceMotion
+                ? undefined
+                : FadeIn.duration(motionDuration.standard).delay(Math.min(index * 8, 180))
+            }
             style={[
               styles.cell,
               {
@@ -54,7 +62,7 @@ export function MonthlyHeatmap({ points }: MonthlyHeatmapProps) {
             >
               {Number(point.dateKey.slice(-2))}
             </Text>
-          </View>
+          </Animated.View>
         );
       })}
     </View>

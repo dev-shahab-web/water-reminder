@@ -1,6 +1,7 @@
-import { Pressable, StyleSheet, Text, type PressableProps } from 'react-native';
+import { StyleSheet, Text, type PressableProps } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
+import { AnimatedPressableScale } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 
 type PrimaryButtonProps = PressableProps & {
@@ -11,9 +12,10 @@ export function PrimaryButton({ disabled = false, label, style, ...props }: Prim
   const theme = useTheme<AppTheme>();
 
   return (
-    <Pressable
+    <AnimatedPressableScale
       accessibilityRole="button"
       disabled={disabled}
+      pressedScale={0.982}
       style={(state) => [
         styles.button,
         {
@@ -37,7 +39,7 @@ export function PrimaryButton({ disabled = false, label, style, ...props }: Prim
       >
         {label}
       </Text>
-    </Pressable>
+    </AnimatedPressableScale>
   );
 }
 

@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
+import { AnimatedCard } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 
 import type { HydrationSummary } from '../../types';
@@ -15,7 +16,7 @@ export function HistoryDaySummary({ summary }: HistoryDaySummaryProps) {
   const isComplete = summary.totalAmount >= summary.goalAmount;
 
   return (
-    <View
+    <AnimatedCard
       accessibilityLabel={`${summary.totalAmount} milliliters logged. Daily goal ${summary.goalAmount} milliliters. ${percentComplete} percent complete.`}
       style={[
         styles.card,
@@ -32,7 +33,7 @@ export function HistoryDaySummary({ summary }: HistoryDaySummaryProps) {
         label={isComplete ? 'Status' : 'Remaining'}
         value={isComplete ? 'Goal met' : `${summary.remainingAmount} ml`}
       />
-    </View>
+    </AnimatedCard>
   );
 }
 

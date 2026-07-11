@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
+import { AnimatedCard } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 
 type StatCardProps = {
@@ -12,7 +13,7 @@ export function StatCard({ label, value }: StatCardProps) {
   const theme = useTheme<AppTheme>();
 
   return (
-    <View
+    <AnimatedCard
       style={[
         styles.card,
         {
@@ -46,7 +47,7 @@ export function StatCard({ label, value }: StatCardProps) {
       >
         {value}
       </Text>
-    </View>
+    </AnimatedCard>
   );
 }
 
