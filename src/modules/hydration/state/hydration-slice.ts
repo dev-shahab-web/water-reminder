@@ -7,6 +7,7 @@ import {
   updateHydrationEntry,
 } from '../repository/hydration-repository';
 import type { HydrationEntry, HydrationEntrySource } from '../types';
+import { getLocalDateKey } from '../utils/date';
 
 type HydrationStatus = 'idle' | 'loading' | 'ready' | 'saving' | 'error';
 
@@ -53,6 +54,10 @@ const sortEntries = (entries: HydrationEntry[]) => {
   entries.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 };
 
+const isTodayEntry = (entry: HydrationEntry): boolean => {
+  return getLocalDateKey(new Date(entry.timestamp)) === getLocalDateKey();
+};
+
 export const hydrationSlice = createSlice({
   initialState,
   name: 'hydration',
@@ -96,7 +101,13 @@ export const hydrationSlice = createSlice({
         const index = state.entries.findIndex((entry) => entry.id === action.payload.id);
 
         if (index >= 0) {
-          state.entries[index] = action.payload;
+          if (isTodayEntry(action.payload)) {
+            state.entries[index] = action.payload;
+          } else {
+            state.entries.splice(index, 1);
+          }
+        } else if (isTodayEntry(action.payload)) {
+          state.entries.unshift(action.payload);
         }
 
         sortEntries(state.entries);

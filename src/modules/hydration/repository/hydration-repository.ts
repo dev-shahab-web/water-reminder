@@ -47,6 +47,23 @@ export const getTodayHydrationEntries = async (date = new Date()): Promise<Hydra
   return rows.map(mapRowToEntry);
 };
 
+export const getHydrationEntriesForDate = async (date: Date): Promise<HydrationEntry[]> => {
+  return getTodayHydrationEntries(date);
+};
+
+export const hasAnyHydrationEntries = async (): Promise<boolean> => {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<{ entryCount: number }>(
+    `
+      SELECT COUNT(*) AS entryCount
+      FROM hydration_entries;
+    `,
+    [],
+  );
+
+  return (row?.entryCount ?? 0) > 0;
+};
+
 export const addHydrationEntry = async ({
   amount,
   source,

@@ -15,6 +15,7 @@ import {
 } from '@modules/hydration';
 import { useOnboardingState } from '@modules/onboarding';
 import { ReminderCard, useReminders } from '@modules/reminders';
+import { useStatisticsPreview } from '@modules/statistics';
 import {
   AppScreen,
   BrandMark,
@@ -54,6 +55,7 @@ export default function HomeScreen() {
     goalAmount: summary.goalAmount,
     totalAmount: summary.totalAmount,
   });
+  const statisticsPreview = useStatisticsPreview(summary.goalAmount);
 
   useEffect(() => {
     if (!state.onboardingCompleted) {
@@ -202,6 +204,13 @@ export default function HomeScreen() {
           label="Custom amount"
           onPress={openCustomAmount}
         />
+        <SecondaryButton
+          accessibilityLabel="Open hydration history"
+          label="History"
+          onPress={() => {
+            router.push('/history' as never);
+          }}
+        />
       </View>
 
       <ReminderCard
@@ -225,6 +234,11 @@ export default function HomeScreen() {
         wakeTime={reminders.preferences.wakeTime}
       />
 
+      <StatisticsPreviewCard
+        currentStreak={statisticsPreview?.currentStreak ?? 0}
+        weeklyAverage={statisticsPreview?.weeklyAverage ?? 0}
+      />
+
       <HydrationTimeline
         entries={summary.entries}
         onDeleteEntry={confirmDeleteEntry}
@@ -245,6 +259,42 @@ export default function HomeScreen() {
         visible={amountModal !== undefined}
       />
     </AppScreen>
+  );
+}
+
+function StatisticsPreviewCard({
+  currentStreak,
+  weeklyAverage,
+}: {
+  currentStreak: number;
+  weeklyAverage: number;
+}) {
+  const theme = useTheme<AppTheme>();
+
+  return (
+    <View
+      style={[
+        styles.statisticsPreview,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.app.colors.borderSubtle,
+          borderRadius: theme.app.radius.lg,
+        },
+      ]}
+    >
+      <SectionHeader subtitle="A quiet look at your recent rhythm." title="Statistics" />
+      <View style={styles.statisticsPreviewMetrics}>
+        <Metric label="Current streak" value={`${currentStreak} days`} />
+        <Metric label="Weekly average" value={`${weeklyAverage} ml`} />
+      </View>
+      <SecondaryButton
+        accessibilityLabel="Open hydration statistics"
+        label="View statistics"
+        onPress={() => {
+          router.push('/statistics' as never);
+        }}
+      />
+    </View>
   );
 }
 
@@ -348,6 +398,16 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: 14,
+  },
+  statisticsPreview: {
+    borderWidth: 1,
+    gap: 14,
+    padding: 18,
+  },
+  statisticsPreviewMetrics: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   undoBanner: {
     alignItems: 'center',
