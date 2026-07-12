@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Alert, Modal, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
+import { HealthConnectCard } from '@modules/health-connect';
 import { ReminderCard } from '@modules/reminders';
 import { AppScreen, PrimaryButton, SecondaryButton, SectionHeader } from '@shared/components';
 import type { AppTheme } from '@shared/theme';
@@ -309,6 +310,10 @@ export function SettingsScreen() {
             void sendTestNotification();
           }}
         />
+      </View>
+
+      <View style={styles.sectionGroup}>
+        <HealthConnectCard />
       </View>
 
       <SettingsSection subtitle="Your hydration data stays on this device." title="Data">

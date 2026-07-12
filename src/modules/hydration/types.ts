@@ -1,10 +1,20 @@
-export const HYDRATION_ENTRY_SOURCES = ['quick_add', 'custom', 'edit'] as const;
+export const HYDRATION_ENTRY_SOURCES = [
+  'quick_add',
+  'custom',
+  'edit',
+  'health_connect',
+  'widget',
+] as const;
 
 export type HydrationEntrySource = (typeof HYDRATION_ENTRY_SOURCES)[number];
 
 export type HydrationEntry = {
   amount: number;
   createdAt: string;
+  healthConnectClientRecordId?: string;
+  healthConnectDataOrigin?: string;
+  healthConnectRecordId?: string;
+  healthConnectSyncedAt?: string;
   id: string;
   source: HydrationEntrySource;
   timestamp: string;

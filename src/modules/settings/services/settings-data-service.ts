@@ -14,7 +14,13 @@ export type SettingsDataSummary = {
   totalEntries: number;
 };
 
-const validSources = new Set<HydrationEntrySource>(['quick_add', 'custom', 'edit']);
+const validSources = new Set<HydrationEntrySource>([
+  'quick_add',
+  'custom',
+  'edit',
+  'health_connect',
+  'widget',
+]);
 
 const isExportEntry = (value: unknown): value is HydrationDataExportEntry => {
   if (typeof value !== 'object' || value === null) {
@@ -31,7 +37,15 @@ const isExportEntry = (value: unknown): value is HydrationDataExportEntry => {
     typeof candidate.source === 'string' &&
     validSources.has(candidate.source as HydrationEntrySource) &&
     typeof candidate.createdAt === 'string' &&
-    typeof candidate.updatedAt === 'string'
+    typeof candidate.updatedAt === 'string' &&
+    (candidate.healthConnectRecordId === undefined ||
+      typeof candidate.healthConnectRecordId === 'string') &&
+    (candidate.healthConnectClientRecordId === undefined ||
+      typeof candidate.healthConnectClientRecordId === 'string') &&
+    (candidate.healthConnectDataOrigin === undefined ||
+      typeof candidate.healthConnectDataOrigin === 'string') &&
+    (candidate.healthConnectSyncedAt === undefined ||
+      typeof candidate.healthConnectSyncedAt === 'string')
   );
 };
 
@@ -94,6 +108,10 @@ export const importHydrationDatabase = async (payload: string): Promise<number> 
   const entries: HydrationEntry[] = hydrationExport.entries.map((entry) => ({
     amount: entry.amount,
     createdAt: entry.createdAt,
+    healthConnectClientRecordId: entry.healthConnectClientRecordId,
+    healthConnectDataOrigin: entry.healthConnectDataOrigin,
+    healthConnectRecordId: entry.healthConnectRecordId,
+    healthConnectSyncedAt: entry.healthConnectSyncedAt,
     id: entry.id,
     source: entry.source as HydrationEntrySource,
     timestamp: entry.timestamp,

@@ -17,7 +17,9 @@ type HistoryEntryListProps = {
 const sourceLabels: Record<HydrationEntry['source'], string> = {
   custom: 'Custom amount',
   edit: 'Edited',
+  health_connect: 'Health Connect',
   quick_add: 'Quick add',
+  widget: 'Widget',
 };
 
 export function HistoryEntryList({ entries, onDeleteEntry, onEditEntry }: HistoryEntryListProps) {

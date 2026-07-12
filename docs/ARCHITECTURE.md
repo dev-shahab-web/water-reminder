@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document is the current architectural reference for Water Reminder. It describes the system as implemented after the product foundation, onboarding, Home logging loop, reminders, history, statistics, settings, and delight engine work.
+This document is the current architectural reference for Water Reminder. It describes the system as implemented after the product foundation, onboarding, Home logging loop, reminders, history, statistics, settings, delight engine, and optional Android Health Connect work.
 
 Use this document before adding new product surfaces. Product decisions remain governed by [Product Principles](./PRODUCT_PRINCIPLES.md), [Anti-Goals](./ANTI_GOALS.md), and [Product Requirements](./PRODUCT_REQUIREMENTS.md).
 
@@ -14,6 +14,7 @@ Use this document before adding new product surfaces. Product decisions remain g
 - Expo Router owns navigation.
 - Feature modules own product behavior.
 - Platform adapters isolate native and infrastructure APIs.
+- Health data integrations are optional adapters, never core dependencies.
 - UI components stay thin and reusable.
 - Business rules live in hooks, services, repositories, and utilities.
 - Motion is centralized and respects Reduce Motion.
@@ -256,6 +257,39 @@ Persistence:
 - MMKV for preferences.
 - SQLite repository helpers for hydration data management.
 
+### Health Connect
+
+Path:
+
+```txt
+src/modules/health-connect/
+src/platform/health/
+```
+
+Responsibilities:
+
+- Android Health Connect availability detection.
+- Explicit hydration-only permission request flow.
+- Manual and initial hydration synchronization.
+- Writing local Water Reminder logs to Health Connect.
+- Importing external hydration records into local SQLite.
+- Duplicate prevention through Health Connect record and client ids.
+- Last sync status and recoverable error metadata.
+- Settings integration.
+
+Persistence:
+
+- SQLite stores imported hydration entries and source metadata.
+- MMKV stores sync status metadata only.
+
+Rules:
+
+- Health Connect is optional and Android-only.
+- Web and unsupported platforms return a typed unsupported state.
+- Core hydration tracking must continue without Health Connect.
+- Only hydration read/write permissions are requested.
+- Health data is never sent to a backend.
+
 ## Data Flow
 
 ### Logging Water
@@ -321,6 +355,27 @@ Settings route
 -> hydration data service
 ```
 
+### Health Connect Sync
+
+```txt
+Settings
+-> HealthConnectCard
+-> useHealthConnect
+-> health-connect-sync-service
+-> platform healthDataService
+-> Health Connect native SDK on Android
+```
+
+Sync policy:
+
+- User action is required before requesting permission.
+- Local entries with `quick_add`, `custom`, or `edit` sources are written when not yet synced.
+- Imported records are stored with `source = health_connect`.
+- Duplicate prevention checks Health Connect record id, client record id, and local id.
+- Initial sync reads the previous 365 days.
+- Incremental sync reads from the last successful sync with a one-day overlap.
+- Last sync status and error copy are stored in MMKV for explainability.
+
 ## SQLite Schema
 
 Implemented table:
@@ -330,13 +385,29 @@ CREATE TABLE IF NOT EXISTS hydration_entries (
   id TEXT PRIMARY KEY NOT NULL,
   timestamp TEXT NOT NULL,
   amount INTEGER NOT NULL CHECK (amount > 0),
-  source TEXT NOT NULL CHECK (source IN ('quick_add', 'custom', 'edit')),
+  source TEXT NOT NULL CHECK (source IN ('quick_add', 'custom', 'edit', 'health_connect', 'widget')),
   createdAt TEXT NOT NULL,
-  updatedAt TEXT NOT NULL
+  updatedAt TEXT NOT NULL,
+  healthConnectRecordId TEXT UNIQUE,
+  healthConnectClientRecordId TEXT UNIQUE,
+  healthConnectDataOrigin TEXT,
+  healthConnectSyncedAt TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_hydration_entries_timestamp
   ON hydration_entries (timestamp);
+
+CREATE INDEX IF NOT EXISTS idx_hydration_entries_health_connect_record
+  ON hydration_entries (healthConnectRecordId);
+
+CREATE INDEX IF NOT EXISTS idx_hydration_entries_health_connect_client_record
+  ON hydration_entries (healthConnectClientRecordId);
+
+CREATE TABLE IF NOT EXISTS widget_actions (
+  actionId TEXT PRIMARY KEY NOT NULL,
+  amount INTEGER NOT NULL CHECK (amount > 0),
+  createdAt TEXT NOT NULL
+);
 ```
 
 Canonical rules:
@@ -344,7 +415,12 @@ Canonical rules:
 - `amount` is stored in milliliters.
 - `timestamp`, `createdAt`, and `updatedAt` are ISO strings.
 - Local day grouping is derived in application utilities.
-- Entry source is one of `quick_add`, `custom`, or `edit`.
+- Entry source is one of `quick_add`, `custom`, `edit`, `health_connect`, or `widget`.
+- `widget_actions` stores processed widget action ids so home-screen quick-add taps are idempotent.
+- `healthConnectRecordId` identifies a Health Connect record imported from or written to Android Health Connect.
+- `healthConnectClientRecordId` stores the local client id used for duplicate prevention.
+- `healthConnectDataOrigin` records the origin package when Health Connect provides it.
+- `healthConnectSyncedAt` records the last local sync time for explainability.
 
 Database files:
 
@@ -396,6 +472,14 @@ Settings:
 | `settingsThemePreference` | string  | `system`, `light`, or `dark`.           |
 | `settingsReduceMotion`    | boolean | Product-level reduce motion preference. |
 | `settingsStartOfDay`      | string  | Start-of-day preference, `HH:mm`.       |
+
+Health Connect:
+
+| Key                           | Type   | Purpose                                   |
+| ----------------------------- | ------ | ----------------------------------------- |
+| `healthConnectLastError`      | string | Last recoverable sync error message.      |
+| `healthConnectLastSyncIso`    | string | Last successful sync timestamp.           |
+| `healthConnectLastSyncStatus` | string | `idle`, `syncing`, `success`, or `error`. |
 
 MMKV rules:
 
@@ -614,9 +698,9 @@ Public module exports:
 
 ### Health Connect
 
-Future Health Connect support should be additive and optional.
+Health Connect support is implemented as an optional Android integration.
 
-Recommended shape:
+Current shape:
 
 ```txt
 src/platform/health/
@@ -628,40 +712,47 @@ Integration rules:
 - Do not make Health Connect required for core tracking.
 - Ask permission only after explaining value.
 - Keep SQLite hydration entries locally authoritative.
-- Treat imported health data as a separate source until product rules define merging.
+- Treat imported health data as a separate `health_connect` source.
 - Never silently export hydration logs.
-- Add clear conflict and deduplication rules before implementation.
+- Do not request broad health permissions.
+- Keep Health Connect native types behind `src/platform/health`.
+- Do not scatter generated Android changes when a config plugin can express the requirement.
 
-Likely source additions:
+Extension points:
 
-- New platform adapter for Health Connect permissions/read/write.
-- New module service for import/export policy.
-- New repository fields or table only after schema review.
+- Add conflict resolution before supporting Health Connect record updates or deletes.
+- Add HealthKit behind the same `HealthDataService` interface if iOS health sync is approved.
 
 ### Widgets
 
-Future widgets should be additive retention surfaces, not a separate product.
+Android home-screen widgets are implemented as an additive retention surface, not a separate product.
 
-Recommended shape:
+Current shape:
 
 ```txt
 src/platform/widgets/
 src/modules/widgets/
+plugins/water-reminder-widget/
 ```
 
 Integration rules:
 
-- Widget should show today progress and quick add only if platform-safe.
-- Widget data should be derived from local state.
-- Widget actions must preserve offline-first behavior.
+- Widgets show today progress, remaining amount, streak context, reminder context, and quick-add actions.
+- Widget data is derived from local SQLite, MMKV settings, and reminder preferences through `refreshHydrationWidgets`.
+- Widget actions preserve offline-first behavior by writing directly to the local SQLite database when React Native is not running.
 - Do not require account, cloud sync, or network.
 - Keep widget copy calm and non-guilt-based.
+- Treat widget logs as `source = 'widget'`.
+- Deduplicate quick-add taps through `widget_actions`.
+- Express Android native registration, Glance dependencies, resources, and React Native package wiring through the Expo config plugin.
 
-Likely source additions:
+Implementation pieces:
 
-- Platform widget adapter.
-- Shared serialization of today summary.
-- Widget refresh service triggered after log/edit/delete and goal changes.
+- `src/modules/widgets/services/widget-state-builder.ts` builds the serializable widget snapshot.
+- `src/modules/widgets/services/widget-refresh-coordinator.ts` writes the snapshot and asks Android to refresh widgets.
+- `src/platform/widgets/widget-native-module.ts` is the platform boundary for native widget refresh.
+- `plugins/water-reminder-widget/` owns Jetpack Glance widget templates and the config plugin that regenerates native Android files.
+- Native widget quick-add inserts into `hydration_entries` and updates the widget snapshot without requiring network or an active React Native bridge.
 
 ## Change Guidance
 

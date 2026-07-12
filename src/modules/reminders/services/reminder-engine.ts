@@ -3,6 +3,7 @@ import {
   requestNotificationPermissions,
   scheduleLocalNotification,
 } from '@platform/notifications';
+import { refreshHydrationWidgets } from '@modules/widgets';
 
 import type {
   ReminderPauseOption,
@@ -98,6 +99,7 @@ export const reconcileReminderSchedule = async (
   });
 
   setLastReminderScheduleSignature(signature);
+  void refreshHydrationWidgets('reminder_changed');
 
   return nextPreferences;
 };
@@ -109,23 +111,31 @@ export const enableReminders = async (
 
   if (!permission.granted) {
     await cancelLocalNotifications(preferences.scheduledNotificationIds);
+    const nextPreferences = setReminderPreferences({
+      ...preferences,
+      enabled: false,
+      scheduledNotificationIds: [],
+    });
+
+    void refreshHydrationWidgets('reminder_changed');
+
     return {
       granted: false,
-      preferences: setReminderPreferences({
-        ...preferences,
-        enabled: false,
-        scheduledNotificationIds: [],
-      }),
+      preferences: nextPreferences,
     };
   }
 
+  const nextPreferences = setReminderPreferences({
+    ...preferences,
+    enabled: true,
+    pausedUntilIso: undefined,
+  });
+
+  void refreshHydrationWidgets('reminder_changed');
+
   return {
     granted: true,
-    preferences: setReminderPreferences({
-      ...preferences,
-      enabled: true,
-      pausedUntilIso: undefined,
-    }),
+    preferences: nextPreferences,
   };
 };
 
@@ -134,21 +144,29 @@ export const disableReminders = async (
 ): Promise<ReminderPreferences> => {
   await cancelLocalNotifications(preferences.scheduledNotificationIds);
 
-  return setReminderPreferences({
+  const nextPreferences = setReminderPreferences({
     ...preferences,
     enabled: false,
     scheduledNotificationIds: [],
   });
+
+  void refreshHydrationWidgets('reminder_changed');
+
+  return nextPreferences;
 };
 
 export const updateReminderSchedulePreference = (
   preferences: ReminderPreferences,
   updates: Partial<Pick<ReminderPreferences, 'intervalMinutes' | 'sleepTime' | 'wakeTime'>>,
 ): ReminderPreferences => {
-  return setReminderPreferences({
+  const nextPreferences = setReminderPreferences({
     ...preferences,
     ...updates,
   });
+
+  void refreshHydrationWidgets('reminder_changed');
+
+  return nextPreferences;
 };
 
 export const pauseReminders = async (
@@ -165,16 +183,24 @@ export const pauseReminders = async (
 
   await cancelLocalNotifications(preferences.scheduledNotificationIds);
 
-  return setReminderPreferences({
+  const nextPreferences = setReminderPreferences({
     ...preferences,
     pausedUntilIso: pausedUntil.toISOString(),
     scheduledNotificationIds: [],
   });
+
+  void refreshHydrationWidgets('reminder_changed');
+
+  return nextPreferences;
 };
 
 export const resumeReminders = (preferences: ReminderPreferences): ReminderPreferences => {
-  return setReminderPreferences({
+  const nextPreferences = setReminderPreferences({
     ...preferences,
     pausedUntilIso: undefined,
   });
+
+  void refreshHydrationWidgets('reminder_changed');
+
+  return nextPreferences;
 };

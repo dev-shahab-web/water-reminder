@@ -12,6 +12,10 @@
     },
     "android": {
       "package": "com.shahab.waterreminder",
+      "permissions": [
+        "android.permission.health.READ_HYDRATION",
+        "android.permission.health.WRITE_HYDRATION"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#DFF6F1",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -34,7 +38,19 @@
           "imageWidth": 76
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-health-connect",
+      "./plugins/water-reminder-widget/withWaterReminderWidgets",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "minSdkVersion": 28
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

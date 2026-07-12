@@ -8,6 +8,7 @@ import { logger } from '@core/logger';
 import { initializeDatabase } from '@platform/database';
 import { initializeNotifications } from '@platform/notifications';
 import { initializeStorage } from '@platform/storage';
+import { refreshHydrationWidgets } from '@modules/widgets';
 import { BrandMark } from '@shared/components';
 import type { AppTheme } from '@shared/theme';
 
@@ -26,6 +27,7 @@ export function ApplicationBootstrap({ children }: PropsWithChildren) {
       try {
         initializeStorage();
         await Promise.all([initializeDatabase(), initializeNotifications()]);
+        void refreshHydrationWidgets('bootstrap');
         logger.info('Application bootstrap completed.');
       } catch (error) {
         logger.error('Application bootstrap failed.', { error });

@@ -7,6 +7,7 @@ import {
   setHydrationGoal,
 } from '@modules/onboarding/repository/onboarding-storage';
 import { useReminders } from '@modules/reminders';
+import { refreshHydrationWidgets } from '@modules/widgets';
 
 import {
   exportHydrationDatabase,
@@ -79,10 +80,12 @@ export const useSettings = () => {
 
   const updateThemePreference = useCallback((themePreference: ThemePreference) => {
     saveThemePreference(themePreference);
+    void refreshHydrationWidgets('settings_changed');
   }, []);
 
   const updateMeasurementUnit = useCallback((measurementUnit: MeasurementUnit) => {
     saveMeasurementUnit(measurementUnit);
+    void refreshHydrationWidgets('settings_changed');
   }, []);
 
   const updateReduceMotion = useCallback((reduceMotion: boolean) => {
@@ -99,6 +102,7 @@ export const useSettings = () => {
       const nextState = setHydrationGoal(nextGoal);
       setGoalAmountMl(nextState.hydrationGoal);
       setStatusMessage('Daily goal updated.');
+      void refreshHydrationWidgets('goal_changed');
     },
     [settings.measurementUnit],
   );
@@ -123,6 +127,7 @@ export const useSettings = () => {
         setStatusMessage(`${count} entries imported.`);
         await refreshDataSummary();
         void dispatch(loadTodayHydration());
+        void refreshHydrationWidgets('database_import');
       } finally {
         setIsBusy(false);
       }
@@ -137,6 +142,7 @@ export const useSettings = () => {
       setStatusMessage('Hydration history reset.');
       await refreshDataSummary();
       void dispatch(loadTodayHydration());
+      void refreshHydrationWidgets('history_reset');
     } finally {
       setIsBusy(false);
     }

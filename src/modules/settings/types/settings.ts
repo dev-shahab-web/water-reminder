@@ -14,6 +14,10 @@ export type SettingsState = {
 export type HydrationDataExportEntry = {
   amount: number;
   createdAt: string;
+  healthConnectClientRecordId?: string;
+  healthConnectDataOrigin?: string;
+  healthConnectRecordId?: string;
+  healthConnectSyncedAt?: string;
   id: string;
   source: string;
   timestamp: string;

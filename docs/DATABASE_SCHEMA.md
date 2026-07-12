@@ -2,7 +2,44 @@
 
 ## Purpose
 
-Water Reminder needs local persistence for settings, drink entries, daily totals, and reminder state. This schema is a product-level proposal for architectural review and should be implemented through repository and migration boundaries.
+Water Reminder needs local persistence for settings, drink entries, daily totals, reminder state, and optional Health Connect metadata. Product data must remain offline-first and implemented through repository and migration boundaries.
+
+## Current Implementation
+
+The current SQLite system of record is `hydration_entries`.
+
+| Column                      | Type             | Notes                                                         |
+| --------------------------- | ---------------- | ------------------------------------------------------------- |
+| id                          | TEXT PRIMARY KEY | Local Water Reminder id.                                      |
+| timestamp                   | TEXT NOT NULL    | ISO timestamp for when hydration was logged.                  |
+| amount                      | INTEGER NOT NULL | Canonical milliliters, greater than zero.                     |
+| source                      | TEXT NOT NULL    | `quick_add`, `custom`, `edit`, `health_connect`, or `widget`. |
+| createdAt                   | TEXT NOT NULL    | ISO creation timestamp.                                       |
+| updatedAt                   | TEXT NOT NULL    | ISO update timestamp.                                         |
+| healthConnectRecordId       | TEXT UNIQUE NULL | Android Health Connect record id when known.                  |
+| healthConnectClientRecordId | TEXT UNIQUE NULL | Client id used for Health Connect duplicate prevention.       |
+| healthConnectDataOrigin     | TEXT NULL        | Origin package supplied by Health Connect when available.     |
+| healthConnectSyncedAt       | TEXT NULL        | Last local sync timestamp for explainability.                 |
+
+Indexes:
+
+- `idx_hydration_entries_timestamp`
+- `idx_hydration_entries_health_connect_record`
+- `idx_hydration_entries_health_connect_client_record`
+
+Health Connect metadata is optional. Core hydration tracking must continue when these fields are empty.
+
+### widget_actions
+
+Stores processed Android widget quick-add actions so repeated launcher callbacks cannot duplicate a tap.
+
+| Column    | Type             | Notes                                                                     |
+| --------- | ---------------- | ------------------------------------------------------------------------- |
+| actionId  | TEXT PRIMARY KEY | Stable action id generated from the widget snapshot and quick-add amount. |
+| amount    | INTEGER NOT NULL | Milliliters requested by the widget action.                               |
+| createdAt | TEXT NOT NULL    | ISO timestamp for when the action was processed locally.                  |
+
+Widget actions write to `hydration_entries` with `source = widget`. They must remain local, offline-first, and safe when React Native is not running.
 
 ## Proposed Tables
 
@@ -10,35 +47,35 @@ Water Reminder needs local persistence for settings, drink entries, daily totals
 
 Stores user hydration preferences.
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| id | TEXT PRIMARY KEY | Single row, stable id such as `default`. |
-| daily_goal_ml | INTEGER NOT NULL | Canonical storage in milliliters. |
-| preferred_unit | TEXT NOT NULL | `ml` or `oz`. |
-| wake_time_local | TEXT NOT NULL | `HH:mm` local time. |
-| sleep_time_local | TEXT NOT NULL | `HH:mm` local time. |
-| reminders_enabled | INTEGER NOT NULL | Boolean as 0/1. |
-| reminder_interval_minutes | INTEGER NOT NULL | Minimum product-defined value required. |
-| paused_until_local_date | TEXT NULL | `YYYY-MM-DD` when paused for the day. |
-| onboarding_completed_at | TEXT NULL | ISO timestamp. |
-| created_at | TEXT NOT NULL | ISO timestamp. |
-| updated_at | TEXT NOT NULL | ISO timestamp. |
+| Column                    | Type             | Notes                                    |
+| ------------------------- | ---------------- | ---------------------------------------- |
+| id                        | TEXT PRIMARY KEY | Single row, stable id such as `default`. |
+| daily_goal_ml             | INTEGER NOT NULL | Canonical storage in milliliters.        |
+| preferred_unit            | TEXT NOT NULL    | `ml` or `oz`.                            |
+| wake_time_local           | TEXT NOT NULL    | `HH:mm` local time.                      |
+| sleep_time_local          | TEXT NOT NULL    | `HH:mm` local time.                      |
+| reminders_enabled         | INTEGER NOT NULL | Boolean as 0/1.                          |
+| reminder_interval_minutes | INTEGER NOT NULL | Minimum product-defined value required.  |
+| paused_until_local_date   | TEXT NULL        | `YYYY-MM-DD` when paused for the day.    |
+| onboarding_completed_at   | TEXT NULL        | ISO timestamp.                           |
+| created_at                | TEXT NOT NULL    | ISO timestamp.                           |
+| updated_at                | TEXT NOT NULL    | ISO timestamp.                           |
 
 ### drink_entries
 
 Stores raw logged drinks.
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| id | TEXT PRIMARY KEY | UUID or platform-approved id. |
-| amount_ml | INTEGER NOT NULL | Canonical storage in milliliters. |
-| logged_at | TEXT NOT NULL | ISO timestamp. |
-| local_date | TEXT NOT NULL | `YYYY-MM-DD` derived from local time at logging. |
-| source | TEXT NOT NULL | `quick_add`, `custom`, `edit`, future sources. |
-| note | TEXT NULL | Reserved for future use. |
-| created_at | TEXT NOT NULL | ISO timestamp. |
-| updated_at | TEXT NOT NULL | ISO timestamp. |
-| deleted_at | TEXT NULL | Optional soft delete if chosen. |
+| Column     | Type             | Notes                                            |
+| ---------- | ---------------- | ------------------------------------------------ |
+| id         | TEXT PRIMARY KEY | UUID or platform-approved id.                    |
+| amount_ml  | INTEGER NOT NULL | Canonical storage in milliliters.                |
+| logged_at  | TEXT NOT NULL    | ISO timestamp.                                   |
+| local_date | TEXT NOT NULL    | `YYYY-MM-DD` derived from local time at logging. |
+| source     | TEXT NOT NULL    | `quick_add`, `custom`, `edit`, future sources.   |
+| note       | TEXT NULL        | Reserved for future use.                         |
+| created_at | TEXT NOT NULL    | ISO timestamp.                                   |
+| updated_at | TEXT NOT NULL    | ISO timestamp.                                   |
+| deleted_at | TEXT NULL        | Optional soft delete if chosen.                  |
 
 Indexes:
 
@@ -49,26 +86,26 @@ Indexes:
 
 Stores custom quick-add amounts.
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| id | TEXT PRIMARY KEY | Stable id. |
-| amount_ml | INTEGER NOT NULL | Canonical storage. |
-| sort_order | INTEGER NOT NULL | Display order. |
-| is_enabled | INTEGER NOT NULL | Boolean as 0/1. |
-| created_at | TEXT NOT NULL | ISO timestamp. |
-| updated_at | TEXT NOT NULL | ISO timestamp. |
+| Column     | Type             | Notes              |
+| ---------- | ---------------- | ------------------ |
+| id         | TEXT PRIMARY KEY | Stable id.         |
+| amount_ml  | INTEGER NOT NULL | Canonical storage. |
+| sort_order | INTEGER NOT NULL | Display order.     |
+| is_enabled | INTEGER NOT NULL | Boolean as 0/1.    |
+| created_at | TEXT NOT NULL    | ISO timestamp.     |
+| updated_at | TEXT NOT NULL    | ISO timestamp.     |
 
 ### daily_hydration_summary
 
 Optional denormalized table for faster history.
 
-| Column | Type | Notes |
-| --- | --- | --- |
-| local_date | TEXT PRIMARY KEY | `YYYY-MM-DD`. |
-| total_ml | INTEGER NOT NULL | Sum of non-deleted entries. |
-| goal_ml | INTEGER NOT NULL | Goal snapshot for that day. |
-| entry_count | INTEGER NOT NULL | Number of active entries. |
-| updated_at | TEXT NOT NULL | ISO timestamp. |
+| Column      | Type             | Notes                       |
+| ----------- | ---------------- | --------------------------- |
+| local_date  | TEXT PRIMARY KEY | `YYYY-MM-DD`.               |
+| total_ml    | INTEGER NOT NULL | Sum of non-deleted entries. |
+| goal_ml     | INTEGER NOT NULL | Goal snapshot for that day. |
+| entry_count | INTEGER NOT NULL | Number of active entries.   |
+| updated_at  | TEXT NOT NULL    | ISO timestamp.              |
 
 ## Data Rules
 

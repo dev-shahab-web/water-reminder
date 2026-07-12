@@ -100,6 +100,7 @@ Rebuild the native app when changing:
 - Expo config plugins.
 - Native dependencies.
 - Android permissions.
+- Android widgets.
 - App icon or splash assets.
 - Native Android files.
 
@@ -211,6 +212,17 @@ npm start
 ```
 
 Confirm the installed Android app is Water Reminder Debug, not Expo Go.
+
+### Android widgets do not appear
+
+Regenerate and reinstall the development build after widget plugin changes:
+
+```sh
+npm run clean
+npm run android
+```
+
+Widgets are generated from `plugins/water-reminder-widget/`. If a generated Android file is edited manually, move that change into the config plugin template before running prebuild again.
 
 ### React Native DevTools shared library error
 

@@ -6,6 +6,10 @@ import type { HydrationEntry, HydrationEntrySource } from '../types';
 type HydrationEntryRow = {
   amount: number;
   createdAt: string;
+  healthConnectClientRecordId: string | null;
+  healthConnectDataOrigin: string | null;
+  healthConnectRecordId: string | null;
+  healthConnectSyncedAt: string | null;
   id: string;
   source: HydrationEntrySource;
   timestamp: string;
@@ -14,6 +18,11 @@ type HydrationEntryRow = {
 
 type AddHydrationEntryInput = {
   amount: number;
+  healthConnectClientRecordId?: string;
+  healthConnectDataOrigin?: string;
+  healthConnectRecordId?: string;
+  healthConnectSyncedAt?: string;
+  id?: string;
   source: HydrationEntrySource;
   timestamp?: string;
 };
@@ -25,6 +34,10 @@ const createId = (): string => {
 const mapRowToEntry = (row: HydrationEntryRow): HydrationEntry => ({
   amount: row.amount,
   createdAt: row.createdAt,
+  healthConnectClientRecordId: row.healthConnectClientRecordId ?? undefined,
+  healthConnectDataOrigin: row.healthConnectDataOrigin ?? undefined,
+  healthConnectRecordId: row.healthConnectRecordId ?? undefined,
+  healthConnectSyncedAt: row.healthConnectSyncedAt ?? undefined,
   id: row.id,
   source: row.source,
   timestamp: row.timestamp,
@@ -37,6 +50,7 @@ export const getTodayHydrationEntries = async (date = new Date()): Promise<Hydra
   const rows = await database.getAllAsync<HydrationEntryRow>(
     `
       SELECT id, timestamp, amount, source, createdAt, updatedAt
+        , healthConnectRecordId, healthConnectClientRecordId, healthConnectDataOrigin, healthConnectSyncedAt
       FROM hydration_entries
       WHERE timestamp >= ? AND timestamp < ?
       ORDER BY timestamp DESC;
@@ -90,6 +104,7 @@ export const getAllHydrationEntries = async (): Promise<HydrationEntry[]> => {
   const rows = await database.getAllAsync<HydrationEntryRow>(
     `
       SELECT id, timestamp, amount, source, createdAt, updatedAt
+        , healthConnectRecordId, healthConnectClientRecordId, healthConnectDataOrigin, healthConnectSyncedAt
       FROM hydration_entries
       ORDER BY timestamp DESC;
     `,
@@ -101,6 +116,11 @@ export const getAllHydrationEntries = async (): Promise<HydrationEntry[]> => {
 
 export const addHydrationEntry = async ({
   amount,
+  healthConnectClientRecordId,
+  healthConnectDataOrigin,
+  healthConnectRecordId,
+  healthConnectSyncedAt,
+  id,
   source,
   timestamp = new Date().toISOString(),
 }: AddHydrationEntryInput): Promise<HydrationEntry> => {
@@ -109,7 +129,11 @@ export const addHydrationEntry = async ({
   const entry: HydrationEntry = {
     amount,
     createdAt: now,
-    id: createId(),
+    healthConnectClientRecordId,
+    healthConnectDataOrigin,
+    healthConnectRecordId,
+    healthConnectSyncedAt,
+    id: id ?? createId(),
     source,
     timestamp,
     updatedAt: now,
@@ -117,10 +141,32 @@ export const addHydrationEntry = async ({
 
   await database.runAsync(
     `
-      INSERT INTO hydration_entries (id, timestamp, amount, source, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?);
+      INSERT INTO hydration_entries (
+        id,
+        timestamp,
+        amount,
+        source,
+        createdAt,
+        updatedAt,
+        healthConnectRecordId,
+        healthConnectClientRecordId,
+        healthConnectDataOrigin,
+        healthConnectSyncedAt
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
-    [entry.id, entry.timestamp, entry.amount, entry.source, entry.createdAt, entry.updatedAt],
+    [
+      entry.id,
+      entry.timestamp,
+      entry.amount,
+      entry.source,
+      entry.createdAt,
+      entry.updatedAt,
+      entry.healthConnectRecordId ?? null,
+      entry.healthConnectClientRecordId ?? null,
+      entry.healthConnectDataOrigin ?? null,
+      entry.healthConnectSyncedAt ?? null,
+    ],
   );
 
   return entry;
@@ -148,6 +194,7 @@ export const updateHydrationEntry = async ({
   const row = await database.getFirstAsync<HydrationEntryRow>(
     `
       SELECT id, timestamp, amount, source, createdAt, updatedAt
+        , healthConnectRecordId, healthConnectClientRecordId, healthConnectDataOrigin, healthConnectSyncedAt
       FROM hydration_entries
       WHERE id = ?;
     `,
@@ -171,6 +218,84 @@ export const deleteAllHydrationEntries = async (): Promise<void> => {
   await database.runAsync('DELETE FROM hydration_entries;', []);
 };
 
+export const getHealthConnectWritableEntries = async (): Promise<HydrationEntry[]> => {
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<HydrationEntryRow>(
+    `
+      SELECT id, timestamp, amount, source, createdAt, updatedAt,
+        healthConnectRecordId, healthConnectClientRecordId, healthConnectDataOrigin, healthConnectSyncedAt
+      FROM hydration_entries
+      WHERE source IN ('quick_add', 'custom', 'edit', 'widget')
+        AND healthConnectRecordId IS NULL
+      ORDER BY timestamp ASC;
+    `,
+    [],
+  );
+
+  return rows.map(mapRowToEntry);
+};
+
+export const hasHydrationEntryForHealthConnectRecord = async ({
+  clientRecordId,
+  healthConnectRecordId,
+}: {
+  clientRecordId?: string;
+  healthConnectRecordId: string;
+}): Promise<boolean> => {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<{ entryCount: number }>(
+    `
+      SELECT COUNT(*) AS entryCount
+      FROM hydration_entries
+      WHERE healthConnectRecordId = ?
+        OR (? IS NOT NULL AND healthConnectClientRecordId = ?)
+        OR (? IS NOT NULL AND id = ?);
+    `,
+    [
+      healthConnectRecordId,
+      clientRecordId ?? null,
+      clientRecordId ?? null,
+      clientRecordId ?? null,
+      clientRecordId ?? null,
+    ],
+  );
+
+  return (row?.entryCount ?? 0) > 0;
+};
+
+export const markHydrationEntriesSyncedToHealthConnect = async (
+  updates: readonly { healthConnectRecordId: string; id: string; syncedAt: string }[],
+): Promise<void> => {
+  if (updates.length === 0) {
+    return;
+  }
+
+  const database = await getDatabase();
+
+  await database.execAsync('BEGIN TRANSACTION;');
+
+  try {
+    for (const update of updates) {
+      await database.runAsync(
+        `
+          UPDATE hydration_entries
+          SET healthConnectRecordId = ?,
+            healthConnectClientRecordId = ?,
+            healthConnectSyncedAt = ?,
+            updatedAt = ?
+          WHERE id = ?;
+        `,
+        [update.healthConnectRecordId, update.id, update.syncedAt, update.syncedAt, update.id],
+      );
+    }
+
+    await database.execAsync('COMMIT;');
+  } catch (error) {
+    await database.execAsync('ROLLBACK;');
+    throw error;
+  }
+};
+
 export const replaceHydrationEntries = async (
   entries: readonly HydrationEntry[],
 ): Promise<void> => {
@@ -184,10 +309,32 @@ export const replaceHydrationEntries = async (
     for (const entry of entries) {
       await database.runAsync(
         `
-          INSERT INTO hydration_entries (id, timestamp, amount, source, createdAt, updatedAt)
-          VALUES (?, ?, ?, ?, ?, ?);
+          INSERT INTO hydration_entries (
+            id,
+            timestamp,
+            amount,
+            source,
+            createdAt,
+            updatedAt,
+            healthConnectRecordId,
+            healthConnectClientRecordId,
+            healthConnectDataOrigin,
+            healthConnectSyncedAt
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         `,
-        [entry.id, entry.timestamp, entry.amount, entry.source, entry.createdAt, entry.updatedAt],
+        [
+          entry.id,
+          entry.timestamp,
+          entry.amount,
+          entry.source,
+          entry.createdAt,
+          entry.updatedAt,
+          entry.healthConnectRecordId ?? null,
+          entry.healthConnectClientRecordId ?? null,
+          entry.healthConnectDataOrigin ?? null,
+          entry.healthConnectSyncedAt ?? null,
+        ],
       );
     }
 

@@ -6,6 +6,7 @@ import {
   getTodayHydrationEntries,
   updateHydrationEntry,
 } from '../repository/hydration-repository';
+import { refreshHydrationWidgets } from '@modules/widgets';
 import type { HydrationEntry, HydrationEntrySource } from '../types';
 import { getLocalDateKey } from '../utils/date';
 
@@ -29,8 +30,13 @@ export const loadTodayHydration = createAsyncThunk('hydration/loadToday', async 
 
 export const logHydration = createAsyncThunk(
   'hydration/log',
-  async ({ amount, source }: { amount: number; source: HydrationEntrySource }) =>
-    addHydrationEntry({ amount, source }),
+  async ({ amount, source }: { amount: number; source: HydrationEntrySource }) => {
+    const entry = await addHydrationEntry({ amount, source });
+
+    void refreshHydrationWidgets('hydration_changed');
+
+    return entry;
+  },
 );
 
 export const editHydrationEntry = createAsyncThunk(
@@ -42,13 +48,19 @@ export const editHydrationEntry = createAsyncThunk(
       throw new Error('Hydration entry could not be found.');
     }
 
+    void refreshHydrationWidgets('hydration_changed');
+
     return entry;
   },
 );
 
-export const removeHydrationEntry = createAsyncThunk('hydration/remove', async (id: string) =>
-  deleteHydrationEntry(id),
-);
+export const removeHydrationEntry = createAsyncThunk('hydration/remove', async (id: string) => {
+  const deletedId = await deleteHydrationEntry(id);
+
+  void refreshHydrationWidgets('hydration_changed');
+
+  return deletedId;
+});
 
 const sortEntries = (entries: HydrationEntry[]) => {
   entries.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
