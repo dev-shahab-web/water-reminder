@@ -93,6 +93,31 @@ Refreshes are deduplicated in JavaScript so routine app renders do not reschedul
 - Do not require network connectivity.
 - Do not expose raw health data beyond the user's own local hydration progress.
 - Use stable sizing and responsive layouts for compact, medium, and expanded widgets.
+- Keep every Jetpack Glance `Row` and `Column` at 10 or fewer direct children. If a container needs more visual pieces, split it into nested rows/columns or remove spacer children.
+- Prefer 6-8 direct children or fewer per Glance container. Use named sections such as header, progress, context, reminder, and quick actions so compact, medium, expanded, empty, and goal-complete states stay inside RemoteViews limits.
+- Add lightweight structural guards when practical so future fixed-layout edits fail clearly during widget rendering instead of silently exceeding Glance limits.
+- Keep the top-level widget layout simple enough that a rendering issue can fall back to a safe “Open app” state instead of leaving the launcher with “Can’t load widget.”
+
+## Responsive Resizing
+
+Water Reminder uses one responsive Android widget provider. The default target size is 2x2, and Pixel Launcher can resize the same widget horizontally and vertically.
+
+Provider metadata must include:
+
+- `resizeMode="horizontal|vertical"`
+- `minWidth="110dp"`
+- `minHeight="110dp"`
+- `minResizeWidth="110dp"`
+- `minResizeHeight="110dp"`
+- `targetCellWidth="2"`
+- `targetCellHeight="2"`
+- `widgetCategory="home_screen"`
+
+The Glance layout reads `LocalSize.current` and adapts:
+
+- Compact: default 2x2 layout with brand, consumed amount, progress, and primary quick-add.
+- Medium: widened layout with larger amount treatment, remaining amount, and additional quick-add.
+- Expanded: widened and taller layout with streak/reminder context and the full quick-add set.
 
 ## Development Workflow
 
@@ -128,6 +153,17 @@ Manual Android verification:
 - Change daily goal, theme, unit, and reminders, then confirm widget refresh.
 - Delete history/reset data and confirm widget state updates.
 - Reboot or relaunch and confirm the widget remains stable.
+
+Pixel Launcher validation:
+
+- Install the signed release build on Pixel 7.
+- Add the Water Reminder widget and confirm it renders without “Can’t load widget.”
+- Long-press the widget and confirm Resize is available.
+- Keep the default 2x2 size and confirm the compact layout.
+- Widen the widget and confirm the medium layout.
+- Widen and increase height, then confirm the expanded layout.
+- Tap each visible quick-add button once and confirm exactly one hydration entry per tap.
+- Restart the app and reboot the device, then confirm the widget still renders and refreshes from local state.
 
 ## Trade-Offs
 

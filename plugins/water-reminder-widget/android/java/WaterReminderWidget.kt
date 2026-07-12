@@ -33,15 +33,20 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import __PACKAGE__.MainActivity
+import __PACKAGE__.R
 import java.text.DateFormat
 import java.util.Date
 import kotlin.math.roundToInt
 
-class WaterReminderWidget : GlanceAppWidget() {
+private const val GLANCE_MAX_CONTAINER_CHILDREN = 10
+
+class WaterReminderWidget : GlanceAppWidget(errorUiLayout = R.layout.water_reminder_widget_error) {
   override val sizeMode: SizeMode = SizeMode.Responsive(
     setOf(
       DpSize(110.dp, 110.dp),
+      DpSize(180.dp, 110.dp),
       DpSize(250.dp, 110.dp),
+      DpSize(250.dp, 180.dp),
       DpSize(250.dp, 250.dp)
     )
   )
@@ -56,11 +61,12 @@ class WaterReminderWidget : GlanceAppWidget() {
 
 @Composable
 private fun WidgetContent(context: Context, state: WidgetState?) {
+  val colors = widgetColors(state)
   val size = LocalSize.current
   val isExpanded = size.height >= 220.dp
   val isMedium = size.width >= 220.dp
-  val colors = widgetColors(state)
 
+  requireGlanceContainerChildren("WidgetContent", 5)
   Column(
     modifier = GlanceModifier
       .fillMaxSize()
@@ -73,28 +79,61 @@ private fun WidgetContent(context: Context, state: WidgetState?) {
       return@Column
     }
 
-    Row(
-      modifier = GlanceModifier.fillMaxWidth(),
-      verticalAlignment = Alignment.Vertical.CenterVertically
-    ) {
-      Box(
-        modifier = GlanceModifier
-          .size(22.dp)
-          .background(colors.primary)
-      ) {}
-      Spacer(modifier = GlanceModifier.width(8.dp))
-      Text(
-        text = if (state.goalCompleted) "Goal complete" else "Water Reminder",
-        style = TextStyle(
-          color = colors.textPrimary,
-          fontSize = 14.sp,
-          fontWeight = FontWeight.Bold
-        )
-      )
-    }
-
+    HeaderSection(state, colors)
     Spacer(modifier = GlanceModifier.height(8.dp))
+    ProgressSection(state, colors, isMedium, isExpanded)
+    Spacer(modifier = GlanceModifier.height(8.dp))
+    QuickActionsSection(state = state, isMedium = isMedium, isExpanded = isExpanded)
+  }
+}
 
+@Composable
+private fun HeaderSection(state: WidgetState, colors: WidgetColors) {
+  requireGlanceContainerChildren("HeaderSection", 3)
+  Row(
+    modifier = GlanceModifier.fillMaxWidth(),
+    verticalAlignment = Alignment.Vertical.CenterVertically
+  ) {
+    Box(
+      modifier = GlanceModifier
+        .size(22.dp)
+        .background(colors.primary)
+    ) {}
+    Spacer(modifier = GlanceModifier.width(8.dp))
+    Text(
+      text = if (state.goalCompleted) "Goal complete" else "Water Reminder",
+      style = TextStyle(
+        color = colors.textPrimary,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Bold
+      )
+    )
+  }
+}
+
+@Composable
+private fun ProgressSection(
+  state: WidgetState,
+  colors: WidgetColors,
+  isMedium: Boolean,
+  isExpanded: Boolean
+) {
+  requireGlanceContainerChildren("ProgressSection", 5)
+  Column {
+    SummarySection(state, colors, isMedium)
+    Spacer(modifier = GlanceModifier.height(8.dp))
+    ProgressSegments(state.completionPercentage, colors)
+    if ((isMedium && !state.goalCompleted) || isExpanded) {
+      Spacer(modifier = GlanceModifier.height(6.dp))
+      ContextSection(state, colors, showRemaining = isMedium && !state.goalCompleted, showReminder = isExpanded)
+    }
+  }
+}
+
+@Composable
+private fun SummarySection(state: WidgetState, colors: WidgetColors, isMedium: Boolean) {
+  requireGlanceContainerChildren("SummarySection", 2)
+  Column {
     Text(
       text = formatAmount(state.consumedMl, state.measurementUnit),
       style = TextStyle(
@@ -107,52 +146,79 @@ private fun WidgetContent(context: Context, state: WidgetState?) {
       text = "${state.completionPercentage}% of ${formatAmount(state.goalMl, state.measurementUnit)}",
       style = TextStyle(color = colors.textSecondary, fontSize = 12.sp)
     )
+  }
+}
 
-    Spacer(modifier = GlanceModifier.height(8.dp))
-    ProgressSegments(state.completionPercentage, colors)
-
-    if (isMedium && !state.goalCompleted) {
-      Spacer(modifier = GlanceModifier.height(6.dp))
+@Composable
+private fun ContextSection(
+  state: WidgetState,
+  colors: WidgetColors,
+  showRemaining: Boolean,
+  showReminder: Boolean
+) {
+  requireGlanceContainerChildren("ContextSection", 3)
+  Column {
+    if (showRemaining) {
       Text(
         text = "${formatAmount(state.remainingMl, state.measurementUnit)} left",
         style = TextStyle(color = colors.textSecondary, fontSize = 12.sp)
       )
     }
+    if (showReminder) {
+      ReminderSection(state, colors)
+    }
+  }
+}
 
-    if (isExpanded) {
-      Spacer(modifier = GlanceModifier.height(6.dp))
+@Composable
+private fun ReminderSection(state: WidgetState, colors: WidgetColors) {
+  requireGlanceContainerChildren("ReminderSection", 2)
+  Column {
+    Text(
+      text = "Streak ${state.currentStreak} day${if (state.currentStreak == 1) "" else "s"}",
+      style = TextStyle(color = colors.textSecondary, fontSize = 12.sp)
+    )
+    state.nextReminderAt?.let {
       Text(
-        text = "Streak ${state.currentStreak} day${if (state.currentStreak == 1) "" else "s"}",
+        text = "Next ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))}",
         style = TextStyle(color = colors.textSecondary, fontSize = 12.sp)
       )
-      state.nextReminderAt?.let {
-        Text(
-          text = "Next ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))}",
-          style = TextStyle(color = colors.textSecondary, fontSize = 12.sp)
-        )
-      }
     }
-
-    Spacer(modifier = GlanceModifier.height(8.dp))
-    QuickActions(state = state, isMedium = isMedium, isExpanded = isExpanded)
   }
 }
 
 @Composable
 private fun FallbackContent(context: Context, colors: WidgetColors) {
-  Text(
-    text = "Water Reminder",
-    style = TextStyle(color = colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-  )
-  Spacer(modifier = GlanceModifier.height(8.dp))
-  Button(
-    text = "Open app",
-    onClick = actionStartActivity(openHomeIntent(context))
-  )
+  SafeFallbackContent(context = context, colors = colors)
 }
 
 @Composable
-private fun QuickActions(state: WidgetState, isMedium: Boolean, isExpanded: Boolean) {
+private fun SafeFallbackContent(context: Context, colors: WidgetColors) {
+  requireGlanceContainerChildren("SafeFallbackContent", 3)
+  Column(
+    modifier = GlanceModifier
+      .fillMaxSize()
+      .background(colors.background)
+      .padding(14.dp),
+    verticalAlignment = Alignment.Vertical.CenterVertically
+  ) {
+    Text(
+      text = "Water Reminder",
+      style = TextStyle(color = colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+    )
+    Spacer(modifier = GlanceModifier.height(8.dp))
+    Button(
+      text = "Open app",
+      onClick = actionStartActivity(openHomeIntent(context))
+    )
+  }
+}
+
+@Composable
+private fun QuickActionsSection(state: WidgetState, isMedium: Boolean, isExpanded: Boolean) {
+  val childCount = 1 + (if (isMedium) 2 else 0) + (if (isExpanded) 2 else 0)
+
+  requireGlanceContainerChildren("QuickActionsSection", childCount)
   Row(modifier = GlanceModifier.fillMaxWidth()) {
     QuickAddButton(amountMl = 250, state = state)
     if (isMedium) {
@@ -181,18 +247,38 @@ private fun QuickAddButton(amountMl: Int, state: WidgetState) {
 
 @Composable
 private fun ProgressSegments(completionPercentage: Int, colors: WidgetColors) {
+  requireGlanceContainerChildren("ProgressSegments", 5)
   Row(modifier = GlanceModifier.fillMaxWidth()) {
     val filledSegments = (completionPercentage.coerceIn(0, 100) / 10.0).roundToInt()
 
-    repeat(10) { index ->
-      Box(
-        modifier = GlanceModifier
-          .width(14.dp)
-          .height(6.dp)
-          .background(if (index < filledSegments) colors.primary else colors.track)
-      ) {}
-      Spacer(modifier = GlanceModifier.width(3.dp))
+    repeat(5) { pairIndex ->
+      SegmentPair(firstIndex = pairIndex * 2, filledSegments = filledSegments, colors = colors)
     }
+  }
+}
+
+@Composable
+private fun SegmentPair(firstIndex: Int, filledSegments: Int, colors: WidgetColors) {
+  requireGlanceContainerChildren("SegmentPair", 2)
+  Row {
+    ProgressSegment(index = firstIndex, filledSegments = filledSegments, colors = colors)
+    ProgressSegment(index = firstIndex + 1, filledSegments = filledSegments, colors = colors)
+  }
+}
+
+@Composable
+private fun ProgressSegment(index: Int, filledSegments: Int, colors: WidgetColors) {
+  Box(
+    modifier = GlanceModifier
+      .width(16.dp)
+      .height(6.dp)
+      .background(if (index < filledSegments) colors.primary else colors.track)
+  ) {}
+}
+
+private fun requireGlanceContainerChildren(name: String, childCount: Int) {
+  require(childCount <= GLANCE_MAX_CONTAINER_CHILDREN) {
+    "$name has $childCount direct children; Glance containers support at most $GLANCE_MAX_CONTAINER_CHILDREN."
   }
 }
 
