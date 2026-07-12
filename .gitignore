@@ -30,6 +30,10 @@ yarn-error.*
 .DS_Store
 *.pem
 
+# Android Studio / IntelliJ
+.idea/
+*.iml
+
 # local env files
 .env
 .env.*
