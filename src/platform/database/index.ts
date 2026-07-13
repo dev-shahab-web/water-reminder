@@ -1,1 +1,6 @@
-export { getDatabase, initializeDatabase, type AppDatabase } from './database-service';
+export {
+  getDatabase,
+  initializeDatabase,
+  resetDatabaseConnection,
+  type AppDatabase,
+} from './database-service';

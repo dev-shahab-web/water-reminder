@@ -2,20 +2,28 @@ package __PACKAGE__.widgets
 
 import android.content.Context
 import android.content.ComponentName
-import android.graphics.Color
+import android.util.Log
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.mutablePreferencesOf
+import androidx.datastore.preferences.core.Preferences
 import androidx.glance.Button
 import androidx.glance.GlanceModifier
 import androidx.glance.LocalSize
+import androidx.glance.currentState
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.provideContent
+import androidx.glance.appwidget.state.updateAppWidgetState
+import androidx.glance.appwidget.updateAll
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
@@ -31,6 +39,8 @@ import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import androidx.glance.state.GlanceStateDefinition
+import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.unit.ColorProvider
 import __PACKAGE__.MainActivity
 import __PACKAGE__.R
@@ -39,8 +49,11 @@ import java.util.Date
 import kotlin.math.roundToInt
 
 private const val GLANCE_MAX_CONTAINER_CHILDREN = 10
+private const val WIDGET_LOG_TAG = "WaterReminderWidget"
 
 class WaterReminderWidget : GlanceAppWidget(errorUiLayout = R.layout.water_reminder_widget_error) {
+  override val stateDefinition: GlanceStateDefinition<*> = PreferencesGlanceStateDefinition
+
   override val sizeMode: SizeMode = SizeMode.Responsive(
     setOf(
       DpSize(110.dp, 110.dp),
@@ -53,8 +66,35 @@ class WaterReminderWidget : GlanceAppWidget(errorUiLayout = R.layout.water_remin
 
   override suspend fun provideGlance(context: Context, id: androidx.glance.GlanceId) {
     provideContent {
-      val state = WidgetStateStore.read(context)
+      val preferences = currentState<Preferences>()
+      val stateJson = preferences[WidgetStateStore.glanceStateKey]
+      val state = WidgetStateStore.parse(stateJson)
       WidgetContent(context = context, state = state)
+    }
+  }
+
+  companion object {
+    suspend fun syncStateAndUpdate(context: Context, source: String) {
+      val stateJson = WidgetStateStore.readJson(context)
+      val state = WidgetStateStore.parse(stateJson)
+      val glanceIds = GlanceAppWidgetManager(context).getGlanceIds(WaterReminderWidget::class.java)
+
+      glanceIds.forEach { glanceId ->
+        updateAppWidgetState(context, PreferencesGlanceStateDefinition, glanceId) {
+          if (stateJson == null) {
+            emptyPreferences()
+          } else {
+            mutablePreferencesOf(WidgetStateStore.glanceStateKey to stateJson)
+          }
+        }
+      }
+
+      Log.d(
+        WIDGET_LOG_TAG,
+        "Glance state updated source=$source widgetCount=${glanceIds.size} consumedMl=${state?.consumedMl} updatedAt=${state?.updatedAt}"
+      )
+      WaterReminderWidget().updateAll(context)
+      Log.d(WIDGET_LOG_TAG, "Glance updateAll completed or queued source=$source")
     }
   }
 }
@@ -313,19 +353,19 @@ private fun widgetColors(state: WidgetState?): WidgetColors {
 
   return if (dark) {
     WidgetColors(
-      background = ColorProvider(Color.rgb(16, 30, 27)),
-      primary = ColorProvider(Color.rgb(90, 211, 190)),
-      textPrimary = ColorProvider(Color.WHITE),
-      textSecondary = ColorProvider(Color.rgb(196, 216, 211)),
-      track = ColorProvider(Color.rgb(48, 72, 67))
+      background = ColorProvider(Color(0xFF101E1B)),
+      primary = ColorProvider(Color(0xFF5AD3BE)),
+      textPrimary = ColorProvider(Color.White),
+      textSecondary = ColorProvider(Color(0xFFC4D8D3)),
+      track = ColorProvider(Color(0xFF304843))
     )
   } else {
     WidgetColors(
-      background = ColorProvider(Color.rgb(247, 251, 248)),
-      primary = ColorProvider(Color.rgb(18, 139, 119)),
-      textPrimary = ColorProvider(Color.rgb(18, 49, 43)),
-      textSecondary = ColorProvider(Color.rgb(83, 107, 102)),
-      track = ColorProvider(Color.rgb(213, 232, 228))
+      background = ColorProvider(Color(0xFFF7FBF8)),
+      primary = ColorProvider(Color(0xFF128B77)),
+      textPrimary = ColorProvider(Color(0xFF12312B)),
+      textSecondary = ColorProvider(Color(0xFF536B66)),
+      track = ColorProvider(Color(0xFFD5E8E4))
     )
   }
 }

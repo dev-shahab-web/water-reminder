@@ -78,14 +78,14 @@ export const useSettings = () => {
     };
   }, [dispatch]);
 
-  const updateThemePreference = useCallback((themePreference: ThemePreference) => {
+  const updateThemePreference = useCallback(async (themePreference: ThemePreference) => {
     saveThemePreference(themePreference);
-    void refreshHydrationWidgets('settings_changed');
+    await refreshHydrationWidgets('settings_changed');
   }, []);
 
-  const updateMeasurementUnit = useCallback((measurementUnit: MeasurementUnit) => {
+  const updateMeasurementUnit = useCallback(async (measurementUnit: MeasurementUnit) => {
     saveMeasurementUnit(measurementUnit);
-    void refreshHydrationWidgets('settings_changed');
+    await refreshHydrationWidgets('settings_changed');
   }, []);
 
   const updateReduceMotion = useCallback((reduceMotion: boolean) => {
@@ -97,12 +97,12 @@ export const useSettings = () => {
   }, []);
 
   const updateGoalAmount = useCallback(
-    (amountInCurrentUnit: number) => {
+    async (amountInCurrentUnit: number) => {
       const nextGoal = getGoalAmountInMilliliters(amountInCurrentUnit, settings.measurementUnit);
       const nextState = setHydrationGoal(nextGoal);
       setGoalAmountMl(nextState.hydrationGoal);
       setStatusMessage('Daily goal updated.');
-      void refreshHydrationWidgets('goal_changed');
+      await refreshHydrationWidgets('goal_changed');
     },
     [settings.measurementUnit],
   );
@@ -126,8 +126,8 @@ export const useSettings = () => {
         setExportPayload(undefined);
         setStatusMessage(`${count} entries imported.`);
         await refreshDataSummary();
-        void dispatch(loadTodayHydration());
-        void refreshHydrationWidgets('database_import');
+        await dispatch(loadTodayHydration()).unwrap();
+        await refreshHydrationWidgets('database_import');
       } finally {
         setIsBusy(false);
       }
@@ -141,8 +141,8 @@ export const useSettings = () => {
       await deleteHydrationHistory();
       setStatusMessage('Hydration history reset.');
       await refreshDataSummary();
-      void dispatch(loadTodayHydration());
-      void refreshHydrationWidgets('history_reset');
+      await dispatch(loadTodayHydration()).unwrap();
+      await refreshHydrationWidgets('history_reset');
     } finally {
       setIsBusy(false);
     }

@@ -6,6 +6,7 @@ export type DatabaseRunResult = {
 export type DatabaseBindValue = boolean | number | string | null;
 
 export type AppDatabase = {
+  closeAsync?: () => Promise<void>;
   execAsync: (source: string) => Promise<void>;
   getAllAsync: <T>(source: string, params: DatabaseBindValue[]) => Promise<T[]>;
   getFirstAsync: <T>(source: string, params: DatabaseBindValue[]) => Promise<T | null>;
@@ -19,3 +20,5 @@ export const initializeDatabase = async (): Promise<AppDatabase> => {
 export const getDatabase = async (): Promise<AppDatabase> => {
   return initializeDatabase();
 };
+
+export const resetDatabaseConnection = async (): Promise<void> => {};

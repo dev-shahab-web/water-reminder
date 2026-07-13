@@ -1,1 +1,5 @@
-export { refreshNativeWidgets, writeNativeWidgetState } from './widget-native-module';
+export {
+  refreshNativeWidgets,
+  subscribeToNativeWidgetHydrationChanges,
+  writeNativeWidgetState,
+} from './widget-native-module';

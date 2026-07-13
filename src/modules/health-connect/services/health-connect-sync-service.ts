@@ -141,7 +141,7 @@ export const syncHealthConnect = async (): Promise<HealthConnectSyncResult> => {
     }
 
     setHealthConnectSyncSuccess(nowIso);
-    void refreshHydrationWidgets('health_connect_sync');
+    await refreshHydrationWidgets('health_connect_sync');
 
     return {
       importedCount,

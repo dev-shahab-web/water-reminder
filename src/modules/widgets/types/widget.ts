@@ -16,6 +16,7 @@ export type HydrationWidgetState = {
 };
 
 export type WidgetRefreshReason =
+  | 'app_active'
   | 'bootstrap'
   | 'database_import'
   | 'goal_changed'
@@ -24,4 +25,5 @@ export type WidgetRefreshReason =
   | 'hydration_changed'
   | 'reminder_changed'
   | 'settings_changed'
+  | 'widget_event'
   | 'widget_manual_refresh';

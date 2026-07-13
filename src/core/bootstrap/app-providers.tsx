@@ -6,6 +6,7 @@ import { PaperProvider } from 'react-native-paper';
 import { Provider as ReduxProvider } from 'react-redux';
 
 import { getSettingsState, subscribeToSettings } from '@modules/settings/storage/settings-storage';
+import { WidgetLiveSync } from '@modules/widgets';
 import { queryClient } from '@query/client';
 import {
   appDarkTheme,
@@ -31,6 +32,7 @@ export function AppProviders({ children }: PropsWithChildren) {
 
   return (
     <ReduxProvider store={store}>
+      <WidgetLiveSync />
       <QueryClientProvider client={queryClient}>
         <PaperProvider theme={paperTheme}>
           <ThemeProvider value={navigationTheme}>{children}</ThemeProvider>

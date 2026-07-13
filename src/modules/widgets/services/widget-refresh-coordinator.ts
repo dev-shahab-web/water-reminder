@@ -4,26 +4,26 @@ import { refreshNativeWidgets, writeNativeWidgetState } from '@platform/widgets'
 import type { WidgetRefreshReason } from '../types';
 import { buildHydrationWidgetState } from './widget-state-builder';
 
-let refreshPromise: Promise<void> | undefined;
+let refreshQueue: Promise<void> = Promise.resolve();
 
 export const refreshHydrationWidgets = (reason: WidgetRefreshReason): Promise<void> => {
-  if (refreshPromise !== undefined) {
-    return refreshPromise;
-  }
-
-  refreshPromise = (async () => {
+  const runRefresh = async () => {
     try {
       const state = await buildHydrationWidgetState();
 
       await writeNativeWidgetState(JSON.stringify(state));
       await refreshNativeWidgets();
-      logger.info('Hydration widgets refreshed.', { reason });
+      logger.info('Hydration widgets refreshed.', {
+        consumedMl: state.consumedMl,
+        reason,
+        updatedAt: state.updatedAt,
+      });
     } catch (error) {
       logger.warn('Hydration widget refresh failed.', { error, reason });
-    } finally {
-      refreshPromise = undefined;
     }
-  })();
+  };
 
-  return refreshPromise;
+  refreshQueue = refreshQueue.then(runRefresh, runRefresh);
+
+  return refreshQueue;
 };

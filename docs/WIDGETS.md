@@ -39,9 +39,12 @@ App state changes trigger `refreshHydrationWidgets`.
 
 ```txt
 Hydration/settings/reminder/stat sync change
--> Widget state builder
--> Native widget snapshot
--> Jetpack Glance update
+-> Persist mutation successfully
+-> Reload canonical today state from SQLite/settings storage
+-> Build a complete widget snapshot
+-> Commit native-readable SharedPreferences snapshot
+-> Copy snapshot into Glance preferences state
+-> Request Jetpack Glance update
 -> Android launcher widget
 ```
 
@@ -52,11 +55,15 @@ Launcher quick-add tap
 -> Glance ActionCallback
 -> Native SQLite insert
 -> widget_actions idempotency record
--> Native widget snapshot update
--> Jetpack Glance update
+-> Commit SQLite transaction
+-> Recalculate today's consumed amount from SQLite
+-> Commit native-readable SharedPreferences snapshot
+-> Emit `widgetHydrationChanged` when React Native is alive
+-> Copy snapshot into Glance preferences state
+-> Request Jetpack Glance updateAll
 ```
 
-The app remains the canonical experience. Widget writes use the same local SQLite database and appear in Home, History, Statistics, export, and delete/reset flows after app refresh.
+The app remains the canonical experience. Widget writes use the same local SQLite database and appear in Home, History, Statistics, export, and delete/reset flows after app refresh. The widget snapshot is always rebuilt after the canonical write, never before it.
 
 ## Persistence
 
@@ -74,6 +81,11 @@ Processed widget actions are stored in SQLite:
 
 The current widget snapshot is stored in Android SharedPreferences by the native module. This snapshot is display cache only; it is not the hydration source of truth.
 
+Snapshot writes use synchronous commits so a launcher update request cannot overtake the new display state.
+Before every launcher refresh, the native layer copies the durable snapshot into Glance `PreferencesGlanceStateDefinition` state. Widget composition reads from Glance `currentState`, not directly from SharedPreferences, so RemoteViews are rebuilt from observable widget state instead of a captured snapshot.
+
+Snapshot writes are guarded by `updatedAt`. A stale projection may not overwrite a newer snapshot produced by a native widget action or a later app refresh.
+
 ## Refresh Triggers
 
 Widgets refresh after:
@@ -84,6 +96,11 @@ Widgets refresh after:
 - Native widget quick-add actions.
 
 Refreshes are deduplicated in JavaScript so routine app renders do not reschedule widget work.
+Refreshes caused by mutations are queued sequentially. If two changes happen quickly, each refresh rebuilds from canonical storage after the previous refresh completes so the final launcher state reflects the latest committed data.
+
+When the running app returns to the foreground, it reloads today's hydration entries from SQLite, updates Redux, rebuilds the widget snapshot from canonical storage, and requests a widget refresh. Native widget quick-add also emits a lightweight `widgetHydrationChanged` event when the React Native runtime is alive so the Home screen can reload immediately without requiring app restart.
+
+Before live sync reloads entries after a native widget action or foreground transition, React Native closes and reopens its Expo SQLite connection. This prevents the app from reading from a stale long-lived connection after the native widget writer has committed directly to SQLite.
 
 ## Design Rules
 
@@ -167,6 +184,6 @@ Pixel Launcher validation:
 
 ## Trade-Offs
 
-The widget writes directly to SQLite for quick-add actions because Android launcher callbacks must work when the React Native bridge is not active. The trade-off is that the native writer must remain narrowly scoped and aligned with migrations. It may only insert hydration entries, record action idempotency, and refresh the widget snapshot.
+The widget writes directly to SQLite for quick-add actions because Android launcher callbacks must work when the React Native bridge is not active. The trade-off is that the native writer must remain narrowly scoped and aligned with migrations. It may only insert hydration entries, record action idempotency, recalculate today's consumed amount from SQLite, and refresh the widget snapshot.
 
 This keeps the widget fast and offline-first while avoiding a second business-logic layer.

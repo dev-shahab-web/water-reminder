@@ -21,3 +21,12 @@ export const initializeDatabase = async (): Promise<AppDatabase> => {
 export const getDatabase = async (): Promise<AppDatabase> => {
   return initializeDatabase();
 };
+
+export const resetDatabaseConnection = async (): Promise<void> => {
+  if (database === null) {
+    return;
+  }
+
+  await database.closeAsync();
+  database = null;
+};

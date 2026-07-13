@@ -1,6 +1,8 @@
 package __PACKAGE__.widgets
 
 import android.content.Context
+import android.util.Log
+import androidx.datastore.preferences.core.stringPreferencesKey
 import org.json.JSONObject
 import java.util.UUID
 
@@ -20,14 +22,25 @@ data class WidgetState(
 )
 
 object WidgetStateStore {
+  private const val tag = "WaterReminderWidget"
   private const val preferencesName = "water_reminder_widget"
   private const val stateKey = "state_json"
   private const val processedPrefix = "processed_action_"
+  val glanceStateKey = stringPreferencesKey(stateKey)
 
   fun read(context: Context): WidgetState? {
-    val json = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
+    return parse(readJson(context))
+  }
+
+  fun readJson(context: Context): String? {
+    return context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
       .getString(stateKey, null)
-      ?: return null
+  }
+
+  fun parse(json: String?): WidgetState? {
+    if (json == null) {
+      return null
+    }
 
     return runCatching {
       val value = JSONObject(json)
@@ -48,15 +61,34 @@ object WidgetStateStore {
     }.getOrNull()
   }
 
-  fun write(context: Context, stateJson: String) {
-    context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
+  fun write(context: Context, stateJson: String): Boolean {
+    val incomingState = parse(stateJson)
+    val existingState = read(context)
+
+    if (
+      incomingState != null &&
+      existingState != null &&
+      incomingState.updatedAt < existingState.updatedAt
+    ) {
+      Log.d(
+        tag,
+        "Skipped stale widget snapshot incomingUpdatedAt=${incomingState.updatedAt} existingUpdatedAt=${existingState.updatedAt}"
+      )
+      return true
+    }
+
+    return context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
       .edit()
       .putString(stateKey, stateJson)
-      .apply()
+      .commit()
   }
 
-  fun write(context: Context, state: WidgetState) {
-    val value = JSONObject()
+  fun write(context: Context, state: WidgetState): Boolean {
+    return write(context, toJson(state))
+  }
+
+  fun toJson(state: WidgetState): String {
+    return JSONObject()
       .put("actionNonce", state.actionNonce)
       .put("completionPercentage", state.completionPercentage)
       .put("consumedMl", state.consumedMl)
@@ -69,8 +101,7 @@ object WidgetStateStore {
       .put("remainingMl", state.remainingMl)
       .put("themePreference", state.themePreference)
       .put("updatedAt", state.updatedAt)
-
-    write(context, value.toString())
+      .toString()
   }
 
   fun markProcessed(context: Context, actionId: String): Boolean {
@@ -81,7 +112,6 @@ object WidgetStateStore {
       return false
     }
 
-    preferences.edit().putBoolean(key, true).apply()
-    return true
+    return preferences.edit().putBoolean(key, true).commit()
   }
 }
