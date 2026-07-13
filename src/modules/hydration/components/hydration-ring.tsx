@@ -57,6 +57,12 @@ export const HydrationRing = memo(function HydrationRing({
   const isComplete = totalAmount >= goalAmount;
   const isDarkMode = theme.dark;
   const textShadow = getTextShadow(isDarkMode);
+  const unitTextColor = isDarkMode ? 'rgba(236, 255, 251, 0.72)' : 'rgba(10, 88, 84, 0.7)';
+  const statusTextColor = isComplete
+    ? theme.app.colors.hydrationComplete
+    : isDarkMode
+      ? 'rgba(220, 255, 249, 0.82)'
+      : 'rgba(8, 96, 91, 0.78)';
   const waterVisuals = isDarkMode
     ? {
         baseFill: 'rgba(8, 103, 101, 0.68)',
@@ -279,7 +285,7 @@ export const HydrationRing = memo(function HydrationRing({
             style={[
               styles.unit,
               {
-                color: theme.app.colors.textSecondary,
+                color: unitTextColor,
                 fontSize: theme.app.typography.fontSize.body,
                 lineHeight: theme.app.typography.lineHeight.body,
                 ...textShadow,
@@ -292,9 +298,7 @@ export const HydrationRing = memo(function HydrationRing({
             style={[
               styles.message,
               {
-                color: isComplete
-                  ? theme.app.colors.hydrationComplete
-                  : theme.app.colors.textSecondary,
+                color: statusTextColor,
                 fontSize: theme.app.typography.fontSize.label,
                 lineHeight: theme.app.typography.lineHeight.label,
                 ...textShadow,
