@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { AmountEntryModal } from '@modules/hydration';
 import { useOnboardingState } from '@modules/onboarding';
-import { AppScreen, PrimaryButton, SecondaryButton, SectionHeader } from '@shared/components';
+import { AppScreen, IconButton, PrimaryButton, SectionHeader } from '@shared/components';
 import { EmptyState, SkeletonCard } from '@shared/motion';
 
 import { HistoryDayNavigation } from '../components/history-day-navigation';
@@ -85,16 +85,17 @@ export function HistoryScreen() {
   return (
     <AppScreen scrollable style={styles.screen}>
       <View style={styles.header}>
+        <IconButton
+          accessibilityLabel="Go back"
+          icon="back"
+          onPress={() => {
+            router.back();
+          }}
+          style={styles.backButton}
+        />
         <SectionHeader
           subtitle="Review what you logged without charts or pressure."
           title="History"
-        />
-        <SecondaryButton
-          label="Home"
-          onPress={() => {
-            router.push('/');
-          }}
-          style={styles.homeButton}
         />
       </View>
 
@@ -152,11 +153,8 @@ const styles = StyleSheet.create({
   header: {
     gap: 14,
   },
-  homeButton: {
+  backButton: {
     alignSelf: 'flex-start',
-    minHeight: 44,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
   },
   screen: {
     alignSelf: 'center',

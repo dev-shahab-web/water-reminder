@@ -1,11 +1,18 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Modal, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Modal, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
+import { appConfig } from '@core/config';
 import { HealthConnectCard } from '@modules/health-connect';
 import { ReminderCard } from '@modules/reminders';
-import { AppScreen, PrimaryButton, SecondaryButton, SectionHeader } from '@shared/components';
+import {
+  AppScreen,
+  IconButton,
+  PrimaryButton,
+  SecondaryButton,
+  SectionHeader,
+} from '@shared/components';
 import type { AppTheme } from '@shared/theme';
 
 import { SegmentedSetting } from '../components/segmented-setting';
@@ -30,6 +37,14 @@ const startOfDayOptions = [
   { label: '4 AM', value: '04:00' },
   { label: '6 AM', value: '06:00' },
 ] as const;
+
+const openUrl = async (url: string, fallbackMessage: string) => {
+  try {
+    await Linking.openURL(url);
+  } catch {
+    Alert.alert('Could not open link', fallbackMessage);
+  }
+};
 
 export function SettingsScreen() {
   const theme = useTheme<AppTheme>();
@@ -129,12 +144,47 @@ export function SettingsScreen() {
     );
   };
 
+  const showPrivacyPolicy = () => {
+    Alert.alert(
+      'Privacy Policy',
+      'Water Reminder stores core hydration data locally on this device. Health Connect is optional and only used after permission. The app does not require an account, cloud sync, advertising identifiers, or a backend for core features.',
+    );
+  };
+
+  const showTerms = () => {
+    Alert.alert(
+      'Terms',
+      'Water Reminder is a general wellness utility. It does not provide medical advice. You control local data, reminders, and optional Health Connect access from this device.',
+    );
+  };
+
+  const showOpenSourceLicenses = () => {
+    Alert.alert(
+      'Open Source Licenses',
+      'This app is built with Expo, React Native, React Native Paper, Redux Toolkit, React Query, Reanimated, MMKV, SQLite, and Android Jetpack Glance. Full notices should be included with the Play Store release package.',
+    );
+  };
+
+  const openFeedback = () => {
+    void openUrl(
+      `mailto:?subject=${encodeURIComponent(`${appConfig.name} feedback`)}`,
+      'Open your email app and mention Water Reminder feedback in the subject.',
+    );
+  };
+
+  const openRateApp = () => {
+    void openUrl(
+      'market://details?id=com.shahab.waterreminder',
+      'Search for Water Reminder in Google Play to rate the app.',
+    );
+  };
+
   return (
     <AppScreen scrollable style={styles.screen}>
       <View style={styles.header}>
-        <SecondaryButton
-          accessibilityLabel="Go back to Home"
-          label="Back"
+        <IconButton
+          accessibilityLabel="Go back"
+          icon="back"
           onPress={() => {
             router.back();
           }}
@@ -347,15 +397,27 @@ export function SettingsScreen() {
         />
       </SettingsSection>
 
-      <SettingsSection title="About">
+      <SettingsSection
+        subtitle="Release information, privacy, and ways to support the app."
+        title="About"
+      >
         <SettingsRow label="Application version" value={appInformation.version} />
         <SettingsRow label="Build number" value={appInformation.buildNumber} />
-        <SettingsRow label="Privacy Policy" value="Coming soon" />
-        <SettingsRow label="Terms" value="Coming soon" />
-        <SettingsRow label="Open Source Licenses" value="Coming soon" />
-        <SettingsRow label="GitHub" value="Coming soon" />
-        <SettingsRow label="Feedback" value="Coming soon" />
-        <SettingsRow label="Rate App" value="Coming soon" />
+        <SettingsRow label="Privacy Policy" onPress={showPrivacyPolicy} value="View" />
+        <SettingsRow label="Terms" onPress={showTerms} value="View" />
+        <SettingsRow label="Open Source Licenses" onPress={showOpenSourceLicenses} value="View" />
+        <SettingsRow
+          label="GitHub"
+          onPress={() => {
+            Alert.alert(
+              'GitHub',
+              'The public source link will be added when the repository is published.',
+            );
+          }}
+          value="Planned"
+        />
+        <SettingsRow label="Feedback" onPress={openFeedback} value="Email" />
+        <SettingsRow label="Rate App" onPress={openRateApp} value="Google Play" />
       </SettingsSection>
 
       <ExportModal onClose={clearExport} payload={exportPayload} theme={theme} />
@@ -491,9 +553,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   headerButton: {
-    minHeight: 44,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    flexShrink: 0,
   },
   headerCopy: {
     flex: 1,

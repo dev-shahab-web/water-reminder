@@ -2,7 +2,13 @@ import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { useOnboardingState } from '@modules/onboarding';
-import { AppScreen, PrimaryButton, SecondaryButton, SectionHeader } from '@shared/components';
+import {
+  AppScreen,
+  IconButton,
+  PrimaryButton,
+  SecondaryButton,
+  SectionHeader,
+} from '@shared/components';
 import { SkeletonCard } from '@shared/motion';
 
 import { InsightList } from '../components/insight-list';
@@ -34,10 +40,11 @@ export function StatisticsScreen() {
           title={statistics.errorMessage ?? "We couldn't load statistics."}
         />
         <PrimaryButton label="Retry" onPress={statistics.retry} />
-        <SecondaryButton
-          label="Home"
+        <IconButton
+          accessibilityLabel="Go back"
+          icon="back"
           onPress={() => {
-            router.push('/');
+            router.back();
           }}
         />
       </AppScreen>
@@ -61,6 +68,14 @@ function StatisticsDashboard({
   return (
     <AppScreen scrollable style={styles.screen}>
       <View style={styles.header}>
+        <IconButton
+          accessibilityLabel="Go back"
+          icon="back"
+          onPress={() => {
+            router.back();
+          }}
+          style={styles.backButton}
+        />
         <SectionHeader
           subtitle="Simple local insights from your hydration history."
           title="Statistics"
@@ -153,6 +168,9 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 14,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
   },
   navButton: {
     flexBasis: 110,

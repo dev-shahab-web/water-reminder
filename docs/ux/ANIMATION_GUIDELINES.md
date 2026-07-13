@@ -7,10 +7,43 @@ Animation should clarify feedback and state changes. It must never slow down log
 ## Global Rules
 
 - Prefer short, calm animations.
-- Avoid looping decorative animation.
+- Avoid looping decorative animation except the approved low-amplitude water surface motion on the Home hero.
 - Respect Reduce Motion.
 - Preserve meaning when animation is disabled.
 - Do not animate layout in ways that cause text overlap.
+- Pause continuous motion when the app is backgrounded or the screen is not focused.
+
+## Water Surface Motion
+
+Trigger:
+
+- Home dashboard is focused, the app is active, and Reduce Motion is disabled.
+
+Duration:
+
+- Continuous slow loop, approximately 9-12 seconds per wave phase.
+
+Easing:
+
+- Linear horizontal movement.
+
+Purpose:
+
+- Make the hydration hero feel alive and water-inspired without distracting from logging.
+
+Behavior:
+
+- Two overlapping wave layers move horizontally with subtle phase difference.
+- The water level remains tied to hydration progress.
+- Logging water still visibly raises the water level and triggers the ripple signature moment.
+- Motion must not cause layout shifts.
+- Motion must not block taps, logging, undo, edit, or delete actions.
+
+Reduce Motion fallback:
+
+- Disable continuous wave movement.
+- Keep the current water level visible.
+- Use instant or very short progress updates.
 
 ## Quick Add Success
 
@@ -30,6 +63,7 @@ Easing:
 Purpose:
 
 - Confirm the entry was recorded and progress changed.
+- Preserve the signature moment: water rises, surface ripples, ring updates, number changes, haptic confirms, and concise success copy appears.
 
 Reduce Motion fallback:
 
@@ -74,6 +108,7 @@ Easing:
 Purpose:
 
 - Mark completion without pressure or spectacle.
+- Keep completion calm. Do not use confetti or sound in v1.
 
 Reduce Motion fallback:
 

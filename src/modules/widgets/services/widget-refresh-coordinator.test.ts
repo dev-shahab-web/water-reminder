@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import type { HydrationWidgetState } from '../types';
 
+/* eslint-disable @typescript-eslint/no-require-imports */
+
 const mockBuildHydrationWidgetState = jest.fn<() => Promise<HydrationWidgetState>>();
 const mockRefreshNativeWidgets = jest.fn<() => Promise<void>>();
 const mockWriteNativeWidgetState = jest.fn<(stateJson: string) => Promise<void>>();

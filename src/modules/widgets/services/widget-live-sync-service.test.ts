@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
+/* eslint-disable @typescript-eslint/no-require-imports */
+
 const mockLoadTodayHydration = jest.fn();
 const mockRefreshHydrationWidgets = jest.fn<() => Promise<void>>();
 const mockResetDatabaseConnection = jest.fn<() => Promise<void>>();

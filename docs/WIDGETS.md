@@ -106,6 +106,8 @@ Before live sync reloads entries after a native widget action or foreground tran
 
 - Keep widgets glanceable.
 - Prefer progress and one-tap logging over dense information.
+- Use the native vector Water Reminder mark from the config-plugin template as the widget brand cue.
+- Compact layouts may show only the brand mark; medium and expanded layouts may show the mark plus title or calm completion copy.
 - Do not add social, streak-pressure, medical, advertising, or account concepts.
 - Do not require network connectivity.
 - Do not expose raw health data beyond the user's own local hydration progress.

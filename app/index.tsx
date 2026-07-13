@@ -1,6 +1,7 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect } from 'react';
+import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { AppState, type AppStateStatus } from 'react-native';
 import Animated, { Easing, FadeInDown, FadeOutUp, useReducedMotion } from 'react-native-reanimated';
 import { useTheme } from 'react-native-paper';
 
@@ -15,11 +16,13 @@ import {
 } from '@modules/hydration';
 import { useOnboardingState } from '@modules/onboarding';
 import { ReminderCard, useReminders } from '@modules/reminders';
+import { useSettingsSnapshot } from '@modules/settings';
 import { useStatisticsPreview } from '@modules/statistics';
-import { AnimatedCard } from '@shared/motion';
+import { AnimatedCard, shouldUseContinuousMotion } from '@shared/motion';
 import {
   AppScreen,
   BrandMark,
+  IconButton,
   PrimaryButton,
   SecondaryButton,
   SectionHeader,
@@ -32,7 +35,11 @@ export default function HomeScreen() {
   const theme = useTheme<AppTheme>();
   const params = useLocalSearchParams<{ reminderPulse?: string }>();
   const { state } = useOnboardingState();
-  const reduceMotion = useReducedMotion();
+  const isFocused = useIsFocused();
+  const systemReduceMotion = useReducedMotion();
+  const settings = useSettingsSnapshot();
+  const reduceMotion = systemReduceMotion || settings.reduceMotion;
+  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
   const {
     amountError,
     amountInput,
@@ -57,6 +64,14 @@ export default function HomeScreen() {
     totalAmount: summary.totalAmount,
   });
   const statisticsPreview = useStatisticsPreview(summary.goalAmount);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', setAppState);
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
     if (!state.onboardingCompleted) {
@@ -115,9 +130,9 @@ export default function HomeScreen() {
             {getGreeting()}
           </Text>
         </View>
-        <SecondaryButton
-          accessibilityLabel="Open Settings"
-          label="Settings"
+        <IconButton
+          accessibilityLabel="Open settings"
+          icon="settings"
           onPress={() => {
             router.push('/settings' as never);
           }}
@@ -127,9 +142,15 @@ export default function HomeScreen() {
 
       <HydrationRing
         attentionKey={params.reminderPulse}
+        continuousMotionEnabled={shouldUseContinuousMotion({
+          appState,
+          isScreenFocused: isFocused,
+          reduceMotion,
+        })}
         goalAmount={summary.goalAmount}
         message={ringMessage}
         remainingAmount={summary.remainingAmount}
+        reduceMotion={reduceMotion}
         totalAmount={summary.totalAmount}
       />
 
@@ -409,9 +430,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   settingsButton: {
-    minHeight: 44,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    flexShrink: 0,
   },
   statisticsPreview: {
     borderWidth: 1,

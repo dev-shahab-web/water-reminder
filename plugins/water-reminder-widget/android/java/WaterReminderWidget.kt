@@ -13,6 +13,8 @@ import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.Preferences
 import androidx.glance.Button
 import androidx.glance.GlanceModifier
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.LocalSize
 import androidx.glance.currentState
 import androidx.glance.action.actionParametersOf
@@ -119,7 +121,7 @@ private fun WidgetContent(context: Context, state: WidgetState?) {
       return@Column
     }
 
-    HeaderSection(state, colors)
+    HeaderSection(state, colors, isMedium)
     Spacer(modifier = GlanceModifier.height(8.dp))
     ProgressSection(state, colors, isMedium, isExpanded)
     Spacer(modifier = GlanceModifier.height(8.dp))
@@ -128,26 +130,30 @@ private fun WidgetContent(context: Context, state: WidgetState?) {
 }
 
 @Composable
-private fun HeaderSection(state: WidgetState, colors: WidgetColors) {
-  requireGlanceContainerChildren("HeaderSection", 3)
+private fun HeaderSection(state: WidgetState, colors: WidgetColors, showTitle: Boolean) {
+  val childCount = if (showTitle) 3 else 1
+
+  requireGlanceContainerChildren("HeaderSection", childCount)
   Row(
     modifier = GlanceModifier.fillMaxWidth(),
     verticalAlignment = Alignment.Vertical.CenterVertically
   ) {
-    Box(
-      modifier = GlanceModifier
-        .size(22.dp)
-        .background(colors.primary)
-    ) {}
-    Spacer(modifier = GlanceModifier.width(8.dp))
-    Text(
-      text = if (state.goalCompleted) "Goal complete" else "Water Reminder",
-      style = TextStyle(
-        color = colors.textPrimary,
-        fontSize = 14.sp,
-        fontWeight = FontWeight.Bold
-      )
+    Image(
+      provider = ImageProvider(R.drawable.water_reminder_widget_mark),
+      contentDescription = "Water Reminder",
+      modifier = GlanceModifier.size(24.dp)
     )
+    if (showTitle) {
+      Spacer(modifier = GlanceModifier.width(8.dp))
+      Text(
+        text = if (state.goalCompleted) "Goal complete" else "Water Reminder",
+        style = TextStyle(
+          color = colors.textPrimary,
+          fontSize = 14.sp,
+          fontWeight = FontWeight.Bold
+        )
+      )
+    }
   }
 }
 

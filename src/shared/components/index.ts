@@ -2,6 +2,7 @@ export { AppScreen } from './app-screen';
 export { BrandMark } from './brand-mark';
 export { ChoiceCard } from './choice-card';
 export { GoalCard } from './goal-card';
+export { IconButton } from './icon-button';
 export { OnboardingPage } from './onboarding-page';
 export { PrimaryButton } from './primary-button';
 export { ProgressIndicator } from './progress-indicator';

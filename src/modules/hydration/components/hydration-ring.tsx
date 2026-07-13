@@ -3,10 +3,12 @@ import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   type SharedValue,
+  cancelAnimation,
+  interpolate,
   interpolateColor,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
+  withRepeat,
   withTiming,
 } from 'react-native-reanimated';
 import { useTheme } from 'react-native-paper';
@@ -16,33 +18,67 @@ import type { AppTheme } from '@shared/theme';
 
 type HydrationRingProps = {
   attentionKey?: string;
+  continuousMotionEnabled?: boolean;
   goalAmount: number;
   message: string;
   remainingAmount: number;
+  reduceMotion?: boolean;
   totalAmount: number;
 };
 
 const RING_SIZE = 260;
+const GLASS_SIZE = RING_SIZE - 36;
 const SEGMENT_COUNT = 48;
 const SEGMENT_INDEXES = Array.from({ length: SEGMENT_COUNT }, (_, index) => index);
+const WAVE_LOBE_INDEXES = Array.from({ length: 7 }, (_, index) => index);
 
 export const HydrationRing = memo(function HydrationRing({
   attentionKey,
+  continuousMotionEnabled = true,
   goalAmount,
   message,
   remainingAmount,
+  reduceMotion = false,
   totalAmount,
 }: HydrationRingProps) {
   const theme = useTheme<AppTheme>();
-  const reduceMotion = useReducedMotion();
   const progress = useSharedValue(Math.min(totalAmount / goalAmount, 1));
   const ripple = useSharedValue(0);
+  const wavePrimary = useSharedValue(0);
+  const waveSecondary = useSharedValue(0);
   const completionGlow = useSharedValue(totalAmount >= goalAmount ? 1 : 0);
   const previousAmount = useRef(totalAmount);
   const previousAttentionKey = useRef(attentionKey);
 
   const cappedProgress = Math.min(totalAmount / goalAmount, 1);
   const isComplete = totalAmount >= goalAmount;
+
+  useEffect(() => {
+    if (!continuousMotionEnabled || reduceMotion) {
+      cancelAnimation(wavePrimary);
+      cancelAnimation(waveSecondary);
+      wavePrimary.value = withTiming(0, { duration: 120 });
+      waveSecondary.value = withTiming(0, { duration: 120 });
+      return;
+    }
+
+    wavePrimary.value = withRepeat(
+      withTiming(-RING_SIZE * 0.32, {
+        duration: 9000,
+        easing: Easing.linear,
+      }),
+      -1,
+      false,
+    );
+    waveSecondary.value = withRepeat(
+      withTiming(RING_SIZE * 0.22, {
+        duration: 12000,
+        easing: Easing.linear,
+      }),
+      -1,
+      true,
+    );
+  }, [continuousMotionEnabled, reduceMotion, wavePrimary, waveSecondary]);
 
   useEffect(() => {
     const duration = reduceMotion ? 0 : motionDuration.standard;
@@ -87,12 +123,33 @@ export const HydrationRing = memo(function HydrationRing({
   ]);
 
   const waterStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - progress.value) * (RING_SIZE - 36) }],
+    transform: [{ translateY: (1 - progress.value) * GLASS_SIZE }],
   }));
 
-  const rippleStyle = useAnimatedStyle(() => ({
-    opacity: reduceMotion ? 0 : 0.34 * (1 - ripple.value),
-    transform: [{ scale: 0.64 + ripple.value * 0.66 }],
+  const wavePrimaryStyle = useAnimatedStyle(() => ({
+    opacity: 1,
+    transform: [{ translateX: wavePrimary.value }],
+  }));
+
+  const waveSecondaryStyle = useAnimatedStyle(() => ({
+    opacity: reduceMotion ? 0 : 0.42,
+    transform: [{ translateX: waveSecondary.value }],
+  }));
+
+  const ripplePrimaryStyle = useAnimatedStyle(() => ({
+    opacity: reduceMotion ? 0 : interpolate(ripple.value, [0, 0.6, 1], [0.26, 0.12, 0]),
+    transform: [
+      { translateY: (1 - progress.value) * GLASS_SIZE - GLASS_SIZE / 2 },
+      { scale: 0.34 + ripple.value * 0.72 },
+    ],
+  }));
+
+  const rippleSecondaryStyle = useAnimatedStyle(() => ({
+    opacity: reduceMotion ? 0 : interpolate(ripple.value, [0, 0.18, 0.72, 1], [0, 0.18, 0.08, 0]),
+    transform: [
+      { translateY: (1 - progress.value) * GLASS_SIZE - GLASS_SIZE / 2 },
+      { scale: 0.18 + ripple.value * 0.86 },
+    ],
   }));
 
   const glowStyle = useAnimatedStyle(() => ({
@@ -150,14 +207,24 @@ export const HydrationRing = memo(function HydrationRing({
             waterStyle,
           ]}
         >
-          <View
-            style={[
-              styles.waterSurface,
-              {
-                backgroundColor: theme.app.colors.hydrationProgress,
-              },
-            ]}
-          />
+          <Animated.View pointerEvents="none" style={[styles.waveTrack, waveSecondaryStyle]}>
+            <WaveLobes
+              color={theme.app.colors.hydrationProgress}
+              lobeHeight={30}
+              lobeWidth={86}
+              opacity={0.2}
+              topOffset={-16}
+            />
+          </Animated.View>
+          <Animated.View pointerEvents="none" style={[styles.waveTrack, wavePrimaryStyle]}>
+            <WaveLobes
+              color={theme.colors.primaryContainer}
+              lobeHeight={34}
+              lobeWidth={92}
+              opacity={1}
+              topOffset={-18}
+            />
+          </Animated.View>
         </Animated.View>
         <Animated.View
           style={[
@@ -166,7 +233,18 @@ export const HydrationRing = memo(function HydrationRing({
               borderColor: theme.app.colors.hydrationProgress,
               borderRadius: RING_SIZE / 2,
             },
-            rippleStyle,
+            ripplePrimaryStyle,
+          ]}
+        />
+        <Animated.View
+          style={[
+            styles.ripple,
+            styles.rippleSecondary,
+            {
+              borderColor: theme.app.colors.hydrationProgress,
+              borderRadius: RING_SIZE / 2,
+            },
+            rippleSecondaryStyle,
           ]}
         />
         <View style={styles.centerCopy}>
@@ -233,6 +311,42 @@ function AnimatedAmount({ amount }: AnimatedAmountProps) {
         },
       ]}
     />
+  );
+}
+
+function WaveLobes({
+  color,
+  lobeHeight,
+  lobeWidth,
+  opacity,
+  topOffset,
+}: {
+  color: string;
+  lobeHeight: number;
+  lobeWidth: number;
+  opacity: number;
+  topOffset: number;
+}) {
+  return (
+    <View style={styles.waveLobeRow}>
+      {WAVE_LOBE_INDEXES.map((index) => (
+        <View
+          key={index}
+          style={[
+            styles.waveLobe,
+            {
+              backgroundColor: color,
+              borderRadius: lobeWidth / 2,
+              height: lobeHeight,
+              marginLeft: index === 0 ? 0 : -lobeWidth * 0.24,
+              opacity,
+              top: topOffset + (index % 2 === 0 ? 0 : 3),
+              width: lobeWidth,
+            },
+          ]}
+        />
+      ))}
+    </View>
   );
 }
 
@@ -312,9 +426,17 @@ const styles = StyleSheet.create({
   },
   ripple: {
     borderWidth: 2,
-    height: RING_SIZE - 84,
+    height: 124,
+    left: (GLASS_SIZE - 124) / 2,
     position: 'absolute',
-    width: RING_SIZE - 84,
+    top: (GLASS_SIZE - 124) / 2,
+    width: 124,
+  },
+  rippleSecondary: {
+    height: 96,
+    left: (GLASS_SIZE - 96) / 2,
+    top: (GLASS_SIZE - 96) / 2,
+    width: 96,
   },
   segment: {
     height: 14,
@@ -331,9 +453,17 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: '100%',
   },
-  waterSurface: {
-    height: 2,
-    opacity: 0.44,
-    width: '100%',
+  waveLobe: {
+    position: 'relative',
+  },
+  waveLobeRow: {
+    flexDirection: 'row',
+  },
+  waveTrack: {
+    height: 38,
+    left: -76,
+    position: 'absolute',
+    top: -1,
+    width: GLASS_SIZE + 152,
   },
 });
