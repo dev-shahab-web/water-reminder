@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { useTheme } from 'react-native-paper';
+import { Icon, useTheme } from 'react-native-paper';
 
 import { AnimatedPressableScale } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
@@ -38,6 +38,7 @@ export const QuickAddButton = memo(function QuickAddButton({
       ]}
     >
       <View style={styles.content}>
+        <Icon color={theme.app.colors.hydrationProgress} size={18} source="water" />
         <Text
           style={[
             styles.amount,
@@ -89,6 +90,7 @@ const styles = StyleSheet.create({
   },
   content: {
     alignItems: 'center',
+    gap: 2,
   },
   unit: {
     fontWeight: '700',

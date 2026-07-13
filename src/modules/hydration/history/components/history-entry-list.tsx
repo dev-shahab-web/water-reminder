@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
-import { SecondaryButton, SectionHeader } from '@shared/components';
+import { IconButton, SectionHeader } from '@shared/components';
 import { AnimatedCard } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 
@@ -69,21 +69,19 @@ export function HistoryEntryList({ entries, onDeleteEntry, onEditEntry }: Histor
               </Text>
             </View>
             <View style={styles.actions}>
-              <SecondaryButton
+              <IconButton
                 accessibilityLabel={`Edit ${entry.amount} milliliter entry`}
-                label="Edit"
+                icon="pencil-outline"
                 onPress={() => {
                   onEditEntry(entry);
                 }}
-                style={styles.action}
               />
-              <SecondaryButton
+              <IconButton
                 accessibilityLabel={`Delete ${entry.amount} milliliter entry`}
-                label="Delete"
+                icon="trash-can-outline"
                 onPress={() => {
                   onDeleteEntry(entry);
                 }}
-                style={styles.action}
               />
             </View>
           </AnimatedCard>
@@ -94,13 +92,6 @@ export function HistoryEntryList({ entries, onDeleteEntry, onEditEntry }: Histor
 }
 
 const styles = StyleSheet.create({
-  action: {
-    flexBasis: 96,
-    flexGrow: 1,
-    minHeight: 44,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
   actions: {
     flexDirection: 'row',
     flexWrap: 'wrap',

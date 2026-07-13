@@ -54,15 +54,22 @@ export function HistoryDayNavigation({
         </Text>
       </View>
       <View style={styles.actions}>
-        <SecondaryButton label="Previous" onPress={onPreviousDay} style={styles.action} />
+        <SecondaryButton
+          icon="chevron-left"
+          label="Previous"
+          onPress={onPreviousDay}
+          style={styles.action}
+        />
         <SecondaryButton
           disabled={isFutureNextDay}
+          icon="chevron-right"
           label="Next"
           onPress={onNextDay}
           style={styles.action}
         />
         <SecondaryButton
           disabled={selectedIsToday}
+          icon="calendar-today"
           label="Today"
           onPress={onToday}
           style={styles.action}

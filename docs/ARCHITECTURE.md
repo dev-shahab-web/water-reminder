@@ -18,6 +18,8 @@ Use this document before adding new product surfaces. Product decisions remain g
 - UI components stay thin and reusable.
 - Business rules live in hooks, services, repositories, and utilities.
 - Motion is centralized and respects Reduce Motion.
+- Material Community Icons through React Native Paper are the single app icon system.
+- Brand identity is water-led: calm glass, reflection, flow, and restrained teal/aqua accents.
 - No account, cloud sync, ads, social features, or backend dependency for core usage.
 
 ## App Layers
@@ -149,6 +151,103 @@ Navigation rules:
 - Do not manually create a React Navigation `NavigationContainer`.
 - Completed users should not see onboarding again.
 - Home remains the primary product surface.
+- Top-level secondary screens use a shared RTL-aware icon back button instead of text-only navigation buttons.
+
+## Brand And Design System
+
+Brand direction:
+
+- Calm, pure, minimal, premium, trustworthy.
+- Water-inspired rather than generically blue.
+- Visual cues should come from flow, reflection, transparency, and gentle motion.
+
+The editable brand source remains `assets/brand/water-reminder-mark.svg`. Expo/native raster assets remain under `assets/images/`, and widget branding uses the config-plugin drawable template under `plugins/water-reminder-widget/android/res/drawable/`.
+
+Design tokens live in `src/shared/theme/tokens/` and are surfaced through `AppTheme`. Product screens should use theme tokens for color, spacing, radius, typography, and elevation instead of local one-off values.
+
+Glass treatment is intentionally selective:
+
+- Home hero and important cards may use translucent-feeling surfaces, soft borders, low elevation, and subtle reflection.
+- Routine form rows remain clear and quiet.
+- Avoid heavy gradients, bright decorative color, and ornamental background shapes.
+
+## Release Links
+
+Release-facing destinations live in `src/core/config/release-links.ts`.
+
+Supported environment overrides:
+
+- `EXPO_PUBLIC_PRIVACY_POLICY_URL`
+- `EXPO_PUBLIC_TERMS_URL`
+- `EXPO_PUBLIC_GITHUB_URL`
+- `EXPO_PUBLIC_FEEDBACK_EMAIL`
+- `EXPO_PUBLIC_PLAY_STORE_URL`
+- `EXPO_PUBLIC_LICENSES_URL`
+
+Settings uses these values for Privacy, Terms, GitHub, Feedback, Rate App, and Open Source Licenses. Empty values fall back to local, production-safe placeholder copy instead of broken links.
+
+## Icon System
+
+Water Reminder uses one icon system:
+
+```txt
+React Native Paper Icon / IconButton
+-> Material Community Icons
+```
+
+Shared surfaces:
+
+- `src/shared/components/icon-button.tsx` for circular icon-only actions.
+- `PrimaryButton` and `SecondaryButton` support optional leading icons for semantic actions.
+- `SettingsRow` supports optional leading icons for scannable settings groups.
+
+Rules:
+
+- Use familiar platform icons for back, settings, edit, delete, history, statistics, notifications, sync, export, import, privacy, feedback, and rating.
+- Keep icon-only controls at roughly 48dp touch targets.
+- Always provide accessible labels for icon-only buttons.
+- Do not mix Lucide, Expo vector icons, custom SVG icons, and Paper icons in the app UI.
+
+## Motion Architecture
+
+Shared motion helpers live in `src/shared/motion/`.
+
+Important pieces:
+
+- `motion-tokens.ts` defines short, calm timing constants.
+- `motion-preferences.ts` gates continuous motion by Reduce Motion, app active state, and screen focus.
+- `AnimatedCard`, `AnimatedCounter`, and `AnimatedPressableScale` provide reusable motion primitives.
+
+Motion rules:
+
+- Logging feedback remains immediate and under the approved response window.
+- Continuous Home water motion runs on Reanimated shared values, not React state.
+- Continuous motion pauses when Home is unfocused, the app is backgrounded, or Reduce Motion is enabled.
+- Reduce Motion preserves state clarity while disabling looping water movement and expanding ripples.
+- Avoid adding heavy animation/rendering dependencies unless a product requirement genuinely needs them.
+
+## Home Hero Implementation
+
+The Home dashboard is the primary product surface.
+
+Hero structure:
+
+```txt
+Glass hero card
+-> Brand mark, app name, dynamic greeting, settings icon
+-> HydrationRing
+-> Today / Remaining / Goal metric row
+```
+
+`HydrationRing` owns only visual progress presentation:
+
+- Reanimated progress value tied to the current daily total.
+- Continuous water-surface motion gated by motion preferences.
+- Separate one-shot ripple animation for logging/reminder attention.
+- Completion glow for daily goal completion.
+- Accessible progressbar labels and values.
+
+Business logic remains outside the visual component in hydration hooks, Redux state, and SQLite repositories.
 
 ## Feature Modules
 

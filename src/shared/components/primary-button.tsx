@@ -1,15 +1,23 @@
 import { StyleSheet, Text, type PressableProps } from 'react-native';
-import { useTheme } from 'react-native-paper';
+import { Icon, useTheme } from 'react-native-paper';
 
 import { AnimatedPressableScale } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 
 type PrimaryButtonProps = PressableProps & {
+  icon?: string;
   label: string;
 };
 
-export function PrimaryButton({ disabled = false, label, style, ...props }: PrimaryButtonProps) {
+export function PrimaryButton({
+  disabled = false,
+  icon,
+  label,
+  style,
+  ...props
+}: PrimaryButtonProps) {
   const theme = useTheme<AppTheme>();
+  const contentColor = disabled ? theme.app.colors.textSecondary : theme.colors.onPrimary;
 
   return (
     <AnimatedPressableScale
@@ -27,11 +35,12 @@ export function PrimaryButton({ disabled = false, label, style, ...props }: Prim
       ]}
       {...props}
     >
+      {icon === undefined ? null : <Icon color={contentColor} size={20} source={icon} />}
       <Text
         style={[
           styles.label,
           {
-            color: disabled ? theme.app.colors.textSecondary : theme.colors.onPrimary,
+            color: contentColor,
             fontSize: theme.app.typography.fontSize.body,
             lineHeight: theme.app.typography.lineHeight.body,
           },
@@ -46,6 +55,8 @@ export function PrimaryButton({ disabled = false, label, style, ...props }: Prim
 const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
     justifyContent: 'center',
     minHeight: 52,
     paddingHorizontal: 20,

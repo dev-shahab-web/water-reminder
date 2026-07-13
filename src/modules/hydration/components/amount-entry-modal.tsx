@@ -114,8 +114,8 @@ export function AmountEntryModal({
             </Text>
           )}
           <View style={styles.actions}>
-            <PrimaryButton label={saveLabel} onPress={onSave} />
-            <SecondaryButton label="Cancel" onPress={onCancel} />
+            <PrimaryButton icon="check" label={saveLabel} onPress={onSave} />
+            <SecondaryButton icon="close" label="Cancel" onPress={onCancel} />
           </View>
         </View>
       </KeyboardAvoidingView>

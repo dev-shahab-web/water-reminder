@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, UIManager, View } from 'react-native';
 import Animated, {
   Easing,
   type SharedValue,
@@ -12,6 +12,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useTheme } from 'react-native-paper';
+import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { AnimatedCounter, motionDuration } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
@@ -28,9 +29,12 @@ type HydrationRingProps = {
 
 const RING_SIZE = 260;
 const GLASS_SIZE = RING_SIZE - 36;
+const WAVE_BASELINE = 8;
+const WAVE_CANVAS_WIDTH = GLASS_SIZE * 2.4;
+const WAVE_CANVAS_HEIGHT = GLASS_SIZE + WAVE_BASELINE;
 const SEGMENT_COUNT = 48;
 const SEGMENT_INDEXES = Array.from({ length: SEGMENT_COUNT }, (_, index) => index);
-const WAVE_LOBE_INDEXES = Array.from({ length: 7 }, (_, index) => index);
+const HAS_NATIVE_SVG = hasNativeSvgSupport();
 
 export const HydrationRing = memo(function HydrationRing({
   attentionKey,
@@ -46,12 +50,38 @@ export const HydrationRing = memo(function HydrationRing({
   const ripple = useSharedValue(0);
   const wavePrimary = useSharedValue(0);
   const waveSecondary = useSharedValue(0);
-  const completionGlow = useSharedValue(totalAmount >= goalAmount ? 1 : 0);
   const previousAmount = useRef(totalAmount);
   const previousAttentionKey = useRef(attentionKey);
 
   const cappedProgress = Math.min(totalAmount / goalAmount, 1);
   const isComplete = totalAmount >= goalAmount;
+  const isDarkMode = theme.dark;
+  const textShadow = getTextShadow(isDarkMode);
+  const waterVisuals = isDarkMode
+    ? {
+        baseFill: 'rgba(8, 103, 101, 0.68)',
+        frontWave: '#8DE8DD',
+        frontWaveOpacity: 0.28,
+        gradientBottom: '#044846',
+        gradientMiddle: '#086765',
+        gradientTop: '#128C83',
+        highlight: 'rgba(215, 255, 249, 0.52)',
+        rearHighlight: 'rgba(142, 232, 221, 0.18)',
+        rearWave: '#157E78',
+        rearWaveOpacity: 0.14,
+      }
+    : {
+        baseFill: theme.colors.primaryContainer,
+        frontWave: '#5CD5CF',
+        frontWaveOpacity: 0.36,
+        gradientBottom: '#65CFC9',
+        gradientMiddle: '#8FE3DC',
+        gradientTop: '#C9F6F1',
+        highlight: 'rgba(255, 255, 255, 0.58)',
+        rearHighlight: 'rgba(255, 255, 255, 0.22)',
+        rearWave: theme.app.colors.hydrationProgress,
+        rearWaveOpacity: 0.2,
+      };
 
   useEffect(() => {
     if (!continuousMotionEnabled || reduceMotion) {
@@ -103,17 +133,11 @@ export const HydrationRing = memo(function HydrationRing({
       });
     }
 
-    completionGlow.value = withTiming(isComplete ? 1 : 0, {
-      duration: reduceMotion ? 0 : motionDuration.slow,
-      easing: Easing.out(Easing.cubic),
-    });
-
     previousAmount.current = totalAmount;
     previousAttentionKey.current = attentionKey;
   }, [
     attentionKey,
     cappedProgress,
-    completionGlow,
     goalAmount,
     isComplete,
     progress,
@@ -123,17 +147,17 @@ export const HydrationRing = memo(function HydrationRing({
   ]);
 
   const waterStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - progress.value) * GLASS_SIZE }],
+    transform: [{ translateY: (1 - progress.value) * GLASS_SIZE - WAVE_BASELINE }],
   }));
 
   const wavePrimaryStyle = useAnimatedStyle(() => ({
     opacity: 1,
-    transform: [{ translateX: wavePrimary.value }],
+    transform: [{ translateX: wavePrimary.value * 0.72 }],
   }));
 
   const waveSecondaryStyle = useAnimatedStyle(() => ({
-    opacity: reduceMotion ? 0 : 0.42,
-    transform: [{ translateX: waveSecondary.value }],
+    opacity: reduceMotion ? 0.72 : 1,
+    transform: [{ translateX: waveSecondary.value * 0.58 }],
   }));
 
   const ripplePrimaryStyle = useAnimatedStyle(() => ({
@@ -150,10 +174,6 @@ export const HydrationRing = memo(function HydrationRing({
       { translateY: (1 - progress.value) * GLASS_SIZE - GLASS_SIZE / 2 },
       { scale: 0.18 + ripple.value * 0.86 },
     ],
-  }));
-
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: reduceMotion ? completionGlow.value * 0.22 : completionGlow.value * 0.36,
   }));
 
   return (
@@ -176,18 +196,6 @@ export const HydrationRing = memo(function HydrationRing({
         },
       ]}
     >
-      <Animated.View
-        style={[
-          styles.completeGlow,
-          {
-            backgroundColor: theme.app.colors.hydrationComplete,
-            borderRadius: RING_SIZE / 2,
-            height: RING_SIZE,
-            width: RING_SIZE,
-          },
-          glowStyle,
-        ]}
-      />
       <View
         style={[
           styles.glass,
@@ -202,29 +210,47 @@ export const HydrationRing = memo(function HydrationRing({
           style={[
             styles.water,
             {
-              backgroundColor: theme.colors.primaryContainer,
+              opacity: isDarkMode ? 1 : 0.76,
             },
             waterStyle,
           ]}
         >
-          <Animated.View pointerEvents="none" style={[styles.waveTrack, waveSecondaryStyle]}>
-            <WaveLobes
-              color={theme.app.colors.hydrationProgress}
-              lobeHeight={30}
-              lobeWidth={86}
-              opacity={0.2}
-              topOffset={-16}
+          {HAS_NATIVE_SVG ? (
+            <>
+              <LiquidSvgLayer
+                gradientBottom={waterVisuals.gradientBottom}
+                gradientMiddle={waterVisuals.gradientMiddle}
+                gradientTop={waterVisuals.gradientTop}
+                highlightColor={waterVisuals.highlight}
+              />
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.svgWaveLayer, styles.rearWaveLayer, waveSecondaryStyle]}
+              >
+                <SurfaceWaveSvg
+                  color={waterVisuals.rearWave}
+                  highlightColor={waterVisuals.rearHighlight}
+                  highlightPath={REAR_HIGHLIGHT_PATH}
+                  opacity={waterVisuals.rearWaveOpacity}
+                  path={REAR_WAVE_PATH}
+                />
+              </Animated.View>
+              <Animated.View pointerEvents="none" style={[styles.svgWaveLayer, wavePrimaryStyle]}>
+                <SurfaceWaveSvg
+                  color={waterVisuals.frontWave}
+                  highlightColor={waterVisuals.highlight}
+                  highlightPath={FRONT_HIGHLIGHT_PATH}
+                  opacity={waterVisuals.frontWaveOpacity}
+                  path={FRONT_WAVE_PATH}
+                />
+              </Animated.View>
+            </>
+          ) : (
+            <FallbackLiquidLayer
+              fillColor={waterVisuals.baseFill}
+              highlightColor={waterVisuals.highlight}
             />
-          </Animated.View>
-          <Animated.View pointerEvents="none" style={[styles.waveTrack, wavePrimaryStyle]}>
-            <WaveLobes
-              color={theme.colors.primaryContainer}
-              lobeHeight={34}
-              lobeWidth={92}
-              opacity={1}
-              topOffset={-18}
-            />
-          </Animated.View>
+          )}
         </Animated.View>
         <Animated.View
           style={[
@@ -256,6 +282,7 @@ export const HydrationRing = memo(function HydrationRing({
                 color: theme.app.colors.textSecondary,
                 fontSize: theme.app.typography.fontSize.body,
                 lineHeight: theme.app.typography.lineHeight.body,
+                ...textShadow,
               },
             ]}
           >
@@ -270,6 +297,7 @@ export const HydrationRing = memo(function HydrationRing({
                   : theme.app.colors.textSecondary,
                 fontSize: theme.app.typography.fontSize.label,
                 lineHeight: theme.app.typography.lineHeight.label,
+                ...textShadow,
               },
             ]}
           >
@@ -297,6 +325,7 @@ type AnimatedAmountProps = {
 
 function AnimatedAmount({ amount }: AnimatedAmountProps) {
   const theme = useTheme<AppTheme>();
+  const textShadow = getTextShadow(theme.dark);
 
   return (
     <AnimatedCounter
@@ -308,47 +337,222 @@ function AnimatedAmount({ amount }: AnimatedAmountProps) {
           fontFamily: theme.app.typography.fontFamily.display,
           fontSize: theme.app.typography.fontSize.display,
           lineHeight: theme.app.typography.lineHeight.display,
+          ...textShadow,
         },
       ]}
     />
   );
 }
 
-function WaveLobes({
-  color,
-  lobeHeight,
-  lobeWidth,
-  opacity,
-  topOffset,
+function LiquidSvgLayer({
+  gradientBottom,
+  gradientMiddle,
+  gradientTop,
+  highlightColor,
 }: {
-  color: string;
-  lobeHeight: number;
-  lobeWidth: number;
-  opacity: number;
-  topOffset: number;
+  gradientBottom: string;
+  gradientMiddle: string;
+  gradientTop: string;
+  highlightColor: string;
 }) {
   return (
-    <View style={styles.waveLobeRow}>
-      {WAVE_LOBE_INDEXES.map((index) => (
-        <View
-          key={index}
-          style={[
-            styles.waveLobe,
-            {
-              backgroundColor: color,
-              borderRadius: lobeWidth / 2,
-              height: lobeHeight,
-              marginLeft: index === 0 ? 0 : -lobeWidth * 0.24,
-              opacity,
-              top: topOffset + (index % 2 === 0 ? 0 : 3),
-              width: lobeWidth,
-            },
-          ]}
-        />
-      ))}
-    </View>
+    <Svg
+      height={WAVE_CANVAS_HEIGHT}
+      pointerEvents="none"
+      style={styles.svgBaseLayer}
+      viewBox={`0 0 ${GLASS_SIZE} ${WAVE_CANVAS_HEIGHT}`}
+      width={GLASS_SIZE}
+    >
+      <Defs>
+        <LinearGradient id="hydrationWaterGradient" x1="0" x2="0" y1="0" y2="1">
+          <Stop offset="0" stopColor={gradientTop} stopOpacity="0.72" />
+          <Stop offset="0.42" stopColor={gradientMiddle} stopOpacity="0.86" />
+          <Stop offset="1" stopColor={gradientBottom} stopOpacity="0.98" />
+        </LinearGradient>
+      </Defs>
+      <Path d={BASE_WATER_PATH} fill="url(#hydrationWaterGradient)" opacity={0.88} />
+      <Path
+        d={BASE_HIGHLIGHT_PATH}
+        fill="none"
+        opacity={0.22}
+        stroke={highlightColor}
+        strokeLinecap="round"
+        strokeWidth={1.4}
+      />
+    </Svg>
   );
 }
+
+function SurfaceWaveSvg({
+  color,
+  highlightColor,
+  highlightPath,
+  opacity,
+  path,
+}: {
+  color: string;
+  highlightColor: string;
+  highlightPath: string;
+  opacity: number;
+  path: string;
+}) {
+  return (
+    <Svg
+      height={WAVE_CANVAS_HEIGHT}
+      pointerEvents="none"
+      viewBox={`0 0 ${WAVE_CANVAS_WIDTH} ${WAVE_CANVAS_HEIGHT}`}
+      width={WAVE_CANVAS_WIDTH}
+    >
+      <Path d={path} fill={color} opacity={opacity} />
+      <Path
+        d={highlightPath}
+        fill="none"
+        opacity={0.72}
+        stroke={highlightColor}
+        strokeLinecap="round"
+        strokeWidth={1.15}
+      />
+    </Svg>
+  );
+}
+
+function FallbackLiquidLayer({
+  fillColor,
+  highlightColor,
+}: {
+  fillColor: string;
+  highlightColor: string;
+}) {
+  return (
+    <>
+      <View
+        pointerEvents="none"
+        style={[
+          styles.fallbackLiquidFill,
+          {
+            backgroundColor: fillColor,
+          },
+        ]}
+      />
+      <View
+        pointerEvents="none"
+        style={[
+          styles.fallbackLiquidHighlight,
+          {
+            backgroundColor: highlightColor,
+          },
+        ]}
+      />
+    </>
+  );
+}
+
+type WavePathConfig = {
+  amplitude: number;
+  baseline: number;
+  height?: number;
+  phase: number;
+  wavelength: number;
+  width: number;
+};
+
+function createWaveFillPath(config: Required<WavePathConfig>) {
+  const surfacePath = createWaveStrokePath(config);
+
+  return `${surfacePath} L ${config.width} ${config.height} L 0 ${config.height} Z`;
+}
+
+function createWaveStrokePath({ amplitude, baseline, phase, wavelength, width }: WavePathConfig) {
+  const segmentWidth = 18;
+  const yForX = (x: number) =>
+    baseline + Math.sin((x / wavelength) * Math.PI * 2 + phase) * amplitude;
+
+  let path = `M 0 ${formatPathNumber(yForX(0))}`;
+
+  for (let x = segmentWidth; x < width; x += segmentWidth) {
+    const endX = Math.min(x, width);
+    const controlX = endX - segmentWidth / 2;
+    path += ` Q ${formatPathNumber(controlX)} ${formatPathNumber(
+      yForX(controlX),
+    )} ${formatPathNumber(endX)} ${formatPathNumber(yForX(endX))}`;
+  }
+
+  const controlX = width - segmentWidth / 2;
+  path += ` Q ${formatPathNumber(controlX)} ${formatPathNumber(
+    yForX(controlX),
+  )} ${formatPathNumber(width)} ${formatPathNumber(yForX(width))}`;
+
+  return path;
+}
+
+function formatPathNumber(value: number) {
+  return Number(value.toFixed(2));
+}
+
+function getTextShadow(isDarkMode: boolean) {
+  return {
+    textShadowColor: isDarkMode ? 'rgba(0, 0, 0, 0.32)' : 'rgba(255, 255, 255, 0.48)',
+    textShadowOffset: { height: 1, width: 0 },
+    textShadowRadius: 2,
+  };
+}
+
+function hasNativeSvgSupport() {
+  try {
+    return Boolean(
+      UIManager.getViewManagerConfig('RNSVGPath') &&
+      UIManager.getViewManagerConfig('RNSVGLinearGradient'),
+    );
+  } catch {
+    return false;
+  }
+}
+
+const BASE_WATER_PATH = createWaveFillPath({
+  amplitude: 3.2,
+  baseline: WAVE_BASELINE + 0.5,
+  height: WAVE_CANVAS_HEIGHT,
+  phase: 1.35,
+  wavelength: 150,
+  width: GLASS_SIZE,
+});
+const BASE_HIGHLIGHT_PATH = createWaveStrokePath({
+  amplitude: 3.2,
+  baseline: WAVE_BASELINE + 0.5,
+  phase: 1.35,
+  wavelength: 150,
+  width: GLASS_SIZE,
+});
+const FRONT_WAVE_PATH = createWaveFillPath({
+  amplitude: 4,
+  baseline: WAVE_BASELINE,
+  height: WAVE_CANVAS_HEIGHT,
+  phase: 0.7,
+  wavelength: 132,
+  width: WAVE_CANVAS_WIDTH,
+});
+const REAR_WAVE_PATH = createWaveFillPath({
+  amplitude: 3,
+  baseline: WAVE_BASELINE + 2,
+  height: WAVE_CANVAS_HEIGHT,
+  phase: 2.2,
+  wavelength: 154,
+  width: WAVE_CANVAS_WIDTH,
+});
+const FRONT_HIGHLIGHT_PATH = createWaveStrokePath({
+  amplitude: 4,
+  baseline: WAVE_BASELINE,
+  phase: 0.7,
+  wavelength: 132,
+  width: WAVE_CANVAS_WIDTH,
+});
+const REAR_HIGHLIGHT_PATH = createWaveStrokePath({
+  amplitude: 3,
+  baseline: WAVE_BASELINE + 2,
+  phase: 2.2,
+  wavelength: 154,
+  width: WAVE_CANVAS_WIDTH,
+});
 
 type ProgressSegmentProps = {
   index: number;
@@ -402,9 +606,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
     paddingHorizontal: 28,
-  },
-  completeGlow: {
-    position: 'absolute',
+    zIndex: 5,
   },
   container: {
     alignItems: 'center',
@@ -414,10 +616,31 @@ const styles = StyleSheet.create({
   glass: {
     alignItems: 'center',
     borderWidth: 1,
+    elevation: 2,
     height: RING_SIZE - 36,
     justifyContent: 'center',
     overflow: 'hidden',
+    shadowColor: '#007A8A',
+    shadowOffset: { height: 12, width: 0 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
     width: RING_SIZE - 36,
+  },
+  fallbackLiquidFill: {
+    bottom: 0,
+    left: 0,
+    opacity: 0.88,
+    position: 'absolute',
+    right: 0,
+    top: WAVE_BASELINE,
+  },
+  fallbackLiquidHighlight: {
+    height: 2,
+    left: 44,
+    opacity: 0.34,
+    position: 'absolute',
+    right: 44,
+    top: WAVE_BASELINE,
   },
   message: {
     fontWeight: '700',
@@ -431,6 +654,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: (GLASS_SIZE - 124) / 2,
     width: 124,
+    zIndex: 4,
   },
   rippleSecondary: {
     height: 96,
@@ -449,21 +673,21 @@ const styles = StyleSheet.create({
   water: {
     bottom: 0,
     height: '100%',
-    opacity: 0.76,
     position: 'absolute',
     width: '100%',
   },
-  waveLobe: {
-    position: 'relative',
-  },
-  waveLobeRow: {
-    flexDirection: 'row',
-  },
-  waveTrack: {
-    height: 38,
-    left: -76,
+  svgBaseLayer: {
+    left: 0,
     position: 'absolute',
-    top: -1,
-    width: GLASS_SIZE + 152,
+    top: 0,
+  },
+  svgWaveLayer: {
+    left: -(WAVE_CANVAS_WIDTH - GLASS_SIZE) / 2,
+    position: 'absolute',
+    top: 0,
+    zIndex: 2,
+  },
+  rearWaveLayer: {
+    zIndex: 1,
   },
 });

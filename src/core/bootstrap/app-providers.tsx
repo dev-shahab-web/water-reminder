@@ -14,6 +14,7 @@ import {
   navigationDarkTheme,
   navigationLightTheme,
 } from '@shared/theme';
+import { PaperMaterialCommunityIcon } from '@shared/components/material-community-icon';
 import { store } from '@state/store';
 
 export function AppProviders({ children }: PropsWithChildren) {
@@ -29,12 +30,18 @@ export function AppProviders({ children }: PropsWithChildren) {
     () => (isDark ? navigationDarkTheme : navigationLightTheme),
     [isDark],
   );
+  const paperSettings = useMemo(
+    () => ({
+      icon: PaperMaterialCommunityIcon,
+    }),
+    [],
+  );
 
   return (
     <ReduxProvider store={store}>
       <WidgetLiveSync />
       <QueryClientProvider client={queryClient}>
-        <PaperProvider theme={paperTheme}>
+        <PaperProvider settings={paperSettings} theme={paperTheme}>
           <ThemeProvider value={navigationTheme}>{children}</ThemeProvider>
         </PaperProvider>
       </QueryClientProvider>

@@ -100,64 +100,75 @@ export default function HomeScreen() {
 
   return (
     <AppScreen scrollable style={styles.screen}>
-      <View style={styles.header}>
-        <BrandMark size={56} />
-        <View style={styles.headerCopy}>
-          <Text
-            accessibilityRole="header"
-            style={[
-              styles.appName,
-              {
-                color: theme.app.colors.textPrimary,
-                fontFamily: theme.app.typography.fontFamily.display,
-                fontSize: theme.app.typography.fontSize.title,
-                lineHeight: theme.app.typography.lineHeight.title,
-              },
-            ]}
-          >
-            {appConfig.name}
-          </Text>
-          <Text
-            style={[
-              styles.greeting,
-              {
-                color: theme.app.colors.textSecondary,
-                fontSize: theme.app.typography.fontSize.body,
-                lineHeight: theme.app.typography.lineHeight.body,
-              },
-            ]}
-          >
-            {getGreeting()}
-          </Text>
+      <AnimatedCard
+        style={[
+          styles.heroCard,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.app.colors.borderSubtle,
+            borderRadius: theme.app.radius.lg,
+          },
+        ]}
+      >
+        <View style={styles.header}>
+          <BrandMark size={52} />
+          <View style={styles.headerCopy}>
+            <Text
+              accessibilityRole="header"
+              style={[
+                styles.appName,
+                {
+                  color: theme.app.colors.textPrimary,
+                  fontFamily: theme.app.typography.fontFamily.display,
+                  fontSize: theme.app.typography.fontSize.title,
+                  lineHeight: theme.app.typography.lineHeight.title,
+                },
+              ]}
+            >
+              {appConfig.name}
+            </Text>
+            <Text
+              style={[
+                styles.greeting,
+                {
+                  color: theme.app.colors.textSecondary,
+                  fontSize: theme.app.typography.fontSize.body,
+                  lineHeight: theme.app.typography.lineHeight.body,
+                },
+              ]}
+            >
+              {getGreeting()}
+            </Text>
+          </View>
+          <IconButton
+            accessibilityLabel="Open settings"
+            icon="settings"
+            onPress={() => {
+              router.push('/settings' as never);
+            }}
+            style={styles.settingsButton}
+          />
         </View>
-        <IconButton
-          accessibilityLabel="Open settings"
-          icon="settings"
-          onPress={() => {
-            router.push('/settings' as never);
-          }}
-          style={styles.settingsButton}
+
+        <HydrationRing
+          attentionKey={params.reminderPulse}
+          continuousMotionEnabled={shouldUseContinuousMotion({
+            appState,
+            isScreenFocused: isFocused,
+            reduceMotion,
+          })}
+          goalAmount={summary.goalAmount}
+          message={ringMessage}
+          remainingAmount={summary.remainingAmount}
+          reduceMotion={reduceMotion}
+          totalAmount={summary.totalAmount}
         />
-      </View>
 
-      <HydrationRing
-        attentionKey={params.reminderPulse}
-        continuousMotionEnabled={shouldUseContinuousMotion({
-          appState,
-          isScreenFocused: isFocused,
-          reduceMotion,
-        })}
-        goalAmount={summary.goalAmount}
-        message={ringMessage}
-        remainingAmount={summary.remainingAmount}
-        reduceMotion={reduceMotion}
-        totalAmount={summary.totalAmount}
-      />
-
-      <AnimatedCard style={styles.metricRow}>
-        <Metric label="Today" value={`${summary.totalAmount} ml`} />
-        <Metric label="Remaining" value={`${summary.remainingAmount} ml`} />
-        <Metric label="Goal" value={`${summary.goalAmount} ml`} />
+        <View style={styles.metricRow}>
+          <Metric label="Today" value={`${summary.totalAmount} ml`} />
+          <Metric label="Remaining" value={`${summary.remainingAmount} ml`} />
+          <Metric label="Goal" value={`${summary.goalAmount} ml`} />
+        </View>
       </AnimatedCard>
 
       {lastLoggedEntry === undefined ? null : (
@@ -231,11 +242,13 @@ export default function HomeScreen() {
         <PrimaryButton
           accessibilityLabel="Add a custom water amount"
           disabled={isSaving}
+          icon="plus"
           label="Custom amount"
           onPress={openCustomAmount}
         />
         <SecondaryButton
           accessibilityLabel="Open hydration history"
+          icon="history"
           label="History"
           onPress={() => {
             router.push('/history' as never);
@@ -319,6 +332,7 @@ function StatisticsPreviewCard({
       </View>
       <SecondaryButton
         accessibilityLabel="Open hydration statistics"
+        icon="chart-line"
         label="View statistics"
         onPress={() => {
           router.push('/statistics' as never);
@@ -392,6 +406,16 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
+  heroCard: {
+    borderWidth: 1,
+    elevation: 2,
+    gap: 22,
+    padding: 18,
+    shadowColor: '#007A8A',
+    shadowOffset: { height: 12, width: 0 },
+    shadowOpacity: 0.08,
+    shadowRadius: 28,
+  },
   loadingScreen: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -402,7 +426,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: 4,
     minWidth: 0,
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
   },
   metricLabel: {
     fontWeight: '700',
@@ -411,7 +436,7 @@ const styles = StyleSheet.create({
   metricRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
   metricValue: {
     fontWeight: '800',

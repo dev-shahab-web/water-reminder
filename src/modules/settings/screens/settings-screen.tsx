@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Alert, Linking, Modal, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
-import { appConfig } from '@core/config';
+import { appConfig, releaseLinks } from '@core/config';
 import { HealthConnectCard } from '@modules/health-connect';
 import { ReminderCard } from '@modules/reminders';
 import {
@@ -39,6 +39,11 @@ const startOfDayOptions = [
 ] as const;
 
 const openUrl = async (url: string, fallbackMessage: string) => {
+  if (url.length === 0) {
+    Alert.alert('Coming soon', fallbackMessage);
+    return;
+  }
+
   try {
     await Linking.openURL(url);
   } catch {
@@ -145,6 +150,11 @@ export function SettingsScreen() {
   };
 
   const showPrivacyPolicy = () => {
+    if (releaseLinks.privacyPolicyUrl.length > 0) {
+      void openUrl(releaseLinks.privacyPolicyUrl, 'The privacy policy is not available yet.');
+      return;
+    }
+
     Alert.alert(
       'Privacy Policy',
       'Water Reminder stores core hydration data locally on this device. Health Connect is optional and only used after permission. The app does not require an account, cloud sync, advertising identifiers, or a backend for core features.',
@@ -152,6 +162,11 @@ export function SettingsScreen() {
   };
 
   const showTerms = () => {
+    if (releaseLinks.termsUrl.length > 0) {
+      void openUrl(releaseLinks.termsUrl, 'The terms are not available yet.');
+      return;
+    }
+
     Alert.alert(
       'Terms',
       'Water Reminder is a general wellness utility. It does not provide medical advice. You control local data, reminders, and optional Health Connect access from this device.',
@@ -159,6 +174,11 @@ export function SettingsScreen() {
   };
 
   const showOpenSourceLicenses = () => {
+    if (releaseLinks.licensesUrl.length > 0) {
+      void openUrl(releaseLinks.licensesUrl, 'Open source notices are not available yet.');
+      return;
+    }
+
     Alert.alert(
       'Open Source Licenses',
       'This app is built with Expo, React Native, React Native Paper, Redux Toolkit, React Query, Reanimated, MMKV, SQLite, and Android Jetpack Glance. Full notices should be included with the Play Store release package.',
@@ -167,15 +187,22 @@ export function SettingsScreen() {
 
   const openFeedback = () => {
     void openUrl(
-      `mailto:?subject=${encodeURIComponent(`${appConfig.name} feedback`)}`,
+      `mailto:${releaseLinks.feedbackEmail}?subject=${encodeURIComponent(`${appConfig.name} feedback`)}`,
       'Open your email app and mention Water Reminder feedback in the subject.',
     );
   };
 
   const openRateApp = () => {
     void openUrl(
-      'market://details?id=com.shahab.waterreminder',
+      releaseLinks.playStoreUrl,
       'Search for Water Reminder in Google Play to rate the app.',
+    );
+  };
+
+  const openGitHub = () => {
+    void openUrl(
+      releaseLinks.githubUrl,
+      'The public source link will be added when the repository is published.',
     );
   };
 
@@ -241,6 +268,7 @@ export function SettingsScreen() {
       <SettingsSection subtitle="Daily hydration stays personal and local." title="General">
         <View style={styles.goalEditor}>
           <SettingsRow
+            icon="target"
             label="Daily goal"
             supportingText={`Current unit: ${settings.measurementUnit}`}
           />
@@ -269,13 +297,14 @@ export function SettingsScreen() {
             <PrimaryButton
               accessibilityLabel="Save daily hydration goal"
               disabled={isBusy}
+              icon="check"
               label="Save"
               onPress={confirmGoalUpdate}
               style={styles.saveButton}
             />
           </View>
         </View>
-        <SettingsRow label="Measurement unit">
+        <SettingsRow icon="cup-water" label="Measurement unit">
           <SegmentedSetting
             accessibilityLabel="Measurement unit"
             onChange={updateMeasurementUnit}
@@ -283,7 +312,7 @@ export function SettingsScreen() {
             value={settings.measurementUnit}
           />
         </SettingsRow>
-        <SettingsRow label="Start of day">
+        <SettingsRow icon="weather-sunset-up" label="Start of day">
           <SegmentedSetting
             accessibilityLabel="Start of day"
             onChange={updateStartOfDay}
@@ -292,6 +321,7 @@ export function SettingsScreen() {
           />
         </SettingsRow>
         <SettingsRow
+          icon="translate"
           label="Language"
           supportingText="Uses the device language when translations are available."
           value="System"
@@ -302,7 +332,7 @@ export function SettingsScreen() {
         subtitle="Respect your device while keeping the app readable."
         title="Appearance"
       >
-        <SettingsRow label="Theme">
+        <SettingsRow icon="theme-light-dark" label="Theme">
           <SegmentedSetting
             accessibilityLabel="Theme preference"
             onChange={updateThemePreference}
@@ -311,6 +341,7 @@ export function SettingsScreen() {
           />
         </SettingsRow>
         <SettingsRow
+          icon="pause-circle-outline"
           label="Reduce motion"
           supportingText="Keeps transitions quieter across product surfaces."
         >
@@ -321,6 +352,7 @@ export function SettingsScreen() {
           />
         </SettingsRow>
         <SettingsRow
+          icon="format-size"
           label="Large text preview"
           supportingText="Hydration should stay readable with larger system text."
           value="Aa"
@@ -355,6 +387,7 @@ export function SettingsScreen() {
         <SecondaryButton
           accessibilityLabel="Send a test notification"
           disabled={isBusy}
+          icon="bell-ring"
           label="Test notification"
           onPress={() => {
             void sendTestNotification();
@@ -367,9 +400,18 @@ export function SettingsScreen() {
       </View>
 
       <SettingsSection subtitle="Your hydration data stays on this device." title="Data">
-        <SettingsRow label="Database size" value={dataSummary.databaseSize} />
-        <SettingsRow label="Total hydration entries" value={String(dataSummary.totalEntries)} />
         <SettingsRow
+          icon="database-outline"
+          label="Database size"
+          value={dataSummary.databaseSize}
+        />
+        <SettingsRow
+          icon="format-list-numbered"
+          label="Total hydration entries"
+          value={String(dataSummary.totalEntries)}
+        />
+        <SettingsRow
+          icon="export-variant"
           label="Export database"
           onPress={() => {
             void prepareExport();
@@ -377,6 +419,7 @@ export function SettingsScreen() {
           supportingText="Prepare a local JSON export."
         />
         <SettingsRow
+          icon="import"
           label="Import database"
           onPress={() => {
             setImportVisible(true);
@@ -385,12 +428,14 @@ export function SettingsScreen() {
         />
         <SettingsRow
           destructive
+          icon="chart-line"
           label="Reset statistics"
           onPress={confirmResetStatistics}
           supportingText="Clears the local history used by statistics."
         />
         <SettingsRow
           destructive
+          icon="trash-can-outline"
           label="Delete all hydration history"
           onPress={confirmDeleteHistory}
           supportingText="Removes every local water log from this device."
@@ -401,23 +446,34 @@ export function SettingsScreen() {
         subtitle="Release information, privacy, and ways to support the app."
         title="About"
       >
-        <SettingsRow label="Application version" value={appInformation.version} />
-        <SettingsRow label="Build number" value={appInformation.buildNumber} />
-        <SettingsRow label="Privacy Policy" onPress={showPrivacyPolicy} value="View" />
-        <SettingsRow label="Terms" onPress={showTerms} value="View" />
-        <SettingsRow label="Open Source Licenses" onPress={showOpenSourceLicenses} value="View" />
+        <SettingsRow icon="cellphone" label="Application version" value={appInformation.version} />
+        <SettingsRow icon="hammer-wrench" label="Build number" value={appInformation.buildNumber} />
         <SettingsRow
-          label="GitHub"
-          onPress={() => {
-            Alert.alert(
-              'GitHub',
-              'The public source link will be added when the repository is published.',
-            );
-          }}
-          value="Planned"
+          icon="shield-lock-outline"
+          label="Privacy Policy"
+          onPress={showPrivacyPolicy}
+          value="View"
         />
-        <SettingsRow label="Feedback" onPress={openFeedback} value="Email" />
-        <SettingsRow label="Rate App" onPress={openRateApp} value="Google Play" />
+        <SettingsRow icon="file-document-outline" label="Terms" onPress={showTerms} value="View" />
+        <SettingsRow
+          icon="source-branch"
+          label="Open Source Licenses"
+          onPress={showOpenSourceLicenses}
+          value="View"
+        />
+        <SettingsRow icon="github" label="GitHub" onPress={openGitHub} value="Planned" />
+        <SettingsRow
+          icon="message-text-outline"
+          label="Feedback"
+          onPress={openFeedback}
+          value="Email"
+        />
+        <SettingsRow
+          icon="star-outline"
+          label="Rate App"
+          onPress={openRateApp}
+          value="Google Play"
+        />
       </SettingsSection>
 
       <ExportModal onClose={clearExport} payload={exportPayload} theme={theme} />

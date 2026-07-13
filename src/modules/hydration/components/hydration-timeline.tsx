@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, FadeInDown, FadeOutUp, useReducedMotion } from 'react-native-reanimated';
 import { useTheme } from 'react-native-paper';
 
-import { SecondaryButton, SectionHeader } from '@shared/components';
+import { IconButton, SectionHeader } from '@shared/components';
 import { EmptyState } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 
@@ -91,21 +91,19 @@ export const HydrationTimeline = memo(function HydrationTimeline({
               </Text>
             </View>
             <View style={styles.itemActions}>
-              <SecondaryButton
+              <IconButton
                 accessibilityLabel={`Edit ${entry.amount} milliliter entry`}
-                label="Edit"
+                icon="pencil-outline"
                 onPress={() => {
                   onEditEntry(entry);
                 }}
-                style={styles.smallButton}
               />
-              <SecondaryButton
+              <IconButton
                 accessibilityLabel={`Delete ${entry.amount} milliliter entry`}
-                label="Delete"
+                icon="trash-can-outline"
                 onPress={() => {
                   onDeleteEntry(entry);
                 }}
-                style={styles.smallButton}
               />
             </View>
           </Animated.View>
@@ -137,12 +135,6 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: 14,
-  },
-  smallButton: {
-    flex: 1,
-    minHeight: 44,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
   },
   time: {},
 });

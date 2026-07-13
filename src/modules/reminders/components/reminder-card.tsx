@@ -104,6 +104,7 @@ export const ReminderCard = memo(function ReminderCard({
       )}
 
       <PrimaryButton
+        icon={enabled ? 'bell-off-outline' : 'bell-outline'}
         label={enabled ? 'Turn reminders off' : 'Turn reminders on'}
         onPress={onToggleEnabled}
       />
@@ -140,12 +141,13 @@ export const ReminderCard = memo(function ReminderCard({
           <ControlGroup label="Pause">
             <View style={styles.optionRow}>
               {status === 'paused' ? (
-                <SecondaryButton label="Resume reminders" onPress={onResume} />
+                <SecondaryButton icon="play" label="Resume reminders" onPress={onResume} />
               ) : (
                 pauseOptions.map((option) => (
                   <SecondaryButton
                     key={option.value}
                     accessibilityLabel={`Pause reminders for ${option.label}`}
+                    icon="pause"
                     label={option.label}
                     onPress={() => {
                       onPause(option.value);

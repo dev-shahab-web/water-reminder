@@ -117,6 +117,7 @@ export const HealthConnectCard = memo(function HealthConnectCard() {
         <View style={styles.actions}>
           <PrimaryButton
             disabled={isBusy}
+            icon="sync"
             label="Sync now"
             onPress={() => {
               void syncNow();
@@ -125,6 +126,7 @@ export const HealthConnectCard = memo(function HealthConnectCard() {
           />
           <SecondaryButton
             disabled={isBusy}
+            icon="link-off"
             label="Disconnect"
             onPress={confirmDisconnect}
             style={styles.action}
@@ -133,6 +135,7 @@ export const HealthConnectCard = memo(function HealthConnectCard() {
       ) : (
         <PrimaryButton
           disabled={isBusy || state.availability !== 'available'}
+          icon="heart-pulse"
           label="Connect Health Connect"
           onPress={() => {
             void connect();
