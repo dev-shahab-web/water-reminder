@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document is the current architectural reference for Water Reminder. It describes the system as implemented after the product foundation, onboarding, Home logging loop, reminders, history, statistics, settings, delight engine, and optional Android Health Connect work.
+This document is the current architectural reference for Water Reminder. It describes the system as implemented after the product foundation, onboarding, Home logging loop, reminders, history, statistics, settings, delight engine, optional Android Health Connect work, widgets, and privacy-safe Firebase telemetry.
 
 Use this document before adding new product surfaces. Product decisions remain governed by [Product Principles](./PRODUCT_PRINCIPLES.md), [Anti-Goals](./ANTI_GOALS.md), and [Product Requirements](./PRODUCT_REQUIREMENTS.md).
 
@@ -15,6 +15,7 @@ Use this document before adding new product surfaces. Product decisions remain g
 - Feature modules own product behavior.
 - Platform adapters isolate native and infrastructure APIs.
 - Health data integrations are optional adapters, never core dependencies.
+- Telemetry is optional, sanitized, and never a source of product state.
 - UI components stay thin and reusable.
 - Business rules live in hooks, services, repositories, and utilities.
 - Motion is centralized and respects Reduce Motion.
@@ -32,7 +33,7 @@ src/core/
   Bootstrap, providers, app shell, config, logging, root errors
 
 src/platform/
-  Native and infrastructure adapters
+  Native and infrastructure adapters, including telemetry
 
 src/shared/
   Design system components, theme, motion, shared types
@@ -64,6 +65,7 @@ Rules:
 - Feature modules should not import sibling internals unless a public module export exists.
 - Shared components should not contain product-specific business rules.
 - Platform adapters should not know about UI.
+- Firebase SDKs must only be called from `src/platform/telemetry`.
 
 ## Bootstrap And Providers
 
@@ -391,6 +393,32 @@ Rules:
 - Only hydration read/write permissions are requested.
 - Health data is never sent to a backend.
 
+### Telemetry
+
+Path:
+
+```txt
+src/platform/telemetry/
+```
+
+Responsibilities:
+
+- Provider-agnostic telemetry API.
+- Firebase Analytics and Crashlytics isolation.
+- Consent persistence for anonymous diagnostics.
+- Strict event and parameter allowlists.
+- Screen route sanitization.
+- Safe handled-error categories.
+
+Rules:
+
+- Telemetry is off by default.
+- Settings controls `Share anonymous diagnostics`.
+- UI and business modules must not call Firebase SDKs directly.
+- Hydration values, goals, history, timestamps, Health Connect records, reminder schedules, exported/imported content, SQL, filenames, user-entered text, and account identifiers are prohibited.
+- Telemetry failures must never affect Redux, SQLite, widgets, reminders, Health Connect, or UI flows.
+- Firebase Authentication, Firestore, Remote Config, Performance Monitoring, Cloud Messaging, and Ads are not part of this architecture.
+
 ## Data Flow
 
 ### Logging Water
@@ -597,12 +625,19 @@ Reminders:
 
 Settings:
 
-| Key                       | Type    | Purpose                                 |
-| ------------------------- | ------- | --------------------------------------- |
-| `settingsMeasurementUnit` | string  | `ml` or `oz`.                           |
-| `settingsThemePreference` | string  | `system`, `light`, or `dark`.           |
-| `settingsReduceMotion`    | boolean | Product-level reduce motion preference. |
-| `settingsStartOfDay`      | string  | Start-of-day preference, `HH:mm`.       |
+| Key                                 | Type    | Purpose                                                         |
+| ----------------------------------- | ------- | --------------------------------------------------------------- |
+| `settingsMeasurementUnit`           | string  | `ml` or `oz`.                                                   |
+| `settingsThemePreference`           | string  | `system`, `light`, or `dark`.                                   |
+| `settingsReduceMotion`              | boolean | Product-level reduce motion preference.                         |
+| `settingsStartOfDay`                | string  | Start-of-day preference, `HH:mm`.                               |
+| `settingsShareAnonymousDiagnostics` | boolean | User consent for Firebase Analytics and Crashlytics collection. |
+
+Telemetry:
+
+| Key                                  | Type    | Purpose                            |
+| ------------------------------------ | ------- | ---------------------------------- |
+| `telemetryShareAnonymousDiagnostics` | boolean | Platform telemetry consent mirror. |
 
 Health Connect:
 

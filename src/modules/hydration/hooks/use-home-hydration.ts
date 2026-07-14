@@ -7,6 +7,7 @@ import {
   playGoalCompleteHaptic,
   playWaterLogHaptic,
 } from '@platform/haptics';
+import { trackEventSafely } from '@platform/telemetry';
 import { useAppDispatch, useAppSelector } from '@state/store/hooks';
 
 import {
@@ -18,6 +19,7 @@ import {
 } from '../state/hydration-slice';
 import type { HydrationEntry, HydrationEntrySource } from '../types';
 import { getGreeting } from '../utils/date';
+import { trackHydrationLogSuccess } from '../utils/hydration-telemetry';
 import { calculateHydrationSummary, getSuccessMicrocopy } from '../utils/summary';
 
 const maxSingleEntryAmount = 5000;
@@ -99,6 +101,12 @@ export const useHomeHydration = (goalAmount: number, enabled: boolean) => {
             goalReached,
           }),
         );
+        trackHydrationLogSuccess({
+          goalAmount: summary.goalAmount,
+          nextTotal,
+          previousTotal,
+          source,
+        });
 
         await playLogFeedback({ nextTotal, previousTotal });
         return true;
@@ -133,6 +141,12 @@ export const useHomeHydration = (goalAmount: number, enabled: boolean) => {
         setSuccessMessage('Updated.');
 
         if (previousTotal < summary.goalAmount && nextTotal >= summary.goalAmount) {
+          trackHydrationLogSuccess({
+            goalAmount: summary.goalAmount,
+            nextTotal,
+            previousTotal,
+            source: 'edit',
+          });
           await playGoalCompleteHaptic();
         }
       } catch {
@@ -163,6 +177,7 @@ export const useHomeHydration = (goalAmount: number, enabled: boolean) => {
     setAmountError(undefined);
     setAmountInput('');
     setAmountModal({ mode: 'custom' });
+    trackEventSafely('custom_amount_opened', { source: 'app' });
   }, []);
 
   const openEditEntry = useCallback((entry: HydrationEntry) => {
@@ -205,6 +220,7 @@ export const useHomeHydration = (goalAmount: number, enabled: boolean) => {
     }
 
     try {
+      trackEventSafely('hydration_undo_action', { source: 'app' });
       await dispatch(removeHydrationEntry(lastLoggedEntry.id)).unwrap();
       setLastLoggedEntry(undefined);
       setSuccessMessage('Removed.');

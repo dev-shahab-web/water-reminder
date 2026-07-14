@@ -8,6 +8,7 @@ import { logger } from '@core/logger';
 import { initializeDatabase } from '@platform/database';
 import { initializeNotifications } from '@platform/notifications';
 import { initializeStorage } from '@platform/storage';
+import { initializeTelemetry, recordHandledError } from '@platform/telemetry';
 import { refreshHydrationWidgets } from '@modules/widgets';
 import { BrandMark } from '@shared/components';
 import type { AppTheme } from '@shared/theme';
@@ -27,10 +28,15 @@ export function ApplicationBootstrap({ children }: PropsWithChildren) {
       try {
         initializeStorage();
         await Promise.all([initializeDatabase(), initializeNotifications()]);
+        await initializeTelemetry();
         void refreshHydrationWidgets('bootstrap');
         logger.info('Application bootstrap completed.');
       } catch (error) {
         logger.error('Application bootstrap failed.', { error });
+        recordHandledError('database_initialization_failed', error, {
+          database_ready: false,
+          source: 'app',
+        });
       } finally {
         if (isMounted) {
           setIsReady(true);

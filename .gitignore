@@ -39,6 +39,22 @@ yarn-error.*
 .env.*
 !.env.example
 
+# Firebase local configuration and credentials
+google-services.json
+*:Zone.Identifier
+GoogleService-Info.plist
+firebase-debug.log
+firebase-debug.*.log
+.firebaserc.local
+firebase-token*
+*service-account*.json
+*serviceAccount*.json
+
+# Native crash symbol outputs
+*.dSYM/
+*.symbols
+crashlytics-build.properties
+
 # typescript
 *.tsbuildinfo
 

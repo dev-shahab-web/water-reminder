@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "com.shahab.waterreminder",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.health.READ_HYDRATION",
         "android.permission.health.WRITE_HYDRATION"
@@ -40,6 +41,8 @@
       ],
       "expo-sqlite",
       "expo-health-connect",
+      "@react-native-firebase/app",
+      "@react-native-firebase/crashlytics",
       "./plugins/water-reminder-widget/withWaterReminderWidgets",
       [
         "expo-build-properties",

@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 
 import { scheduleLocalNotification } from '@platform/notifications';
+import { setTelemetryEnabled, trackEvent } from '@platform/telemetry';
 
 import { getSettingsState, updateSettingsState } from '../storage/settings-storage';
 import type { MeasurementUnit, SettingsState, ThemePreference } from '../types';
@@ -20,11 +21,21 @@ export const saveMeasurementUnit = (measurementUnit: MeasurementUnit): SettingsS
 };
 
 export const saveThemePreference = (themePreference: ThemePreference): SettingsState => {
+  trackEvent('theme_changed', { theme: themePreference });
   return updateSettingsState({ themePreference });
 };
 
 export const saveReduceMotion = (reduceMotion: boolean): SettingsState => {
+  trackEvent('reduce_motion_changed');
   return updateSettingsState({ reduceMotion });
+};
+
+export const saveShareAnonymousDiagnostics = async (
+  shareAnonymousDiagnostics: boolean,
+): Promise<SettingsState> => {
+  const nextState = updateSettingsState({ shareAnonymousDiagnostics });
+  await setTelemetryEnabled(shareAnonymousDiagnostics);
+  return nextState;
 };
 
 export const saveStartOfDay = (startOfDay: string): SettingsState => {

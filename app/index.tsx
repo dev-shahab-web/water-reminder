@@ -18,6 +18,7 @@ import { useOnboardingState } from '@modules/onboarding';
 import { ReminderCard, useReminders } from '@modules/reminders';
 import { useSettingsSnapshot } from '@modules/settings';
 import { useStatisticsPreview } from '@modules/statistics';
+import { trackEventSafely } from '@platform/telemetry';
 import { AnimatedCard, shouldUseContinuousMotion } from '@shared/motion';
 import {
   AppScreen,
@@ -168,6 +169,7 @@ export default function HomeScreen() {
             accessibilityLabel="Open settings"
             icon="settings"
             onPress={() => {
+              trackEventSafely('settings_opened', { source: 'app' });
               router.push('/settings' as never);
             }}
             style={styles.settingsButton}
@@ -291,6 +293,7 @@ export default function HomeScreen() {
           icon="history"
           label="History"
           onPress={() => {
+            trackEventSafely('history_opened', { source: 'app' });
             router.push('/history' as never);
           }}
         />
@@ -375,6 +378,7 @@ function StatisticsPreviewCard({
         icon="chart-line"
         label="View statistics"
         onPress={() => {
+          trackEventSafely('statistics_opened', { source: 'app' });
           router.push('/statistics' as never);
         }}
       />

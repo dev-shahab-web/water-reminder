@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
+    "@react-native-firebase/analytics": "^25.1.0",
+    "@react-native-firebase/app": "^25.1.0",
+    "@react-native-firebase/crashlytics": "^25.1.0",
     "@reduxjs/toolkit": "^2.12.0",
     "@tanstack/react-query": "^5.101.2",
     "expo": "~57.0.4",

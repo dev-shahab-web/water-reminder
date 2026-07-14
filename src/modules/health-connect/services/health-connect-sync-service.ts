@@ -1,6 +1,7 @@
 import { logger } from '@core/logger';
 import { healthDataService, type ExternalHydrationRecord } from '@platform/health';
 import { awaitDatabaseReady } from '@platform/database';
+import { trackEventSafely } from '@platform/telemetry';
 import { refreshHydrationWidgets } from '@modules/widgets';
 import {
   addHydrationEntry,
@@ -86,12 +87,14 @@ export const connectHealthConnect = async (): Promise<HealthConnectSyncResult | 
   }
 
   await awaitDatabaseReady();
+  trackEventSafely('health_connect_connected', { connected: true, source: 'app' });
   return syncHealthConnectWithReadyDatabase();
 };
 
 export const disconnectHealthConnect = async (): Promise<HealthConnectState> => {
   await healthDataService.revokeOrDisconnect();
   clearHealthConnectSyncMetadata();
+  trackEventSafely('health_connect_disconnected', { connected: false, source: 'app' });
 
   return getHealthConnectState();
 };
@@ -161,6 +164,7 @@ const performHealthConnectSync = async ({
   awaitDatabaseReadiness: boolean;
 }): Promise<HealthConnectSyncResult> => {
   try {
+    trackEventSafely('health_connect_sync_started', { source: 'app' });
     const state = await getHealthConnectState();
 
     if (state.availability !== 'available') {
@@ -227,6 +231,7 @@ const performHealthConnectSync = async ({
 
     setHealthConnectSyncSuccess(nowIso);
     await refreshHydrationWidgets('health_connect_sync');
+    trackEventSafely('health_connect_sync_completed', { result: 'success', source: 'app' });
 
     return {
       importedCount,
@@ -235,6 +240,7 @@ const performHealthConnectSync = async ({
     };
   } catch (error) {
     setHealthConnectSyncError(getFriendlyHealthConnectSyncError(error));
+    trackEventSafely('health_connect_sync_failed', { result: 'failed', source: 'app' });
     logHealthConnectSyncError(error);
     throw error;
   }

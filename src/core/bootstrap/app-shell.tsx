@@ -1,4 +1,4 @@
-import { Stack, router } from 'expo-router';
+import { Stack, router, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
@@ -6,9 +6,11 @@ import { useTheme } from 'react-native-paper';
 
 import type { AppTheme } from '@shared/theme';
 import { addNotificationResponseListener } from '@platform/notifications';
+import { trackEventSafely, trackScreen } from '@platform/telemetry';
 
 export function AppShell() {
   const theme = useTheme<AppTheme>();
+  const pathname = usePathname();
 
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(theme.app.colors.surfaceBase);
@@ -16,6 +18,7 @@ export function AppShell() {
 
   useEffect(() => {
     const subscription = addNotificationResponseListener(() => {
+      trackEventSafely('notification_clicked', { source: 'notification' });
       router.replace({
         pathname: '/',
         params: {
@@ -28,6 +31,10 @@ export function AppShell() {
       subscription.remove();
     };
   }, []);
+
+  useEffect(() => {
+    trackScreen(pathname);
+  }, [pathname]);
 
   return (
     <>

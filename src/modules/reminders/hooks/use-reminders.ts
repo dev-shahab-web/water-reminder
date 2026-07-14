@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { playErrorHaptic, playReminderPauseHaptic } from '@platform/haptics';
 import { getNotificationRegistrationStatus } from '@platform/notifications';
+import { trackEvent } from '@platform/telemetry';
 
 import type { ReminderIntervalMinutes, ReminderPauseOption, ReminderPreferences } from '../types';
 import {
@@ -120,11 +121,13 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
     setPermissionMessage(undefined);
 
     if (preferences.enabled) {
+      trackEvent('reminder_disabled', { source: 'app' });
       setPreferences(await disableReminders(preferences));
       return;
     }
 
     const result = await enableReminders(preferences);
+    trackEvent(result.granted ? 'reminder_enabled' : 'reminder_disabled', { source: 'app' });
     setPreferences(result.preferences);
     setHasPermission(result.granted);
 

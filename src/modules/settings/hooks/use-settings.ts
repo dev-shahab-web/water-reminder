@@ -8,6 +8,7 @@ import {
 } from '@modules/onboarding/repository/onboarding-storage';
 import { useReminders } from '@modules/reminders';
 import { refreshHydrationWidgets } from '@modules/widgets';
+import { trackEvent } from '@platform/telemetry';
 
 import {
   exportHydrationDatabase,
@@ -22,6 +23,7 @@ import {
   getGoalAmountInUnit,
   saveMeasurementUnit,
   saveReduceMotion,
+  saveShareAnonymousDiagnostics,
   saveStartOfDay,
   saveThemePreference,
   sendTestReminderNotification,
@@ -92,6 +94,13 @@ export const useSettings = () => {
     saveReduceMotion(reduceMotion);
   }, []);
 
+  const updateShareAnonymousDiagnostics = useCallback(
+    async (shareAnonymousDiagnostics: boolean) => {
+      await saveShareAnonymousDiagnostics(shareAnonymousDiagnostics);
+    },
+    [],
+  );
+
   const updateStartOfDay = useCallback((startOfDay: string) => {
     saveStartOfDay(startOfDay);
   }, []);
@@ -109,10 +118,12 @@ export const useSettings = () => {
 
   const prepareExport = useCallback(async () => {
     setIsBusy(true);
+    trackEvent('export_started', { source: 'app' });
     try {
       const payload = await exportHydrationDatabase();
       setExportPayload(payload);
       setStatusMessage('Your local export is ready.');
+      trackEvent('export_completed', { result: 'success', source: 'app' });
     } finally {
       setIsBusy(false);
     }
@@ -121,6 +132,7 @@ export const useSettings = () => {
   const importDatabase = useCallback(
     async (payload: string) => {
       setIsBusy(true);
+      trackEvent('import_started', { source: 'app' });
       try {
         const count = await importHydrationDatabase(payload);
         setExportPayload(undefined);
@@ -128,6 +140,7 @@ export const useSettings = () => {
         await refreshDataSummary();
         await dispatch(loadTodayHydration()).unwrap();
         await refreshHydrationWidgets('database_import');
+        trackEvent('import_completed', { result: 'success', source: 'app' });
       } finally {
         setIsBusy(false);
       }
@@ -185,6 +198,7 @@ export const useSettings = () => {
     updateGoalAmount,
     updateMeasurementUnit,
     updateReduceMotion,
+    updateShareAnonymousDiagnostics,
     updateStartOfDay,
     updateThemePreference,
   };

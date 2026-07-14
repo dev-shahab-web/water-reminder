@@ -6,6 +6,7 @@ import { useTheme } from 'react-native-paper';
 import { appConfig, releaseLinks } from '@core/config';
 import { HealthConnectCard } from '@modules/health-connect';
 import { ReminderCard } from '@modules/reminders';
+import { trackEvent } from '@platform/telemetry';
 import {
   AppScreen,
   IconButton,
@@ -70,6 +71,7 @@ export function SettingsScreen() {
     updateGoalAmount,
     updateMeasurementUnit,
     updateReduceMotion,
+    updateShareAnonymousDiagnostics,
     updateStartOfDay,
     updateThemePreference,
   } = useSettings();
@@ -150,6 +152,7 @@ export function SettingsScreen() {
   };
 
   const showPrivacyPolicy = () => {
+    trackEvent('privacy_policy_opened', { source: 'app' });
     if (releaseLinks.privacyPolicyUrl.length > 0) {
       void openUrl(releaseLinks.privacyPolicyUrl, 'The privacy policy is not available yet.');
       return;
@@ -162,6 +165,7 @@ export function SettingsScreen() {
   };
 
   const showTerms = () => {
+    trackEvent('terms_opened', { source: 'app' });
     if (releaseLinks.termsUrl.length > 0) {
       void openUrl(releaseLinks.termsUrl, 'The terms are not available yet.');
       return;
@@ -186,6 +190,7 @@ export function SettingsScreen() {
   };
 
   const openFeedback = () => {
+    trackEvent('feedback_opened', { source: 'app' });
     void openUrl(
       `mailto:${releaseLinks.feedbackEmail}?subject=${encodeURIComponent(`${appConfig.name} feedback`)}`,
       'Open your email app and mention Water Reminder feedback in the subject.',
@@ -193,6 +198,7 @@ export function SettingsScreen() {
   };
 
   const openRateApp = () => {
+    trackEvent('rate_app_opened', { source: 'app' });
     void openUrl(
       releaseLinks.playStoreUrl,
       'Search for Water Reminder in Google Play to rate the app.',
@@ -357,6 +363,25 @@ export function SettingsScreen() {
           supportingText="Hydration should stay readable with larger system text."
           value="Aa"
         />
+      </SettingsSection>
+
+      <SettingsSection
+        subtitle="Anonymous diagnostics never include hydration or Health Connect data."
+        title="Privacy"
+      >
+        <SettingsRow
+          icon="chart-box-outline"
+          label="Share anonymous diagnostics"
+          supportingText="Help improve Water Reminder by sharing anonymous app usage and crash diagnostics. Hydration and Health Connect data are never included."
+        >
+          <Switch
+            accessibilityLabel="Share anonymous diagnostics"
+            onValueChange={(enabled) => {
+              void updateShareAnonymousDiagnostics(enabled);
+            }}
+            value={settings.shareAnonymousDiagnostics}
+          />
+        </SettingsRow>
       </SettingsSection>
 
       <View style={styles.sectionGroup}>

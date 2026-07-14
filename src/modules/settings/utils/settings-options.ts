@@ -3,11 +3,13 @@ import type { MeasurementUnit, ThemePreference } from '../types';
 export const defaultSettings = {
   measurementUnit: 'ml',
   reduceMotion: false,
+  shareAnonymousDiagnostics: false,
   startOfDay: '00:00',
   themePreference: 'system',
 } satisfies {
   measurementUnit: MeasurementUnit;
   reduceMotion: boolean;
+  shareAnonymousDiagnostics: boolean;
   startOfDay: string;
   themePreference: ThemePreference;
 };

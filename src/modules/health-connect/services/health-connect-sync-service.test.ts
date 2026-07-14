@@ -76,13 +76,20 @@ jest.mock('@core/logger', () => ({
   },
 }));
 
+jest.mock('@platform/telemetry', () => ({
+  trackEventSafely: jest.fn(),
+}));
+
 const {
   connectHealthConnect,
+  disconnectHealthConnect,
   getFriendlyHealthConnectSyncError,
   queueBestEffortHealthConnectSync,
   syncHealthConnect,
   syncHealthConnectIfConnected,
 } = require('./health-connect-sync-service') as typeof import('./health-connect-sync-service');
+const { trackEventSafely: mockTrackEventSafely } =
+  require('@platform/telemetry') as typeof import('@platform/telemetry');
 
 const grantedPermissionState = {
   canRequest: true,
@@ -140,6 +147,53 @@ describe('Health Connect sync service', () => {
     expect(mockHealthDataService.requestPermissions).toHaveBeenCalledTimes(1);
     expect(mockAwaitDatabaseReady).toHaveBeenCalled();
     expect(callOrder).toEqual(['database_ready', 'repository_read']);
+    expect(mockTrackEventSafely).toHaveBeenCalledWith('health_connect_connected', {
+      connected: true,
+      source: 'app',
+    });
+  });
+
+  it('tracks successful Health Connect connect only after permission is granted', async () => {
+    await connectHealthConnect();
+
+    expect(mockTrackEventSafely).toHaveBeenCalledWith('health_connect_connected', {
+      connected: true,
+      source: 'app',
+    });
+
+    jest.clearAllMocks();
+    mockHealthDataService.getPermissionState.mockResolvedValue({
+      ...grantedPermissionState,
+      granted: false,
+      readGranted: false,
+      writeGranted: false,
+    });
+
+    await expect(connectHealthConnect()).resolves.toBeUndefined();
+
+    expect(mockTrackEventSafely).not.toHaveBeenCalledWith('health_connect_connected', {
+      connected: true,
+      source: 'app',
+    });
+  });
+
+  it('tracks successful Health Connect disconnect only after revoke succeeds', async () => {
+    await disconnectHealthConnect();
+
+    expect(mockHealthDataService.revokeOrDisconnect).toHaveBeenCalledTimes(1);
+    expect(mockTrackEventSafely).toHaveBeenCalledWith('health_connect_disconnected', {
+      connected: false,
+      source: 'app',
+    });
+
+    jest.clearAllMocks();
+    mockHealthDataService.revokeOrDisconnect.mockRejectedValueOnce(new Error('Revoke failed'));
+
+    await expect(disconnectHealthConnect()).rejects.toThrow('Revoke failed');
+    expect(mockTrackEventSafely).not.toHaveBeenCalledWith('health_connect_disconnected', {
+      connected: false,
+      source: 'app',
+    });
   });
 
   it('waits for migrations through database readiness before repository access', async () => {

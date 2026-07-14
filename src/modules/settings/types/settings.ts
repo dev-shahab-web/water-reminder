@@ -7,6 +7,7 @@ export type ThemePreference = (typeof THEME_PREFERENCES)[number];
 export type SettingsState = {
   measurementUnit: MeasurementUnit;
   reduceMotion: boolean;
+  shareAnonymousDiagnostics: boolean;
   startOfDay: string;
   themePreference: ThemePreference;
 };

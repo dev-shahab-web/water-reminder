@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 const mockLoadTodayHydration = jest.fn();
 const mockRefreshHydrationWidgets = jest.fn<() => Promise<void>>();
 const mockResetDatabaseConnection = jest.fn<() => Promise<void>>();
+const mockTrackEvent = jest.fn();
 
 jest.mock('@modules/hydration', () => ({
   loadTodayHydration: mockLoadTodayHydration,
@@ -18,6 +19,10 @@ jest.mock('./widget-refresh-coordinator', () => ({
   refreshHydrationWidgets: mockRefreshHydrationWidgets,
 }));
 
+jest.mock('@platform/telemetry', () => ({
+  trackEventSafely: mockTrackEvent,
+}));
+
 const { syncWidgetLiveState } =
   require('./widget-live-sync-service') as typeof import('./widget-live-sync-service');
 
@@ -26,6 +31,7 @@ describe('widget live sync service', () => {
     mockLoadTodayHydration.mockReset();
     mockRefreshHydrationWidgets.mockReset();
     mockResetDatabaseConnection.mockReset();
+    mockTrackEvent.mockReset();
     mockLoadTodayHydration.mockReturnValue({ type: 'hydration/loadToday' });
     mockRefreshHydrationWidgets.mockResolvedValue();
     mockResetDatabaseConnection.mockResolvedValue();
@@ -72,5 +78,19 @@ describe('widget live sync service', () => {
     });
 
     expect(mockRefreshHydrationWidgets).toHaveBeenCalledWith('widget_event');
+    expect(mockTrackEvent).toHaveBeenCalledWith('widget_action_used', { source: 'widget' });
+  });
+
+  it('does not track widget actions during app-active reconciliation', async () => {
+    const dispatch = jest.fn(() => ({
+      unwrap: jest.fn<() => Promise<void>>().mockResolvedValue(),
+    }));
+
+    await syncWidgetLiveState({
+      dispatch: dispatch as never,
+      reason: 'app_active',
+    });
+
+    expect(mockTrackEvent).not.toHaveBeenCalled();
   });
 });

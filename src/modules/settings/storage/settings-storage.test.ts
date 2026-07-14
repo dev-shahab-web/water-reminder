@@ -44,6 +44,7 @@ describe('settings storage', () => {
     expect(getSettingsState()).toEqual({
       measurementUnit: 'ml',
       reduceMotion: false,
+      shareAnonymousDiagnostics: false,
       startOfDay: '00:00',
       themePreference: 'system',
     });
@@ -60,17 +61,20 @@ describe('settings storage', () => {
     updateSettingsState({
       measurementUnit: 'oz',
       reduceMotion: true,
+      shareAnonymousDiagnostics: true,
       startOfDay: '06:00',
       themePreference: 'dark',
     });
 
     expect(mockStorageValues.get(settingsStorageKeys.measurementUnit)).toBe('oz');
     expect(mockStorageValues.get(settingsStorageKeys.reduceMotion)).toBe(true);
+    expect(mockStorageValues.get(settingsStorageKeys.shareAnonymousDiagnostics)).toBe(true);
     expect(mockStorageValues.get(settingsStorageKeys.startOfDay)).toBe('06:00');
     expect(mockStorageValues.get(settingsStorageKeys.themePreference)).toBe('dark');
     expect(getSettingsState()).toEqual({
       measurementUnit: 'oz',
       reduceMotion: true,
+      shareAnonymousDiagnostics: true,
       startOfDay: '06:00',
       themePreference: 'dark',
     });
@@ -95,6 +99,7 @@ describe('settings storage', () => {
     expect(getSettingsState()).toEqual({
       measurementUnit: 'ml',
       reduceMotion: false,
+      shareAnonymousDiagnostics: false,
       startOfDay: '00:00',
       themePreference: 'system',
     });

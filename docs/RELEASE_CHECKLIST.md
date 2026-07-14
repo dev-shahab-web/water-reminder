@@ -1,32 +1,59 @@
 # Release Checklist
 
-## Android Widgets
+## Firebase Console
 
-- Run `npx expo prebuild --platform android --clean`.
-- Confirm the widget config plugin regenerates Android files without manual edits.
-- Confirm the widget header uses the Water Reminder vector mark in compact, medium, and expanded sizes.
-- Run `./gradlew :app:assembleDebug`.
-- Run `./gradlew :app:assembleRelease`.
-- Add compact, medium, and expanded widgets on an Android launcher.
-- Verify widget quick-add works while the app is closed.
-- Verify widget entries appear in Home, History, Statistics, and export data.
-- Verify reset/delete history clears widget progress on the next refresh.
-- Verify widgets remain optional and the app works normally without adding one.
+- Create or verify the Firebase project.
+- Add Android app package `com.shahab.waterreminder`.
+- Download `google-services.json`.
+- Place `google-services.json` at the repository root locally or through CI secure files.
+- Do not commit `google-services.json`.
+- Enable Firebase Analytics.
+- Enable Firebase Crashlytics.
+- Configure Firebase data retention settings.
+- Verify no Firebase Authentication, Firestore, Remote Config, Performance Monitoring, Cloud Messaging, or Ads services are enabled for the app.
 
-## Core Quality
+## Native Build Verification
 
-- Run `npm run lint`.
-- Run `npm run typecheck`.
-- Run `npm test`.
-- Run `npx expo-doctor`.
-- Verify dark mode, large text, reduced motion, and screen reader basics on Android.
+Run manually outside Codex:
 
-## Brand And Store Readiness
+- `npm install`
+- `npx expo prebuild --platform android --clean`
+- Build a development build.
+- Build a release APK/AAB.
+- Install on a physical Android device.
 
-- Confirm `assets/brand/water-reminder-mark.svg` matches configured raster icon assets.
-- Confirm Android adaptive icon foreground, background, monochrome, splash, and favicon assets are present.
-- Confirm widget vector branding matches the app mark at small sizes.
-- Confirm Play Store copy avoids medical claims, guilt language, account requirements, cloud-sync claims, and advertising language.
-- Confirm screenshots include Home progress, quick add, reminders, history/statistics, settings/privacy, Health Connect optionality, and the Android widget.
-- Confirm About rows open privacy, terms, open-source, feedback, and rating surfaces without requiring an account.
-- Confirm Reduce Motion disables continuous Home water motion while preserving clear progress updates.
+## Analytics Validation
+
+- Enable `Share anonymous diagnostics` in Settings.
+- Use Firebase Analytics DebugView.
+- Validate only allowlisted events appear.
+- Confirm no amounts, totals, goals, timestamps, Health Connect ids, reminder schedules, or user-entered text appear.
+- Disable `Share anonymous diagnostics`.
+- Confirm new events stop.
+
+## Crashlytics Validation
+
+- Use a non-production crash test build.
+- Trigger a controlled test crash or handled error.
+- Confirm Crashlytics receives safe attributes only.
+- Confirm no user id is set.
+- Confirm hydration and Health Connect values are absent.
+
+## Privacy And Compliance
+
+- Publish or host `legal-site/privacy-policy.html`.
+- Confirm Play Console privacy policy URL points to the hosted policy.
+- Review `docs/compliance/DATA_SAFETY.md`.
+- Review `docs/compliance/HEALTH_APPS_DECLARATION.md`.
+- Confirm store listing does not claim medical benefit.
+
+## Regression
+
+- Verify onboarding.
+- Verify Home logging.
+- Verify pull-to-refresh.
+- Verify Health Connect sync.
+- Verify widgets.
+- Verify reminders.
+- Verify history/statistics/settings.
+- Verify diagnostics toggle persistence after restart.
