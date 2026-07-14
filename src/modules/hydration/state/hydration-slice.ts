@@ -1,12 +1,15 @@
 import { createAsyncThunk, createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
+import { queueBestEffortHealthConnectSync } from '@modules/health-connect/services/health-connect-sync-service';
+import { refreshHydrationWidgets } from '@modules/widgets';
+
 import {
   addHydrationEntry,
   deleteHydrationEntry,
   getTodayHydrationEntries,
   updateHydrationEntry,
 } from '../repository/hydration-repository';
-import { refreshHydrationWidgets } from '@modules/widgets';
+import { refreshHomeHydrationFromCanonicalSource } from '../services/home-refresh-service';
 import type { HydrationEntry, HydrationEntrySource } from '../types';
 import { getLocalDateKey } from '../utils/date';
 
@@ -28,12 +31,19 @@ export const loadTodayHydration = createAsyncThunk('hydration/loadToday', async 
   getTodayHydrationEntries(),
 );
 
+export const refreshHomeHydration = createAsyncThunk(
+  'hydration/refreshHome',
+  async (): Promise<{ entries: HydrationEntry[]; healthSyncFailed: boolean }> =>
+    refreshHomeHydrationFromCanonicalSource(),
+);
+
 export const logHydration = createAsyncThunk(
   'hydration/log',
   async ({ amount, source }: { amount: number; source: HydrationEntrySource }) => {
     const entry = await addHydrationEntry({ amount, source });
 
     void refreshHydrationWidgets('hydration_changed');
+    void queueBestEffortHealthConnectSync();
 
     return entry;
   },
@@ -49,6 +59,7 @@ export const editHydrationEntry = createAsyncThunk(
     }
 
     void refreshHydrationWidgets('hydration_changed');
+    void queueBestEffortHealthConnectSync();
 
     return entry;
   },
@@ -58,6 +69,7 @@ export const removeHydrationEntry = createAsyncThunk('hydration/remove', async (
   const deletedId = await deleteHydrationEntry(id);
 
   void refreshHydrationWidgets('hydration_changed');
+  void queueBestEffortHealthConnectSync();
 
   return deletedId;
 });
@@ -91,6 +103,23 @@ export const hydrationSlice = createSlice({
       .addCase(loadTodayHydration.rejected, (state) => {
         state.status = 'error';
         state.errorMessage = 'Today could not be loaded.';
+      })
+      .addCase(refreshHomeHydration.pending, (state) => {
+        state.errorMessage = undefined;
+      })
+      .addCase(
+        refreshHomeHydration.fulfilled,
+        (
+          state,
+          action: PayloadAction<{ entries: HydrationEntry[]; healthSyncFailed: boolean }>,
+        ) => {
+          state.entries = action.payload.entries;
+          state.status = 'ready';
+        },
+      )
+      .addCase(refreshHomeHydration.rejected, (state) => {
+        state.status = 'error';
+        state.errorMessage = 'Today could not be refreshed.';
       })
       .addCase(logHydration.pending, (state) => {
         state.status = 'saving';

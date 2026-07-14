@@ -370,6 +370,8 @@ Responsibilities:
 - Android Health Connect availability detection.
 - Explicit hydration-only permission request flow.
 - Manual and initial hydration synchronization.
+- Home pull-to-refresh reconciliation.
+- Best-effort automatic sync after local hydration mutations.
 - Writing local Water Reminder logs to Health Connect.
 - Importing external hydration records into local SQLite.
 - Duplicate prevention through Health Connect record and client ids.
@@ -400,6 +402,7 @@ Home UI
 -> hydration-repository.addHydrationEntry
 -> SQLite hydration_entries
 -> Redux state updates today's entries
+-> queue best-effort Health Connect sync if connected
 -> HydrationRing / metrics / timeline render
 -> haptic feedback
 ```
@@ -409,6 +412,7 @@ Rules:
 - Logging must feel immediate.
 - SQLite remains the durable source of truth.
 - UI should not block on network.
+- Health Connect sync is non-blocking and must not roll back local logging.
 - Haptics are enhancement-only and must fail silently.
 
 ### Loading Today
@@ -421,6 +425,31 @@ Home mounts
 -> SQLite date-bound query
 -> Redux hydration.entries
 ```
+
+### Home Pull-To-Refresh
+
+```txt
+Home pull gesture
+-> RefreshControl
+-> useHomeHydration.refreshHome
+-> refreshHomeHydration thunk
+-> awaitDatabaseReady
+-> getTodayHydrationEntries
+-> syncHealthConnectIfConnected
+-> getTodayHydrationEntries
+-> Redux hydration.entries replace canonical result
+-> refreshHydrationWidgets
+-> useReminders observes updated total and reconciles reminders
+-> useStatisticsPreview reloads compact Home preview
+```
+
+Rules:
+
+- SQLite remains the canonical local source of truth before and after Health Connect sync.
+- Pull-to-refresh works even when Health Connect is unavailable, unsupported, or disconnected.
+- Health Connect sync failures show calm copy and keep refreshed local data visible.
+- The refresh indicator is owned by Home UI state and always ends in `finally`.
+- Widget refresh happens after the post-sync canonical SQLite reload.
 
 ### History
 
@@ -473,6 +502,9 @@ Sync policy:
 - Duplicate prevention checks Health Connect record id, client record id, and local id.
 - Initial sync reads the previous 365 days.
 - Incremental sync reads from the last successful sync with a one-day overlap.
+- Settings sync, Home pull-to-refresh, and automatic mutation follow-up sync all reuse the same serialized sync lock.
+- Automatic mutation follow-up sync is best-effort and coalesces rapid local changes.
+- Health Connect failures never block local hydration logging.
 - Last sync status and error copy are stored in MMKV for explainability.
 
 ## SQLite Schema

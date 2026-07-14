@@ -1,4 +1,5 @@
 export {
+  awaitDatabaseReady,
   getDatabase,
   initializeDatabase,
   resetDatabaseConnection,

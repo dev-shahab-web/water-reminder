@@ -13,6 +13,7 @@ import {
   editHydrationEntry,
   loadTodayHydration,
   logHydration,
+  refreshHomeHydration,
   removeHydrationEntry,
 } from '../state/hydration-slice';
 import type { HydrationEntry, HydrationEntrySource } from '../types';
@@ -34,6 +35,8 @@ export const useHomeHydration = (goalAmount: number, enabled: boolean) => {
   const [amountInput, setAmountInput] = useState('');
   const [amountError, setAmountError] = useState<string | undefined>();
   const [lastLoggedEntry, setLastLoggedEntry] = useState<HydrationEntry | undefined>();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState<string | undefined>();
   const [successMessage, setSuccessMessage] = useState(getGreeting());
 
   useEffect(() => {
@@ -172,6 +175,25 @@ export const useHomeHydration = (goalAmount: number, enabled: boolean) => {
     setAmountModal(undefined);
   }, []);
 
+  const refreshHome = useCallback(async (): Promise<void> => {
+    setIsRefreshing(true);
+    setRefreshMessage(undefined);
+
+    try {
+      const result = await dispatch(refreshHomeHydration()).unwrap();
+
+      if (result.healthSyncFailed) {
+        setRefreshMessage('Health sync could not complete. Your local data is safe.');
+      } else {
+        setSuccessMessage('Refreshed.');
+      }
+    } catch {
+      setRefreshMessage('Home could not refresh. Your local data is safe.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [dispatch]);
+
   const changeAmountInput = useCallback((value: string) => {
     setAmountInput(value.replace(/\D/g, ''));
     setAmountError(undefined);
@@ -235,11 +257,14 @@ export const useHomeHydration = (goalAmount: number, enabled: boolean) => {
     confirmDeleteEntry,
     errorMessage,
     guidanceMessage,
+    isRefreshing,
     isSaving: status === 'saving',
     lastLoggedEntry,
     logAmount,
     openCustomAmount,
     openEditEntry,
+    refreshHome,
+    refreshMessage,
     saveAmount,
     successMessage,
     summary,

@@ -81,6 +81,25 @@ Manual sync:
 - Updates the last sync result and status.
 - Refreshes today's hydration state after completion.
 
+Home pull-to-refresh:
+
+- Triggered by the standard pull gesture on Home.
+- Awaits the shared SQLite database readiness path before reading data.
+- Reloads today's local entries from SQLite before sync.
+- Syncs Health Connect only when available and already connected.
+- Reloads today's entries from SQLite again after sync.
+- Refreshes the Android home-screen widget from the canonical local result.
+- Keeps local Home data visible if Health Connect sync fails.
+
+Automatic best-effort sync:
+
+- Queued after successful local hydration mutations such as quick add, custom add, edit, undo, and delete.
+- Coalesces rapid local changes so repeated taps do not start repeated Health Connect syncs.
+- Never rolls back or fails local hydration logging when Health Connect is unavailable or temporarily failing.
+- Uses the same duplicate-prevention rules as manual sync.
+
+SQLite remains the canonical local source of truth. Health Connect is a reconciliation target/source, not the owner of Home state.
+
 ## Duplicate Prevention
 
 Water Reminder prevents duplicates using:
@@ -137,3 +156,13 @@ Health Connect must never become:
 - An analytics or advertising data source.
 
 Any expansion beyond hydration read/write requires product, privacy, and architecture review.
+
+## Failure Handling
+
+Health Connect failures must be recoverable and calm:
+
+- Raw native, Java, Kotlin, SQLite, or stack-trace errors are not shown in production UI.
+- Home may show: "Health sync could not complete. Your local data is safe."
+- Settings may show: "Health sync is temporarily unavailable. Try again."
+- The Sync now action remains available after transient failures.
+- Local hydration logging, widgets, reminders, and statistics continue to use SQLite data.

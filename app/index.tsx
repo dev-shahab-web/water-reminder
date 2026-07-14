@@ -1,6 +1,6 @@
 import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { AppState, type AppStateStatus } from 'react-native';
 import Animated, { Easing, FadeInDown, FadeOutUp, useReducedMotion } from 'react-native-reanimated';
 import { useTheme } from 'react-native-paper';
@@ -49,11 +49,14 @@ export default function HomeScreen() {
     confirmDeleteEntry,
     errorMessage,
     guidanceMessage,
+    isRefreshing,
     isSaving,
     lastLoggedEntry,
     logAmount,
     openCustomAmount,
     openEditEntry,
+    refreshHome,
+    refreshMessage,
     saveAmount,
     successMessage,
     summary,
@@ -63,7 +66,13 @@ export default function HomeScreen() {
     goalAmount: summary.goalAmount,
     totalAmount: summary.totalAmount,
   });
-  const statisticsPreview = useStatisticsPreview(summary.goalAmount);
+  const [statisticsRefreshKey, setStatisticsRefreshKey] = useState(0);
+  const statisticsPreview = useStatisticsPreview(summary.goalAmount, statisticsRefreshKey);
+
+  const handleRefresh = useCallback(async () => {
+    await refreshHome();
+    setStatisticsRefreshKey((currentKey) => currentKey + 1);
+  }, [refreshHome]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', setAppState);
@@ -99,7 +108,22 @@ export default function HomeScreen() {
     : FadeOutUp.duration(140).easing(Easing.out(Easing.cubic));
 
   return (
-    <AppScreen scrollable style={styles.screen}>
+    <AppScreen
+      refreshControl={
+        <RefreshControl
+          accessibilityLabel={isRefreshing ? 'Refreshing hydration data' : 'Pull to refresh'}
+          colors={[theme.colors.primary]}
+          onRefresh={() => {
+            void handleRefresh();
+          }}
+          progressBackgroundColor={theme.colors.surface}
+          refreshing={isRefreshing}
+          tintColor={theme.colors.primary}
+        />
+      }
+      scrollable
+      style={styles.screen}
+    >
       <AnimatedCard
         style={[
           styles.heroCard,
@@ -219,6 +243,22 @@ export default function HomeScreen() {
           ]}
         >
           {errorMessage}
+        </Text>
+      )}
+
+      {refreshMessage === undefined ? null : (
+        <Text
+          accessibilityRole="alert"
+          style={[
+            styles.error,
+            {
+              color: theme.app.colors.statusWarning,
+              fontSize: theme.app.typography.fontSize.caption,
+              lineHeight: theme.app.typography.lineHeight.caption,
+            },
+          ]}
+        >
+          {refreshMessage}
         </Text>
       )}
 

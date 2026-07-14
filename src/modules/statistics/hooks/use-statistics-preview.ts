@@ -8,7 +8,7 @@ export type StatisticsPreview = {
   weeklyAverage: number;
 };
 
-export const useStatisticsPreview = (goalAmount: number) => {
+export const useStatisticsPreview = (goalAmount: number, refreshKey = 0) => {
   const [preview, setPreview] = useState<StatisticsPreview | undefined>();
 
   useEffect(() => {
@@ -42,7 +42,7 @@ export const useStatisticsPreview = (goalAmount: number) => {
     return () => {
       isMounted = false;
     };
-  }, [goalAmount]);
+  }, [goalAmount, refreshKey]);
 
   return preview;
 };

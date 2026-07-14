@@ -4,6 +4,7 @@ export {
   hydrationReducer,
   loadTodayHydration,
   logHydration,
+  refreshHomeHydration,
   removeHydrationEntry,
 } from './state/hydration-slice';
 export type { HydrationEntry, HydrationEntrySource, HydrationSummary } from './types';

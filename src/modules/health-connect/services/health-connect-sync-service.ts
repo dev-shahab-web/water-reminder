@@ -1,4 +1,6 @@
+import { logger } from '@core/logger';
 import { healthDataService, type ExternalHydrationRecord } from '@platform/health';
+import { awaitDatabaseReady } from '@platform/database';
 import { refreshHydrationWidgets } from '@modules/widgets';
 import {
   addHydrationEntry,
@@ -16,6 +18,11 @@ import {
 import type { HealthConnectState, HealthConnectSyncResult } from '../types';
 
 const initialSyncWindowDays = 365;
+const friendlySyncUnavailableMessage = 'Health sync is temporarily unavailable. Try again.';
+const bestEffortSyncDelayMs = 500;
+
+let activeSyncPromise: Promise<HealthConnectSyncResult> | null = null;
+let queuedBestEffortSyncPromise: Promise<void> | null = null;
 
 const getDefaultPermissionState = () => ({
   canRequest: false,
@@ -71,6 +78,17 @@ export const requestHealthConnectPermissions = async (): Promise<HealthConnectSt
   return getHealthConnectState();
 };
 
+export const connectHealthConnect = async (): Promise<HealthConnectSyncResult | undefined> => {
+  const state = await requestHealthConnectPermissions();
+
+  if (!state.permissionState.granted) {
+    return undefined;
+  }
+
+  await awaitDatabaseReady();
+  return syncHealthConnectWithReadyDatabase();
+};
+
 export const disconnectHealthConnect = async (): Promise<HealthConnectState> => {
   await healthDataService.revokeOrDisconnect();
   clearHealthConnectSyncMetadata();
@@ -79,6 +97,69 @@ export const disconnectHealthConnect = async (): Promise<HealthConnectState> => 
 };
 
 export const syncHealthConnect = async (): Promise<HealthConnectSyncResult> => {
+  return runExclusiveHealthConnectSync({ awaitDatabaseReadiness: true });
+};
+
+export const syncHealthConnectIfConnected = async (): Promise<
+  HealthConnectSyncResult | undefined
+> => {
+  const state = await getHealthConnectState();
+
+  if (state.availability !== 'available' || !state.permissionState.granted) {
+    return undefined;
+  }
+
+  return syncHealthConnect();
+};
+
+export const queueBestEffortHealthConnectSync = (): Promise<void> => {
+  if (queuedBestEffortSyncPromise) {
+    return queuedBestEffortSyncPromise;
+  }
+
+  queuedBestEffortSyncPromise = new Promise((resolve) => {
+    setTimeout(() => {
+      void syncHealthConnectIfConnected()
+        .catch((error: unknown) => {
+          logHealthConnectSyncError(error);
+        })
+        .finally(() => {
+          queuedBestEffortSyncPromise = null;
+          resolve();
+        });
+    }, bestEffortSyncDelayMs);
+  });
+
+  return queuedBestEffortSyncPromise;
+};
+
+const syncHealthConnectWithReadyDatabase = async (): Promise<HealthConnectSyncResult> => {
+  return runExclusiveHealthConnectSync({ awaitDatabaseReadiness: false });
+};
+
+const runExclusiveHealthConnectSync = async ({
+  awaitDatabaseReadiness,
+}: {
+  awaitDatabaseReadiness: boolean;
+}): Promise<HealthConnectSyncResult> => {
+  if (activeSyncPromise) {
+    return activeSyncPromise;
+  }
+
+  activeSyncPromise = performHealthConnectSync({ awaitDatabaseReadiness });
+
+  try {
+    return await activeSyncPromise;
+  } finally {
+    activeSyncPromise = null;
+  }
+};
+
+const performHealthConnectSync = async ({
+  awaitDatabaseReadiness,
+}: {
+  awaitDatabaseReadiness: boolean;
+}): Promise<HealthConnectSyncResult> => {
   try {
     const state = await getHealthConnectState();
 
@@ -88,6 +169,10 @@ export const syncHealthConnect = async (): Promise<HealthConnectSyncResult> => {
 
     if (!state.permissionState.granted) {
       throw new Error('Health Connect hydration permission is not granted.');
+    }
+
+    if (awaitDatabaseReadiness) {
+      await awaitDatabaseReady();
     }
 
     const nowIso = new Date().toISOString();
@@ -149,8 +234,28 @@ export const syncHealthConnect = async (): Promise<HealthConnectSyncResult> => {
       writtenCount: writeResult.recordIds.length,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Health Connect sync failed.';
-    setHealthConnectSyncError(message);
+    setHealthConnectSyncError(getFriendlyHealthConnectSyncError(error));
+    logHealthConnectSyncError(error);
     throw error;
+  }
+};
+
+export const getFriendlyHealthConnectSyncError = (error: unknown): string => {
+  const message = error instanceof Error ? error.message : '';
+
+  if (message === 'Health Connect is not available.') {
+    return 'Health Connect is not available on this device.';
+  }
+
+  if (message === 'Health Connect hydration permission is not granted.') {
+    return 'Hydration permission is needed to sync.';
+  }
+
+  return friendlySyncUnavailableMessage;
+};
+
+const logHealthConnectSyncError = (error: unknown): void => {
+  if (process.env.NODE_ENV !== 'production') {
+    logger.warn('Health Connect sync failed.', { error });
   }
 };

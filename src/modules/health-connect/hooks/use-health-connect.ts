@@ -4,9 +4,9 @@ import { loadTodayHydration } from '@modules/hydration';
 import { useAppDispatch } from '@state/store/hooks';
 
 import {
+  connectHealthConnect,
   disconnectHealthConnect,
   getHealthConnectState,
-  requestHealthConnectPermissions,
   syncHealthConnect,
 } from '../services/health-connect-sync-service';
 import type { HealthConnectState, HealthConnectSyncResult } from '../types';
@@ -51,25 +51,30 @@ export const useHealthConnect = () => {
   }, []);
 
   const connect = useCallback(async () => {
+    if (isBusy) {
+      return;
+    }
+
     setIsBusy(true);
     try {
-      const nextState = await requestHealthConnectPermissions();
-      setState(nextState);
-
-      if (nextState.permissionState.granted) {
-        const result = await syncHealthConnect();
+      const result = await connectHealthConnect();
+      if (result !== undefined) {
         setSyncResult(result);
-        setState(await getHealthConnectState());
         void dispatch(loadTodayHydration());
       }
+      setState(await getHealthConnectState());
     } catch {
       setState(await getHealthConnectState());
     } finally {
       setIsBusy(false);
     }
-  }, [dispatch]);
+  }, [dispatch, isBusy]);
 
   const syncNow = useCallback(async () => {
+    if (isBusy) {
+      return;
+    }
+
     setIsBusy(true);
     try {
       const result = await syncHealthConnect();
@@ -81,9 +86,13 @@ export const useHealthConnect = () => {
     } finally {
       setIsBusy(false);
     }
-  }, [dispatch]);
+  }, [dispatch, isBusy]);
 
   const disconnect = useCallback(async () => {
+    if (isBusy) {
+      return;
+    }
+
     setIsBusy(true);
     try {
       setState(await disconnectHealthConnect());
@@ -93,7 +102,7 @@ export const useHealthConnect = () => {
     } finally {
       setIsBusy(false);
     }
-  }, []);
+  }, [isBusy]);
 
   return {
     connect,

@@ -1,6 +1,7 @@
-import { type ReactNode } from 'react';
+import { type ReactElement, type ReactNode } from 'react';
 import {
   ScrollView,
+  type RefreshControlProps,
   StyleSheet,
   type StyleProp,
   Text,
@@ -16,6 +17,7 @@ type AppScreenProps = {
   children: ReactNode;
   error?: ReactNode;
   loading?: ReactNode;
+  refreshControl?: ReactElement<RefreshControlProps>;
   scrollable?: boolean;
   style?: StyleProp<ViewStyle>;
   subtitle?: string;
@@ -26,6 +28,7 @@ export function AppScreen({
   children,
   error,
   loading,
+  refreshControl,
   scrollable = false,
   style,
   subtitle,
@@ -86,6 +89,7 @@ export function AppScreen({
             },
             style,
           ]}
+          refreshControl={refreshControl}
         >
           {header}
           {content}
