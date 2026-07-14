@@ -31,7 +31,7 @@ export const initializeTelemetry = async (): Promise<void> => {
       app_version: Constants.expoConfig?.version ?? '1.0.0',
       build_number:
         Constants.expoConfig?.android?.versionCode === undefined
-          ? 'Development'
+          ? 'Local build'
           : String(Constants.expoConfig.android.versionCode),
     });
   });

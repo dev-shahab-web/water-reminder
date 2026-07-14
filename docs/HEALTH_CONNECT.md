@@ -157,6 +157,21 @@ Health Connect must never become:
 
 Any expansion beyond hydration read/write requires product, privacy, and architecture review.
 
+## Publication Declaration Summary
+
+Recommended Play Console wording:
+
+- Category: general wellness hydration tracking.
+- Data type: Health Connect Hydration only.
+- Read justification: reconcile hydration records logged in other apps with local Water Reminder history and avoid duplicates.
+- Write justification: write water logged in Water Reminder to Health Connect so the user can keep hydration records consistent across apps.
+- Consent: explicit opt-in from Settings; no first-launch prompt.
+- Disconnect: available from Settings; permissions can also be changed in Android system settings.
+- Storage: SQLite remains the canonical local source of truth.
+- Sync: initial sync, automatic best-effort sync after local mutations, manual Sync now, and Home pull-to-refresh reconciliation.
+- Telemetry: Health Connect values and record IDs are excluded from Firebase Analytics and Crashlytics.
+- Claims: no diagnosis, treatment, disease prevention, medical-device functionality, advertising, or profiling based on health data.
+
 ## Failure Handling
 
 Health Connect failures must be recoverable and calm:

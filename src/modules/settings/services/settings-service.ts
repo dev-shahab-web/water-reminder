@@ -64,7 +64,7 @@ export const getAppInformation = (): AppInformation => {
   return {
     buildNumber:
       expoConfig?.android?.versionCode === undefined
-        ? 'Development'
+        ? 'Local build'
         : String(expoConfig.android.versionCode),
     version: expoConfig?.version ?? '1.0.0',
   };

@@ -188,6 +188,32 @@ Supported environment overrides:
 
 Settings uses these values for Privacy, Terms, GitHub, Feedback, Rate App, and Open Source Licenses. Empty values fall back to local, production-safe placeholder copy instead of broken links.
 
+For Play publication, configure HTTPS privacy and terms URLs before submission. GitHub stays hidden when `EXPO_PUBLIC_GITHUB_URL` is empty.
+
+## Publication Readiness References
+
+Release-facing source-of-truth documents:
+
+- [Production Config Audit](./release/PRODUCTION_CONFIG_AUDIT.md)
+- [Firebase Release Verification](./release/FIREBASE_RELEASE_VERIFICATION.md)
+- [Data Safety Guidance](./compliance/DATA_SAFETY.md)
+- [Health Apps Declaration](./compliance/HEALTH_APPS_DECLARATION.md)
+- [Health Connect Declaration](./compliance/HEALTH_CONNECT_DECLARATION.md)
+- [Permissions Audit](./compliance/PERMISSIONS_AUDIT.md)
+- [Play Console App Content](./compliance/PLAY_CONSOLE_APP_CONTENT.md)
+- [Release QA](./release/RELEASE_QA.md)
+
+Current release assumptions:
+
+- Package ID: `com.shahab.waterreminder`.
+- Version name: `1.0.0`.
+- Minimum SDK: 28.
+- Target SDK: 36.
+- Compile SDK: 36.
+- Core hydration storage: local SQLite.
+- Preferences and setup state: MMKV/local preferences.
+- Optional telemetry: Firebase Analytics and Crashlytics through `src/platform/telemetry`, diagnostics default off.
+
 ## Icon System
 
 Water Reminder uses one icon system:

@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "com.shahab.waterreminder",
+      "versionCode": 1,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.health.READ_HYDRATION",

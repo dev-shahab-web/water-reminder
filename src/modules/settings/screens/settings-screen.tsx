@@ -41,7 +41,7 @@ const startOfDayOptions = [
 
 const openUrl = async (url: string, fallbackMessage: string) => {
   if (url.length === 0) {
-    Alert.alert('Coming soon', fallbackMessage);
+    Alert.alert('Link unavailable', fallbackMessage);
     return;
   }
 
@@ -160,7 +160,7 @@ export function SettingsScreen() {
 
     Alert.alert(
       'Privacy Policy',
-      'Water Reminder stores core hydration data locally on this device. Health Connect is optional and only used after permission. The app does not require an account, cloud sync, advertising identifiers, or a backend for core features.',
+      'Hydration records and Health Connect data are stored locally and are never included in telemetry. When enabled, anonymous usage events and crash diagnostics may be sent to Google Firebase to improve reliability.',
     );
   };
 
@@ -185,7 +185,7 @@ export function SettingsScreen() {
 
     Alert.alert(
       'Open Source Licenses',
-      'This app is built with Expo, React Native, React Native Paper, Redux Toolkit, React Query, Reanimated, MMKV, SQLite, and Android Jetpack Glance. Full notices should be included with the Play Store release package.',
+      'This app is built with open-source software including Expo, React Native, React Native Paper, Redux Toolkit, React Query, Reanimated, MMKV, SQLite, React Native Firebase, Health Connect libraries, and Android Jetpack Glance. Notices are included with the release documentation.',
     );
   };
 
@@ -486,7 +486,9 @@ export function SettingsScreen() {
           onPress={showOpenSourceLicenses}
           value="View"
         />
-        <SettingsRow icon="github" label="GitHub" onPress={openGitHub} value="Planned" />
+        {releaseLinks.githubUrl.length > 0 ? (
+          <SettingsRow icon="github" label="GitHub" onPress={openGitHub} value="Open" />
+        ) : null}
         <SettingsRow
           icon="message-text-outline"
           label="Feedback"

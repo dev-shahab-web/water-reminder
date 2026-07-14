@@ -199,3 +199,16 @@ Manual Firebase Console tasks:
 - Configure Crashlytics and Analytics retention in Firebase Console.
 - Use Analytics DebugView for event validation.
 - Use a non-production crash test build for Crashlytics validation.
+
+## Release Verification
+
+Before Play publication:
+
+- Complete [Firebase Release Verification](./release/FIREBASE_RELEASE_VERIFICATION.md).
+- Confirm diagnostics default off on a fresh install.
+- Confirm `screen_view` events are not duplicated by rerenders.
+- Confirm `settings_opened` is emitted only from the explicit Settings navigation action.
+- Confirm `widget_action_used` is emitted only once per native widget action reconciliation.
+- Confirm `goal_completed` is emitted only when progress crosses from below goal to complete.
+- Confirm Health Connect sync events never include Health Connect values or record IDs.
+- Confirm Crashlytics end-to-end upload with a temporary, removed-before-release crash trigger.
