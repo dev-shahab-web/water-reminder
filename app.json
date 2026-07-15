@@ -4,11 +4,11 @@
     "slug": "water-reminder",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/branding/app/icon.png",
     "scheme": "waterreminder",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/images/icon.png"
+      "icon": "./assets/branding/app/icon.png"
     },
     "android": {
       "package": "com.shahab.waterreminder",
@@ -20,15 +20,19 @@
       ],
       "adaptiveIcon": {
         "backgroundColor": "#DFF6F1",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "foregroundImage": "./assets/branding/app/adaptive-icon-foreground.png",
+        "backgroundImage": "./assets/branding/app/adaptive-icon-background.png",
+        "monochromeImage": "./assets/branding/app/monochrome-icon.png"
       },
       "predictiveBackGestureEnabled": false
     },
+    "notification": {
+      "icon": "./assets/branding/app/notification-icon.png",
+      "color": "#007A8A"
+    },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/branding/app/favicon.png"
     },
     "plugins": [
       "expo-router",
@@ -36,7 +40,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#F7FBF8",
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/branding/app/splash-icon.png",
           "imageWidth": 76
         }
       ],

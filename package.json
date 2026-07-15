@@ -68,6 +68,7 @@
     "format:check": "prettier --check .",
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
+    "validate:assets": "node scripts/validate-brand-assets.mjs",
     "prepare": "husky",
     "commit": "cz"
   },

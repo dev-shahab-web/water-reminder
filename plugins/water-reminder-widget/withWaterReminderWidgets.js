@@ -43,6 +43,7 @@ const copyTemplateDirectory = ({ packageName, projectRoot }) => {
   const sourceRoot = path.join(__dirname, 'android');
   const destinationRoot = path.join(projectRoot, 'android', 'app', 'src', 'main');
   const packagePath = packageName.split('.').join(path.sep);
+  const textExtensions = new Set(['.kt', '.xml']);
 
   const copyRecursive = (source, destination) => {
     for (const item of fs.readdirSync(source, { withFileTypes: true })) {
@@ -55,10 +56,16 @@ const copyTemplateDirectory = ({ packageName, projectRoot }) => {
         continue;
       }
 
-      let contents = fs.readFileSync(sourcePath, 'utf8');
-      contents = contents.replaceAll('__PACKAGE__', packageName);
       fs.mkdirSync(path.dirname(destinationPath), { recursive: true });
-      fs.writeFileSync(destinationPath, contents);
+
+      if (textExtensions.has(path.extname(sourcePath))) {
+        let contents = fs.readFileSync(sourcePath, 'utf8');
+        contents = contents.replaceAll('__PACKAGE__', packageName);
+        fs.writeFileSync(destinationPath, contents);
+        continue;
+      }
+
+      fs.copyFileSync(sourcePath, destinationPath);
     }
   };
 

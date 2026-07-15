@@ -28,3 +28,11 @@ Do not generate graphics during this audit. Use this checklist for final asset p
 - Verify monochrome icon on themed Android icons.
 - Verify notification icon if notifications are used in screenshots.
 - Verify widget mark at compact size.
+
+## Final Repository Paths
+
+- Play icon: `assets/branding/store/play-store-icon.png`
+- Feature graphic: `assets/branding/store/feature-graphic.png`
+- GitHub banner: `assets/branding/github/github-banner.png`
+
+Store-only graphics must not be referenced from runtime app configuration.

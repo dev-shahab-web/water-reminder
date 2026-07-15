@@ -163,7 +163,7 @@ Brand direction:
 - Water-inspired rather than generically blue.
 - Visual cues should come from flow, reflection, transparency, and gentle motion.
 
-The editable brand source remains `assets/brand/water-reminder-mark.svg`. Expo/native raster assets remain under `assets/images/`, and widget branding uses the config-plugin drawable template under `plugins/water-reminder-widget/android/res/drawable/`.
+The editable brand source remains `assets/branding/source/master-logo.svg`. Runtime app raster assets live under `assets/branding/app/`, store-only graphics live under `assets/branding/store/`, repository artwork lives under `assets/branding/github/`, and widget branding uses the config-plugin drawable template under `plugins/water-reminder-widget/android/res/drawable/`.
 
 Design tokens live in `src/shared/theme/tokens/` and are surfaced through `AppTheme`. Product screens should use theme tokens for color, spacing, radius, typography, and elevation instead of local one-off values.
 

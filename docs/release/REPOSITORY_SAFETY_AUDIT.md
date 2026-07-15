@@ -43,7 +43,7 @@ Release audit removed stale fallback copy from Settings surfaces. Manual final-d
 
 ## Manual Review Findings
 
-- Unused Expo/template image assets are present in `assets/images`; no source references were found. Manual cleanup can be considered before open-sourcing.
+- Old Expo/template image assets were removed after source references were updated to `assets/branding/`.
 - Legal URL environment variables must be configured before publication or Settings will use bundled fallback alerts.
 - GitHub row is hidden unless `EXPO_PUBLIC_GITHUB_URL` is configured.
 - Crashlytics end-to-end upload remains pending manual verification.

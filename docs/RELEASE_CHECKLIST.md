@@ -7,6 +7,7 @@ Run before every release candidate:
 - `npm run lint`
 - `npm run typecheck`
 - `npm test`
+- `npm run validate:assets`
 
 ## Firebase Console
 

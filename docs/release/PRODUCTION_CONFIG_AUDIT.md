@@ -23,13 +23,13 @@ Audit date: July 14, 2026
 
 | Asset               | Source                                                                              | Status                                                               |
 | ------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| App icon            | `assets/images/icon.png`                                                            | Manual visual inspection required                                    |
-| Adaptive foreground | `assets/images/android-icon-foreground.png`                                         | Manual visual inspection required                                    |
-| Adaptive background | `assets/images/android-icon-background.png`                                         | Manual visual inspection required                                    |
-| Monochrome icon     | `assets/images/android-icon-monochrome.png`                                         | Manual visual inspection required                                    |
-| Splash              | `assets/images/splash-icon.png`, background `#F7FBF8`                               | Manual visual inspection required                                    |
-| Widget mark         | `plugins/water-reminder-widget/android/res/drawable/water_reminder_widget_mark.xml` | Ready; verify in final build                                         |
-| Notification icon   | Not explicitly configured in `app.json`                                             | Manual: inspect final manifest/resources and notification appearance |
+| App icon            | `assets/branding/app/icon.png`                                                      | Manual visual inspection required                                    |
+| Adaptive foreground | `assets/branding/app/adaptive-icon-foreground.png`                                  | Manual visual inspection required                                    |
+| Adaptive background | `assets/branding/app/adaptive-icon-background.png`                                  | Manual visual inspection required                                    |
+| Monochrome icon     | `assets/branding/app/monochrome-icon.png`                                           | Manual visual inspection required                                    |
+| Splash              | `assets/branding/app/splash-icon.png`, background `#F7FBF8`                         | Manual visual inspection required                                    |
+| Widget mark         | `plugins/water-reminder-widget/android/res/drawable/water_reminder_widget_mark.png` | Ready; verify in final build                                         |
+| Notification icon   | `assets/branding/app/notification-icon.png`, accent `#007A8A`                       | Manual: inspect final manifest/resources and notification appearance |
 
 ## Release/Debug Behavior
 
@@ -49,4 +49,4 @@ Current source audit changes:
 Manual checks still required:
 
 - Final release APK/AAB must not show Expo Go, Metro, development launcher, template assets, or placeholder legal URLs.
-- Repository contains unused Expo/template image assets under `assets/images/`; no source references were found, but manual asset review is recommended before open source or release packaging.
+- Final brand assets live under `assets/branding/`; manual asset review is recommended before open source or release packaging.

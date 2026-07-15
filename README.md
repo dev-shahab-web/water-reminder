@@ -1,72 +1,64 @@
-# RN Enterprise Starter
+<p align="center">
+  <img src="./assets/branding/github/github-banner.png" alt="Water Reminder brand banner with a calm teal water-drop identity" width="900" />
+</p>
 
-Enterprise-grade React Native Expo starter for reusable, offline-first production apps.
+# Water Reminder
 
-## Milestone 1
+Water Reminder is an offline-first Android hydration companion built on the Shahab Mobile Platform. It focuses on fast water logging, gentle reminders, local history/statistics, optional Health Connect hydration sync, and a responsive Android home-screen widget.
 
-- Expo SDK 57 bootstrap
-- Expo Router entry
-- Strict TypeScript
-- Root `app/` routes
-- Approved architecture folders under `src/`
+Hydration records and Health Connect data are stored locally and are never included in telemetry. Optional anonymous diagnostics can be enabled from Settings to send safe usage events and crash diagnostics to Google Firebase.
 
-## Requirements
+## Product Highlights
 
-- Node.js 22.13.x or newer for Expo SDK 57
+- Fast quick-add and custom hydration logging.
+- Calm Home dashboard with animated water progress.
+- Local reminder engine with pause and quiet-hour behavior.
+- History and statistics.
+- Android home-screen widget with quick actions.
+- Optional Health Connect hydration read/write sync.
+- Local export, import, reset, and delete controls.
+- No mandatory account, ads, subscriptions, or cloud hydration backend.
 
 ## Development
 
-See [docs/README.md](./docs/README.md) for setup, architecture, project structure, design direction, and ADRs.
-
-Milestone 3 provider hierarchy and bootstrap lifecycle are documented in [docs/BOOTSTRAP_LIFECYCLE.md](./docs/BOOTSTRAP_LIFECYCLE.md).
-
-Platform audit results are documented in [docs/PLATFORM_AUDIT.md](./docs/PLATFORM_AUDIT.md).
-
-Core verification commands:
+Core commands:
 
 ```sh
-npm run typecheck
 npm run lint
+npm run typecheck
 npm test
+npm run validate:assets
 ```
 
-## Governance
+Development build workflow:
 
-- [Security Policy](./SECURITY.md)
-- [Support](./SUPPORT.md)
-- [Code of Conduct](./CODE_OF_CONDUCT.md)
-- [License](./LICENSE)
+- [Expo Development Build](./docs/setup/DEVELOPMENT_BUILD.md)
+- [Architecture](./docs/ARCHITECTURE.md)
+- [Brand Asset Integration](./docs/branding/BRAND_ASSET_INTEGRATION.md)
+- [Release Checklist](./docs/RELEASE_CHECKLIST.md)
 
-## Architecture Direction
+## Release Notes
+
+Publication readiness documentation lives in:
+
+- [Production Config Audit](./docs/release/PRODUCTION_CONFIG_AUDIT.md)
+- [Firebase Release Verification](./docs/release/FIREBASE_RELEASE_VERIFICATION.md)
+- [Data Safety Guidance](./docs/compliance/DATA_SAFETY.md)
+- [Health Connect Declaration](./docs/compliance/HEALTH_CONNECT_DECLARATION.md)
+- [Play Store Listing](./docs/store/PLAY_STORE_LISTING.md)
+
+## Repository Layout
 
 ```txt
-app/
-src/
-  core/
-  platform/
-  shared/
-  modules/
-  state/
-  query/
-assets/
+app/                         Expo Router routes
+assets/branding/             Final production brand assets
+docs/                         Product, architecture, compliance, and release docs
+plugins/water-reminder-widget Android widget config-plugin templates
+src/                          Application source
 ```
 
-Feature modules stay simple:
+## Legal
 
-```txt
-modules/example/
-  components/
-  hooks/
-  screens/
-  services/
-  repository/
-  types/
-  utils/
-```
-
-Dependency boundaries:
-
-- Feature -> Repository -> Platform Service -> SQLite
-- Components never call Axios directly.
-- Screens never access MMKV directly.
-- Features never access SQLite, MMKV, or Axios directly.
+- [Privacy Policy](./docs/legal/PRIVACY_POLICY.md)
+- [Terms Of Use](./docs/legal/TERMS_OF_USE.md)
+- [Open Source Notices](./docs/legal/OPEN_SOURCE_NOTICES.md)

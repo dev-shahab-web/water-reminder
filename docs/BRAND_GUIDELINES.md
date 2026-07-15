@@ -21,16 +21,18 @@ The brand mark is a water drop with a soft ripple. It should appear as the prima
 
 Primary source asset:
 
-- `assets/brand/water-reminder-mark.svg`
+- `assets/branding/source/master-logo.svg`
 
 Configured production raster assets:
 
-- `assets/images/icon.png`
-- `assets/images/android-icon-foreground.png`
-- `assets/images/android-icon-background.png`
-- `assets/images/android-icon-monochrome.png`
-- `assets/images/splash-icon.png`
-- `assets/images/favicon.png`
+- `assets/branding/app/icon.png`
+- `assets/branding/app/adaptive-icon-foreground.png`
+- `assets/branding/app/adaptive-icon-background.png`
+- `assets/branding/app/monochrome-icon.png`
+- `assets/branding/app/splash-icon.png`
+- `assets/branding/app/notification-icon.png`
+- `assets/branding/app/widget-icon.png`
+- `assets/branding/app/favicon.png`
 
 Android adaptive icon configuration remains in `app.json`. The foreground should carry the drop/ripple mark, the background should remain light mist/aqua, and the monochrome asset should remain readable for themed Android icons.
 
