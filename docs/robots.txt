@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://dev-shahab-web.github.io/water-reminder/sitemap.xml

@@ -59,6 +59,10 @@ src/                          Application source
 
 ## Legal
 
+- [GitHub Pages legal site source](./docs/index.html)
+- [GitHub Pages setup notes](./docs/README.md)
+- [Hosted Privacy Policy](https://dev-shahab-web.github.io/water-reminder/privacy-policy.html)
+- [Support](https://dev-shahab-web.github.io/water-reminder/support.html)
 - [Privacy Policy](./docs/legal/PRIVACY_POLICY.md)
 - [Terms Of Use](./docs/legal/TERMS_OF_USE.md)
 - [Open Source Notices](./docs/legal/OPEN_SOURCE_NOTICES.md)
