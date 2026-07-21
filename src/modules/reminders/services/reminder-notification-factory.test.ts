@@ -19,6 +19,7 @@ describe('reminder notification factory', () => {
       mode: 'gentle',
       occurrenceId: 'occurrence-1',
       snoozeEnabled: true,
+      sound: { type: 'silent' },
       source: 'scheduled',
       vibrationEnabled: false,
     });
@@ -46,6 +47,7 @@ describe('reminder notification factory', () => {
       copyKey: 'small_sip_steady',
       mode: 'active',
       snoozeEnabled: true,
+      sound: { type: 'system_default' },
       source: 'scheduled',
       vibrationEnabled: true,
     });
@@ -55,11 +57,12 @@ describe('reminder notification factory', () => {
     expect(content.vibrate).toEqual([0, 240, 160, 240]);
   });
 
-  it('uses the snooze channel for snoozed reminders', () => {
+  it('uses the quiet snooze channel for silent snoozed reminders', () => {
     const content = buildReminderNotificationContent({
       copyKey: 'take_moment_hydrate',
       mode: 'active',
       snoozeEnabled: true,
+      sound: { type: 'silent' },
       source: 'snoozed',
       vibrationEnabled: true,
     });
@@ -70,11 +73,27 @@ describe('reminder notification factory', () => {
     expect(content.data.source).toBe('snoozed');
   });
 
+  it('keeps snoozed audible reminders on the active channel', () => {
+    const content = buildReminderNotificationContent({
+      copyKey: 'take_moment_hydrate',
+      mode: 'active',
+      snoozeEnabled: true,
+      sound: { type: 'device_picker' },
+      source: 'snoozed',
+      vibrationEnabled: true,
+    });
+
+    expect(content.androidChannelId).toBe(HYDRATION_ACTIVE_CHANNEL_ID);
+    expect(content.sound).toBe('default');
+    expect(content.vibrate).toEqual([0, 240, 160, 240]);
+  });
+
   it('omits the action category when snooze is disabled', () => {
     const content = buildReminderNotificationContent({
       copyKey: 'little_water_refresh',
       mode: 'gentle',
       snoozeEnabled: false,
+      sound: { type: 'silent' },
       source: 'scheduled',
       vibrationEnabled: false,
     });
@@ -88,6 +107,7 @@ describe('reminder notification factory', () => {
       mode: 'active',
       occurrenceId: 'safe-occurrence',
       snoozeEnabled: true,
+      sound: { type: 'system_default' },
       source: 'scheduled',
       vibrationEnabled: true,
     });

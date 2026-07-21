@@ -115,6 +115,7 @@ export const calculateReminderSchedule = ({
       mode: preferences.mode,
       occurrenceId,
       snoozeEnabled: preferences.snoozeEnabled,
+      sound: preferences.sound,
       source: 'scheduled',
       vibrationEnabled: preferences.vibrationEnabled,
     });

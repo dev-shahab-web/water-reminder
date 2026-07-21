@@ -45,6 +45,14 @@ Android channels:
 
 Android users may override channel behavior in system settings. The app must not claim it can force sound, vibration, or visibility after a user changes OS-level channel preferences.
 
+Sound preferences:
+
+- `silent`: schedules through the quiet reminder channel and sets content sound to `false`.
+- `system_default`: schedules through the active reminder channel and sets content sound to `default`.
+- `device_picker`: opens Android notification settings where supported and uses the active reminder channel so the device-controlled sound can apply.
+
+The Test Notification action must use the same `ReminderNotificationFactory` and `scheduleLocalNotification` pipeline as real reminders. It may only differ by delivery time.
+
 Notification category:
 
 - `water_reminder.hydration_reminder.v1`
@@ -87,7 +95,7 @@ Expo notification response
 -> reminderPulse
 ```
 
-Drink action:
+Drink now action:
 
 ```txt
 Expo notification response

@@ -10,7 +10,7 @@ import type {
 } from '../types';
 import { getCurrentTimezone } from '../utils/time';
 
-export const reminderPreferenceSchemaVersion = 1;
+export const reminderPreferenceSchemaVersion = 2;
 
 export const reminderStorageKeys = {
   defaultSnoozeMinutes: 'reminderDefaultSnoozeMinutes',
@@ -41,7 +41,7 @@ export const defaultReminderPreferences: ReminderPreferences = {
   sleepTime: '21:00',
   snoozeEnabled: true,
   sound: {
-    type: 'system_default',
+    type: 'silent',
   },
   timezone: getCurrentTimezone(),
   vibrationEnabled: false,
@@ -61,25 +61,32 @@ const isSnoozeOption = (value: number | undefined): value is ReminderSnoozeMinut
 };
 
 const isSoundType = (value: string | undefined): value is ReminderSoundType => {
-  return value === 'system_default' || value === 'custom';
+  return value === 'silent' || value === 'system_default' || value === 'device_picker';
 };
 
 const readSoundPreference = ({
-  customSoundName,
+  mode,
+  preferenceSchemaVersion,
   soundType,
 }: {
-  customSoundName?: string;
+  mode: ReminderMode;
+  preferenceSchemaVersion?: number;
   soundType?: string;
 }): ReminderSoundPreference => {
-  if (!isSoundType(soundType)) {
-    return defaultReminderPreferences.sound;
+  if (soundType === 'custom') {
+    return { type: 'device_picker' };
   }
 
-  if (soundType === 'custom' && customSoundName !== undefined && customSoundName.length > 0) {
-    return {
-      customSoundName,
-      type: soundType,
-    };
+  if (!isSoundType(soundType)) {
+    return mode === 'active' ? { type: 'system_default' } : defaultReminderPreferences.sound;
+  }
+
+  if (
+    preferenceSchemaVersion !== reminderPreferenceSchemaVersion &&
+    mode === 'gentle' &&
+    soundType === 'system_default'
+  ) {
+    return defaultReminderPreferences.sound;
   }
 
   return {
@@ -114,7 +121,7 @@ export const getReminderPreferences = (): ReminderPreferences => {
   );
   const preferenceSchemaVersion = storage.getNumber(reminderStorageKeys.preferenceSchemaVersion);
   const soundType = storage.getString(reminderStorageKeys.soundType);
-  const soundCustomName = storage.getString(reminderStorageKeys.soundCustomName);
+  const parsedMode = isReminderMode(mode) ? mode : defaultReminderPreferences.mode;
 
   const preferences: ReminderPreferences = {
     defaultSnoozeMinutes: isSnoozeOption(defaultSnoozeMinutes)
@@ -124,7 +131,7 @@ export const getReminderPreferences = (): ReminderPreferences => {
     intervalMinutes: isIntervalOption(intervalMinutes)
       ? intervalMinutes
       : defaultReminderPreferences.intervalMinutes,
-    mode: isReminderMode(mode) ? mode : defaultReminderPreferences.mode,
+    mode: parsedMode,
     pausedUntilIso,
     pendingSnoozeNotificationId,
     preferenceSchemaVersion: reminderPreferenceSchemaVersion,
@@ -137,7 +144,8 @@ export const getReminderPreferences = (): ReminderPreferences => {
       storage.getBoolean(reminderStorageKeys.snoozeEnabled) ??
       defaultReminderPreferences.snoozeEnabled,
     sound: readSoundPreference({
-      customSoundName: soundCustomName,
+      mode: parsedMode,
+      preferenceSchemaVersion,
       soundType,
     }),
     timezone:
@@ -190,11 +198,7 @@ export const setReminderPreferences = (preferences: ReminderPreferences): Remind
     );
   }
 
-  if (preferences.sound.customSoundName === undefined) {
-    storage.remove(reminderStorageKeys.soundCustomName);
-  } else {
-    storage.set(reminderStorageKeys.soundCustomName, preferences.sound.customSoundName);
-  }
+  storage.remove(reminderStorageKeys.soundCustomName);
 
   return preferences;
 };

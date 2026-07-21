@@ -66,7 +66,7 @@ describe('notification service infrastructure', () => {
     expect(mockSetNotificationCategoryAsync).toHaveBeenCalledTimes(1);
     expect(mockSetNotificationCategoryAsync).toHaveBeenCalledWith(REMINDER_NOTIFICATION_CATEGORY, [
       {
-        buttonTitle: 'Drink',
+        buttonTitle: 'Drink now',
         identifier: REMINDER_ACTION_DRINK,
         options: {
           opensAppToForeground: true,

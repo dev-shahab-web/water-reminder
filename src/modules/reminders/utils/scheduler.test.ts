@@ -22,7 +22,7 @@ const preferences: ReminderPreferences = {
   sleepTime: '17:00',
   snoozeEnabled: true,
   sound: {
-    type: 'system_default',
+    type: 'silent',
   },
   timezone: 'UTC',
   vibrationEnabled: false,
@@ -101,7 +101,12 @@ describe('reminder scheduler', () => {
     const reminders = calculateReminderSchedule({
       goalAmount: 2000,
       now: new Date('2026-07-10T08:30:00.000Z'),
-      preferences: { ...preferences, mode: 'active', vibrationEnabled: true },
+      preferences: {
+        ...preferences,
+        mode: 'active',
+        sound: { type: 'system_default' },
+        vibrationEnabled: true,
+      },
       totalAmount: 250,
     });
 

@@ -52,7 +52,7 @@ describe('reminder preferences storage', () => {
     expect(mockStorageValues.get(reminderStorageKeys.vibrationEnabled)).toBe(false);
     expect(mockStorageValues.get(reminderStorageKeys.snoozeEnabled)).toBe(true);
     expect(mockStorageValues.get(reminderStorageKeys.defaultSnoozeMinutes)).toBe(10);
-    expect(mockStorageValues.get(reminderStorageKeys.soundType)).toBe('system_default');
+    expect(mockStorageValues.get(reminderStorageKeys.soundType)).toBe('silent');
   });
 
   it('migrates legacy preferences while preserving schedule, pause, and active-hour choices', () => {
@@ -78,7 +78,7 @@ describe('reminder preferences storage', () => {
       sleepTime: '22:00',
       snoozeEnabled: true,
       sound: {
-        type: 'system_default',
+        type: 'silent',
       },
       timezone: 'Asia/Kolkata',
       vibrationEnabled: false,
@@ -126,16 +126,23 @@ describe('reminder preferences storage', () => {
     expect(getReminderPreferences()).toEqual(defaultReminderPreferences);
   });
 
-  it('persists custom sound metadata without exposing a custom picker yet', () => {
+  it('persists the device notification sound preference and clears legacy custom metadata', () => {
+    mockStorageValues.set(reminderStorageKeys.soundCustomName, 'soft-drop.wav');
+
     setReminderPreferences({
       ...defaultReminderPreferences,
       sound: {
-        customSoundName: 'soft-drop.wav',
-        type: 'custom',
+        type: 'device_picker',
       },
     });
 
-    expect(mockStorageValues.get(reminderStorageKeys.soundType)).toBe('custom');
-    expect(mockStorageValues.get(reminderStorageKeys.soundCustomName)).toBe('soft-drop.wav');
+    expect(mockStorageValues.get(reminderStorageKeys.soundType)).toBe('device_picker');
+    expect(mockStorageValues.has(reminderStorageKeys.soundCustomName)).toBe(false);
+  });
+
+  it('migrates legacy custom sound metadata to the device notification sound option', () => {
+    mockStorageValues.set(reminderStorageKeys.soundType, 'custom');
+
+    expect(getReminderPreferences().sound).toEqual({ type: 'device_picker' });
   });
 });

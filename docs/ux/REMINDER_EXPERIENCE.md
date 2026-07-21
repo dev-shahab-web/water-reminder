@@ -24,7 +24,7 @@ Settings:
 - Vibration on or off.
 - Snooze enabled or disabled.
 - Default snooze duration: 5, 10, 15, 30, or 60 minutes.
-- Effective sound behavior: Silent for Gentle, System default for Active.
+- Sound preference: Silent, System default, or Device notification sound.
 - Pause reminders today.
 
 Defaults:
@@ -32,6 +32,7 @@ Defaults:
 - Conservative interval.
 - Reasonable daytime active hours.
 - Gentle reminder style.
+- Silent sound.
 - Snooze enabled.
 - Default snooze duration of 10 minutes.
 - Reminders disabled when user chooses defaults unless product review changes this.
@@ -41,16 +42,23 @@ Defaults:
 Gentle:
 
 - Recommended default.
-- Silent.
+- Silent unless the user explicitly changes Sound.
 - Vibration off unless the user enables it.
 - Best for users who want reminders to stay calm and minimal.
 
 Active:
 
 - More noticeable.
-- System-default sound.
+- System-default sound when Active is first selected from the default Gentle state.
 - Vibration enabled when Active is first selected.
 - Still respectful, non-urgent, and not alarm-like.
+
+Sound:
+
+- Silent keeps notification delivery quiet.
+- System default uses Android's default notification sound.
+- Device notification sound opens Android notification settings where supported so the user can choose a device-managed sound.
+- Android notification channels remain user-controlled after creation.
 
 Persistent:
 
@@ -103,7 +111,7 @@ Rules:
 
 Actions:
 
-- Drink.
+- Drink now.
 - Snooze.
 - Dismiss.
 

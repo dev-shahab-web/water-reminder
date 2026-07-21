@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 
-import { scheduleLocalNotification } from '@platform/notifications';
+import { loadReminderPreferences } from '@modules/reminders/services/reminder-engine';
+import { scheduleTestReminderNotification } from '@modules/reminders/services/reminder-test-notification-service';
 import { setTelemetryEnabled, trackEvent } from '@platform/telemetry';
 
 import { getSettingsState, updateSettingsState } from '../storage/settings-storage';
@@ -71,11 +72,7 @@ export const getAppInformation = (): AppInformation => {
 };
 
 export const sendTestReminderNotification = async (): Promise<boolean> => {
-  const identifier = await scheduleLocalNotification({
-    body: 'A calm reminder preview from Water Reminder.',
-    date: new Date(Date.now() + 2000),
-    title: 'Time for some water.',
+  return scheduleTestReminderNotification({
+    preferences: loadReminderPreferences(),
   });
-
-  return identifier !== undefined;
 };

@@ -4,7 +4,7 @@ export const REMINDER_INTERVAL_OPTIONS = [30, 60, 90, 120, 180] as const;
 export const REMINDER_PAUSE_OPTIONS = ['30min', '1hour', 'today'] as const;
 export const REMINDER_MODES = ['gentle', 'active'] as const;
 export const REMINDER_SNOOZE_OPTIONS = [5, 10, 15, 30, 60] as const;
-export const REMINDER_SOUND_TYPES = ['system_default', 'custom'] as const;
+export const REMINDER_SOUND_TYPES = ['silent', 'system_default', 'device_picker'] as const;
 
 export type ReminderIntervalMinutes = (typeof REMINDER_INTERVAL_OPTIONS)[number];
 export type ReminderPauseOption = (typeof REMINDER_PAUSE_OPTIONS)[number];
@@ -13,7 +13,6 @@ export type ReminderSnoozeMinutes = (typeof REMINDER_SNOOZE_OPTIONS)[number];
 export type ReminderSoundType = (typeof REMINDER_SOUND_TYPES)[number];
 
 export type ReminderSoundPreference = {
-  customSoundName?: string;
   type: ReminderSoundType;
 };
 

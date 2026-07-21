@@ -82,8 +82,8 @@ let categorySetupPromise: Promise<void> | null = null;
 
 export const initializeNotificationInfrastructure = async (): Promise<void> => {
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldPlaySound: false,
+    handleNotification: async (notification) => ({
+      shouldPlaySound: notification.request.content.sound === 'default',
       shouldSetBadge: false,
       shouldShowBanner: true,
       shouldShowList: true,

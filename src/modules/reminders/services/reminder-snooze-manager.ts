@@ -39,6 +39,7 @@ export const snoozeReminder = async ({
     mode: preferences.mode,
     occurrenceId,
     snoozeEnabled: false,
+    sound: preferences.sound,
     source: 'snoozed',
     vibrationEnabled: preferences.vibrationEnabled,
   });

@@ -3,6 +3,7 @@ export { BrandMark } from './brand-mark';
 export { ChoiceCard } from './choice-card';
 export { GoalCard } from './goal-card';
 export { IconButton } from './icon-button';
+export { PaperMaterialCommunityIcon as MaterialCommunityIcon } from './material-community-icon';
 export { OnboardingPage } from './onboarding-page';
 export { PrimaryButton } from './primary-button';
 export { ProgressIndicator } from './progress-indicator';

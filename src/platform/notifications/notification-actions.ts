@@ -64,6 +64,6 @@ export const reminderNotificationActionLabels: Record<
   string
 > = {
   [REMINDER_ACTION_DISMISS]: 'Dismiss',
-  [REMINDER_ACTION_DRINK]: 'Drink',
+  [REMINDER_ACTION_DRINK]: 'Drink now',
   [REMINDER_ACTION_SNOOZE]: 'Snooze',
 };

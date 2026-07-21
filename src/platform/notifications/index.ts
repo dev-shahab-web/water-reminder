@@ -40,3 +40,7 @@ export {
   type HydrationReminderChannelId,
   type NotificationChannelDefinition,
 } from './notification-channels';
+export {
+  openDeviceNotificationSoundPicker,
+  type NotificationSoundPickerResult,
+} from './notification-sound-settings';

@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { playErrorHaptic, playReminderPauseHaptic } from '@platform/haptics';
-import { getNotificationRegistrationStatus } from '@platform/notifications';
+import {
+  getNotificationRegistrationStatus,
+  openDeviceNotificationSoundPicker,
+} from '@platform/notifications';
 import { trackEvent } from '@platform/telemetry';
 
 import type {
@@ -10,6 +13,7 @@ import type {
   ReminderPauseOption,
   ReminderPreferences,
   ReminderSnoozeMinutes,
+  ReminderSoundPreference,
 } from '../types';
 import {
   disableReminders,
@@ -23,6 +27,7 @@ import {
   updateReminderModePreference,
   updateReminderSchedulePreference,
   updateReminderSnoozePreference,
+  updateReminderSoundPreference,
   updateReminderVibrationPreference,
 } from '../services/reminder-engine';
 import { calculateReminderSchedule } from '../utils/scheduler';
@@ -182,6 +187,28 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
     [preferences],
   );
 
+  const updateSound = useCallback(
+    async (sound: ReminderSoundPreference) => {
+      setPermissionMessage(undefined);
+      setPreferences(updateReminderSoundPreference(preferences, sound));
+
+      if (sound.type !== 'device_picker') {
+        return;
+      }
+
+      const result = await openDeviceNotificationSoundPicker();
+
+      if (result === 'failed') {
+        setPermissionMessage('Android notification sound settings could not be opened.');
+      }
+
+      if (result === 'unsupported') {
+        setPermissionMessage('Device notification sound settings are available on Android.');
+      }
+    },
+    [preferences],
+  );
+
   const updateSnoozeEnabled = useCallback(
     (snoozeEnabled: boolean) => {
       setPreferences(updateReminderSnoozePreference(preferences, snoozeEnabled));
@@ -222,6 +249,7 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
     updateMode,
     updateSleepTime,
     updateSnoozeEnabled,
+    updateSound,
     updateVibration,
     updateWakeTime,
   };

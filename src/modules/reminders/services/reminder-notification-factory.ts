@@ -10,7 +10,7 @@ import {
   type ReminderNotificationData,
 } from '@platform/notifications/notification-actions';
 
-import type { ReminderMode } from '../types';
+import type { ReminderMode, ReminderSoundPreference } from '../types';
 import {
   reminderNotificationTitle,
   resolveReminderCopy,
@@ -24,6 +24,7 @@ export type ReminderNotificationFactoryInput = {
   mode: ReminderMode;
   occurrenceId?: string;
   snoozeEnabled: boolean;
+  sound: ReminderSoundPreference;
   source: ReminderNotificationSource;
   vibrationEnabled: boolean;
 };
@@ -46,16 +47,17 @@ export const buildReminderNotificationContent = ({
   mode,
   occurrenceId,
   snoozeEnabled,
+  sound,
   source,
   vibrationEnabled,
 }: ReminderNotificationFactoryInput): ReminderNotificationContent => {
-  const isSnoozedReminder = source === 'snoozed';
-  const isActiveReminder = mode === 'active' && !isSnoozedReminder;
+  const isAudibleReminder = sound.type !== 'silent';
+  const shouldVibrate = mode === 'active' && isAudibleReminder && vibrationEnabled;
   const sanitizedOccurrenceId =
     occurrenceId === undefined || occurrenceId.length === 0 ? undefined : occurrenceId;
 
   return {
-    androidChannelId: getReminderChannelId({ mode, source }),
+    androidChannelId: getReminderChannelId({ sound, source }),
     body: resolveReminderCopy(copyKey),
     ...(snoozeEnabled ? { categoryIdentifier: REMINDER_NOTIFICATION_CATEGORY } : {}),
     copyKey,
@@ -63,24 +65,22 @@ export const buildReminderNotificationContent = ({
       occurrenceId: sanitizedOccurrenceId,
       source,
     }),
-    sound: isActiveReminder ? 'default' : false,
+    sound: isAudibleReminder ? 'default' : false,
     title: reminderNotificationTitle,
-    ...(isActiveReminder && vibrationEnabled
-      ? { vibrate: [...activeReminderVibrationPattern] }
-      : {}),
+    ...(shouldVibrate ? { vibrate: [...activeReminderVibrationPattern] } : {}),
   };
 };
 
 const getReminderChannelId = ({
-  mode,
+  sound,
   source,
 }: {
-  mode: ReminderMode;
+  sound: ReminderSoundPreference;
   source: ReminderNotificationSource;
 }): HydrationReminderChannelId => {
-  if (source === 'snoozed') {
-    return HYDRATION_SNOOZE_CHANNEL_ID;
+  if (sound.type === 'silent') {
+    return source === 'snoozed' ? HYDRATION_SNOOZE_CHANNEL_ID : HYDRATION_GENTLE_CHANNEL_ID;
   }
 
-  return mode === 'active' ? HYDRATION_ACTIVE_CHANNEL_ID : HYDRATION_GENTLE_CHANNEL_ID;
+  return HYDRATION_ACTIVE_CHANNEL_ID;
 };

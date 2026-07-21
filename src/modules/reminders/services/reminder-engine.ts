@@ -11,6 +11,7 @@ import type {
   ReminderPreferences,
   ReminderScheduleInput,
   ReminderSnoozeMinutes,
+  ReminderSoundPreference,
   ReminderStatus,
 } from '../types';
 import {
@@ -183,6 +184,10 @@ export const updateReminderModePreference = (
   const nextPreferences = setReminderPreferences({
     ...preferences,
     mode,
+    sound:
+      mode === 'active' && preferences.sound.type === 'silent'
+        ? { type: 'system_default' }
+        : preferences.sound,
     vibrationEnabled:
       mode === 'active' && preferences.mode !== 'active' ? true : preferences.vibrationEnabled,
   });
@@ -199,6 +204,20 @@ export const updateReminderVibrationPreference = (
   const nextPreferences = setReminderPreferences({
     ...preferences,
     vibrationEnabled,
+  });
+
+  void refreshHydrationWidgets('reminder_changed');
+
+  return nextPreferences;
+};
+
+export const updateReminderSoundPreference = (
+  preferences: ReminderPreferences,
+  sound: ReminderSoundPreference,
+): ReminderPreferences => {
+  const nextPreferences = setReminderPreferences({
+    ...preferences,
+    sound,
   });
 
   void refreshHydrationWidgets('reminder_changed');
