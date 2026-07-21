@@ -299,23 +299,31 @@ export default function HomeScreen() {
       </View>
 
       <ReminderCard
+        defaultSnoozeMinutes={reminders.preferences.defaultSnoozeMinutes}
         enabled={reminders.preferences.enabled}
         intervalMinutes={reminders.preferences.intervalMinutes}
+        mode={reminders.preferences.mode}
+        onDefaultSnoozeChange={reminders.updateDefaultSnooze}
         onIntervalChange={reminders.updateInterval}
+        onModeChange={reminders.updateMode}
         onPause={(option) => {
           void reminders.pause(option);
         }}
         onResume={reminders.resume}
         onSleepTimeChange={reminders.updateSleepTime}
+        onSnoozeEnabledChange={reminders.updateSnoozeEnabled}
         onToggleEnabled={() => {
           void reminders.toggleEnabled();
         }}
+        onVibrationChange={reminders.updateVibration}
         onWakeTimeChange={reminders.updateWakeTime}
         permissionMessage={reminders.permissionMessage}
         preview={reminders.preview}
         sleepTime={reminders.preferences.sleepTime}
+        snoozeEnabled={reminders.preferences.snoozeEnabled}
         status={reminders.status}
         summary={reminders.summary}
+        vibrationEnabled={reminders.preferences.vibrationEnabled}
         wakeTime={reminders.preferences.wakeTime}
       />
 

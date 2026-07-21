@@ -10,6 +10,7 @@ import type {
   ReminderPauseOption,
   ReminderPreferences,
   ReminderScheduleInput,
+  ReminderSnoozeMinutes,
   ReminderStatus,
 } from '../types';
 import {
@@ -198,6 +199,34 @@ export const updateReminderVibrationPreference = (
   const nextPreferences = setReminderPreferences({
     ...preferences,
     vibrationEnabled,
+  });
+
+  void refreshHydrationWidgets('reminder_changed');
+
+  return nextPreferences;
+};
+
+export const updateReminderSnoozePreference = (
+  preferences: ReminderPreferences,
+  snoozeEnabled: boolean,
+): ReminderPreferences => {
+  const nextPreferences = setReminderPreferences({
+    ...preferences,
+    snoozeEnabled,
+  });
+
+  void refreshHydrationWidgets('reminder_changed');
+
+  return nextPreferences;
+};
+
+export const updateDefaultSnoozePreference = (
+  preferences: ReminderPreferences,
+  defaultSnoozeMinutes: ReminderSnoozeMinutes,
+): ReminderPreferences => {
+  const nextPreferences = setReminderPreferences({
+    ...preferences,
+    defaultSnoozeMinutes,
   });
 
   void refreshHydrationWidgets('reminder_changed');

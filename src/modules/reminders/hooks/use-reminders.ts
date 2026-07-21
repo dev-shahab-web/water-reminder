@@ -9,6 +9,7 @@ import type {
   ReminderMode,
   ReminderPauseOption,
   ReminderPreferences,
+  ReminderSnoozeMinutes,
 } from '../types';
 import {
   disableReminders,
@@ -18,8 +19,10 @@ import {
   pauseReminders,
   reconcileReminderSchedule,
   resumeReminders,
+  updateDefaultSnoozePreference,
   updateReminderModePreference,
   updateReminderSchedulePreference,
+  updateReminderSnoozePreference,
   updateReminderVibrationPreference,
 } from '../services/reminder-engine';
 import { calculateReminderSchedule } from '../utils/scheduler';
@@ -179,6 +182,20 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
     [preferences],
   );
 
+  const updateSnoozeEnabled = useCallback(
+    (snoozeEnabled: boolean) => {
+      setPreferences(updateReminderSnoozePreference(preferences, snoozeEnabled));
+    },
+    [preferences],
+  );
+
+  const updateDefaultSnooze = useCallback(
+    (defaultSnoozeMinutes: ReminderSnoozeMinutes) => {
+      setPreferences(updateDefaultSnoozePreference(preferences, defaultSnoozeMinutes));
+    },
+    [preferences],
+  );
+
   const pause = useCallback(
     async (option: ReminderPauseOption) => {
       setPreferences(await pauseReminders(preferences, option));
@@ -200,9 +217,11 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
     status,
     summary,
     toggleEnabled,
+    updateDefaultSnooze,
     updateInterval,
     updateMode,
     updateSleepTime,
+    updateSnoozeEnabled,
     updateVibration,
     updateWakeTime,
   };

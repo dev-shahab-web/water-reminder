@@ -9,7 +9,9 @@ import { defaultReminderPreferences } from '../repository/reminder-preferences-s
 import type { ReminderPreferences } from '../types';
 import {
   reconcileReminderSchedule,
+  updateDefaultSnoozePreference,
   updateReminderModePreference,
+  updateReminderSnoozePreference,
   updateReminderVibrationPreference,
 } from './reminder-engine';
 
@@ -103,6 +105,15 @@ describe('reminder engine experience preferences', () => {
   it('persists explicit vibration preference changes', () => {
     expect(updateReminderVibrationPreference(preferences, true)).toMatchObject({
       vibrationEnabled: true,
+    });
+  });
+
+  it('persists snooze experience preference changes', () => {
+    expect(updateReminderSnoozePreference(preferences, false)).toMatchObject({
+      snoozeEnabled: false,
+    });
+    expect(updateDefaultSnoozePreference(preferences, 30)).toMatchObject({
+      defaultSnoozeMinutes: 30,
     });
   });
 

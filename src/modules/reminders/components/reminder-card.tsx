@@ -1,14 +1,33 @@
 import { memo, type ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Switch, Text, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
 import { PrimaryButton, SecondaryButton, SectionHeader } from '@shared/components';
 import { AnimatedCard, AnimatedPressableScale } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 
-import type { ReminderIntervalMinutes, ReminderPauseOption, ReminderStatus } from '../types';
+import type {
+  ReminderIntervalMinutes,
+  ReminderMode,
+  ReminderPauseOption,
+  ReminderSnoozeMinutes,
+  ReminderStatus,
+} from '../types';
 
 const intervalOptions: ReminderIntervalMinutes[] = [30, 60, 90, 120, 180];
+const modeOptions: { description: string; label: string; value: ReminderMode }[] = [
+  {
+    description: 'Quiet reminders that stay out of your way.',
+    label: 'Gentle',
+    value: 'gentle',
+  },
+  {
+    description: 'Sound and vibration when you need a stronger nudge.',
+    label: 'Active',
+    value: 'active',
+  },
+];
+const snoozeOptions: ReminderSnoozeMinutes[] = [5, 10, 15, 30, 60];
 const wakeOptions = ['07:00', '08:00', '09:00', '10:00'] as const;
 const sleepOptions = ['20:00', '21:00', '22:00', '23:00'] as const;
 const pauseOptions: { label: string; value: ReminderPauseOption }[] = [
@@ -18,36 +37,52 @@ const pauseOptions: { label: string; value: ReminderPauseOption }[] = [
 ];
 
 type ReminderCardProps = {
+  defaultSnoozeMinutes: ReminderSnoozeMinutes;
   enabled: boolean;
   intervalMinutes: ReminderIntervalMinutes;
+  mode: ReminderMode;
+  onDefaultSnoozeChange: (duration: ReminderSnoozeMinutes) => void;
   onPause: (option: ReminderPauseOption) => void;
   onResume: () => void;
   onSleepTimeChange: (time: string) => void;
+  onSnoozeEnabledChange: (enabled: boolean) => void;
   onToggleEnabled: () => void;
   onWakeTimeChange: (time: string) => void;
   onIntervalChange: (interval: ReminderIntervalMinutes) => void;
+  onModeChange: (mode: ReminderMode) => void;
+  onVibrationChange: (enabled: boolean) => void;
   permissionMessage?: string;
   preview: string;
   sleepTime: string;
+  snoozeEnabled: boolean;
   status: ReminderStatus;
   summary: string;
+  vibrationEnabled: boolean;
   wakeTime: string;
 };
 
 export const ReminderCard = memo(function ReminderCard({
+  defaultSnoozeMinutes,
   enabled,
   intervalMinutes,
+  mode,
+  onDefaultSnoozeChange,
   onIntervalChange,
+  onModeChange,
   onPause,
   onResume,
   onSleepTimeChange,
+  onSnoozeEnabledChange,
   onToggleEnabled,
+  onVibrationChange,
   onWakeTimeChange,
   permissionMessage,
   preview,
   sleepTime,
+  snoozeEnabled,
   status,
   summary,
+  vibrationEnabled,
   wakeTime,
 }: ReminderCardProps) {
   const theme = useTheme<AppTheme>();
@@ -138,6 +173,32 @@ export const ReminderCard = memo(function ReminderCard({
             />
           </ControlGroup>
 
+          <ControlGroup label="Reminder experience">
+            <ModeOptions currentValue={mode} onChange={onModeChange} />
+            <PreferenceSwitch
+              label="Vibration"
+              onChange={onVibrationChange}
+              value={vibrationEnabled}
+            />
+            <PreferenceSwitch
+              label="Enable snooze"
+              onChange={onSnoozeEnabledChange}
+              value={snoozeEnabled}
+            />
+            {snoozeEnabled ? (
+              <SegmentedOptions
+                currentValue={String(defaultSnoozeMinutes)}
+                labelPrefix="Default snooze"
+                onChange={(value) => {
+                  onDefaultSnoozeChange(Number(value) as ReminderSnoozeMinutes);
+                }}
+                options={snoozeOptions.map(String)}
+                suffix="min"
+              />
+            ) : null}
+            <SoundSummary mode={mode} />
+          </ControlGroup>
+
           <ControlGroup label="Pause">
             <View style={styles.optionRow}>
               {status === 'paused' ? (
@@ -187,6 +248,95 @@ function ControlGroup({ children, label }: ControlGroupProps) {
         {label}
       </Text>
       {children}
+    </View>
+  );
+}
+
+function ModeOptions({
+  currentValue,
+  onChange,
+}: {
+  currentValue: ReminderMode;
+  onChange: (mode: ReminderMode) => void;
+}) {
+  return (
+    <View style={styles.modeOptionList}>
+      {modeOptions.map((option) => (
+        <OptionButton
+          key={option.value}
+          description={option.description}
+          label={option.label}
+          selected={option.value === currentValue}
+          accessibilityLabel={`Reminder style ${option.label}. ${option.description}`}
+          onPress={() => {
+            onChange(option.value);
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
+function PreferenceSwitch({
+  label,
+  onChange,
+  value,
+}: {
+  label: string;
+  onChange: (value: boolean) => void;
+  value: boolean;
+}) {
+  const theme = useTheme<AppTheme>();
+
+  return (
+    <View style={styles.preferenceRow}>
+      <Text
+        style={[
+          styles.preferenceLabel,
+          {
+            color: theme.app.colors.textPrimary,
+            fontSize: theme.app.typography.fontSize.body,
+            lineHeight: theme.app.typography.lineHeight.body,
+          },
+        ]}
+      >
+        {label}
+      </Text>
+      <Switch accessibilityLabel={label} onValueChange={onChange} value={value} />
+    </View>
+  );
+}
+
+function SoundSummary({ mode }: { mode: ReminderMode }) {
+  const theme = useTheme<AppTheme>();
+  const soundLabel = mode === 'active' ? 'System default' : 'Silent';
+
+  return (
+    <View style={styles.preferenceRow}>
+      <Text
+        style={[
+          styles.preferenceLabel,
+          {
+            color: theme.app.colors.textPrimary,
+            fontSize: theme.app.typography.fontSize.body,
+            lineHeight: theme.app.typography.lineHeight.body,
+          },
+        ]}
+      >
+        Sound
+      </Text>
+      <Text
+        style={[
+          styles.soundValue,
+          {
+            color: theme.app.colors.textSecondary,
+            fontSize: theme.app.typography.fontSize.caption,
+            lineHeight: theme.app.typography.lineHeight.caption,
+          },
+        ]}
+      >
+        {soundLabel}
+      </Text>
     </View>
   );
 }
@@ -257,12 +407,19 @@ function SegmentedOptions({
 
 type OptionButtonProps = {
   accessibilityLabel: string;
+  description?: string;
   label: string;
   onPress: () => void;
   selected: boolean;
 };
 
-function OptionButton({ accessibilityLabel, label, onPress, selected }: OptionButtonProps) {
+function OptionButton({
+  accessibilityLabel,
+  description,
+  label,
+  onPress,
+  selected,
+}: OptionButtonProps) {
   const theme = useTheme<AppTheme>();
 
   return (
@@ -296,6 +453,20 @@ function OptionButton({ accessibilityLabel, label, onPress, selected }: OptionBu
       >
         {label}
       </Text>
+      {description === undefined ? null : (
+        <Text
+          style={[
+            styles.optionDescription,
+            {
+              color: theme.app.colors.textSecondary,
+              fontSize: theme.app.typography.fontSize.caption,
+              lineHeight: theme.app.typography.lineHeight.caption,
+            },
+          ]}
+        >
+          {description}
+        </Text>
+      )}
     </AnimatedPressableScale>
   );
 }
@@ -363,11 +534,17 @@ const styles = StyleSheet.create({
   header: {
     gap: 12,
   },
+  modeOptionList: {
+    gap: 8,
+  },
   optionButton: {
     borderWidth: 1,
     minHeight: 44,
     paddingHorizontal: 12,
     paddingVertical: 10,
+  },
+  optionDescription: {
+    marginTop: 4,
   },
   optionRow: {
     flexDirection: 'row',
@@ -382,6 +559,17 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   permissionMessage: {},
+  preferenceLabel: {
+    flex: 1,
+    fontWeight: '700',
+  },
+  preferenceRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+    minHeight: 48,
+  },
   preview: {},
   reminderGlyph: {
     borderWidth: 2,
@@ -395,5 +583,8 @@ const styles = StyleSheet.create({
   },
   reminderOffText: {
     flex: 1,
+  },
+  soundValue: {
+    fontWeight: '700',
   },
 });
