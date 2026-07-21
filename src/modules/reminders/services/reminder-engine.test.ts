@@ -11,6 +11,7 @@ import {
   reconcileReminderSchedule,
   updateDefaultSnoozePreference,
   updateReminderModePreference,
+  updateReminderSchedulePreference,
   updateReminderSnoozePreference,
   updateReminderVibrationPreference,
 } from './reminder-engine';
@@ -80,10 +81,22 @@ describe('reminder engine experience preferences', () => {
   });
 
   it('enables vibration the first time Active mode is selected', () => {
-    expect(updateReminderModePreference(preferences, 'active')).toMatchObject({
+    expect(
+      updateReminderModePreference(
+        {
+          ...preferences,
+          pendingSnoozeNotificationId: 'pending-snooze',
+          pendingSnoozeTargetIso: '2026-07-21T10:10:00.000Z',
+        },
+        'active',
+      ),
+    ).toMatchObject({
       mode: 'active',
+      pendingSnoozeNotificationId: undefined,
+      pendingSnoozeTargetIso: undefined,
       vibrationEnabled: true,
     });
+    expect(mockCancelLocalNotifications).toHaveBeenCalledWith(['pending-snooze']);
   });
 
   it('does not overwrite an existing Active vibration preference when mode remains Active', () => {
@@ -115,6 +128,38 @@ describe('reminder engine experience preferences', () => {
     expect(updateDefaultSnoozePreference(preferences, 30)).toMatchObject({
       defaultSnoozeMinutes: 30,
     });
+  });
+
+  it('clears pending snooze when the base schedule settings change', () => {
+    expect(
+      updateReminderSchedulePreference(
+        {
+          ...preferences,
+          pendingSnoozeNotificationId: 'pending-snooze',
+          pendingSnoozeTargetIso: '2026-07-21T10:10:00.000Z',
+        },
+        { intervalMinutes: 90 },
+      ),
+    ).toMatchObject({
+      intervalMinutes: 90,
+      pendingSnoozeNotificationId: undefined,
+      pendingSnoozeTargetIso: undefined,
+    });
+    expect(mockCancelLocalNotifications).toHaveBeenCalledWith(['pending-snooze']);
+  });
+
+  it('clears pending snooze when goal completion makes reminders ineligible', async () => {
+    await reconcileReminderSchedule({
+      goalAmount: 2000,
+      preferences: {
+        ...preferences,
+        pendingSnoozeNotificationId: 'pending-snooze',
+        pendingSnoozeTargetIso: '2026-07-21T10:10:00.000Z',
+      },
+      totalAmount: 2000,
+    });
+
+    expect(mockCancelLocalNotifications).toHaveBeenCalledWith(['pending-snooze']);
   });
 
   it('rebuilds reminders with the Active channel after mode changes', async () => {

@@ -23,6 +23,7 @@ export type ReminderPreferences = {
   mode: ReminderMode;
   pausedUntilIso?: string;
   pendingSnoozeNotificationId?: string;
+  pendingSnoozeTargetIso?: string;
   preferenceSchemaVersion: number;
   scheduledNotificationIds: string[];
   sleepTime: string;

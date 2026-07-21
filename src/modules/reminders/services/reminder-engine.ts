@@ -22,7 +22,10 @@ import {
 } from '../repository/reminder-preferences-storage';
 import { buildReminderScheduleSignature, calculateReminderSchedule } from '../utils/scheduler';
 import { addMinutes, getCurrentTimezone, getEndOfLocalDay } from '../utils/time';
-import { clearPendingSnooze } from './reminder-snooze-manager';
+import {
+  buildPreferencesWithoutPendingSnooze,
+  clearPendingSnooze,
+} from './reminder-snooze-manager';
 
 export const loadReminderPreferences = (): ReminderPreferences => {
   const preferences = getReminderPreferences();
@@ -77,6 +80,11 @@ export const reconcileReminderSchedule = async (
     ...input.preferences,
     timezone: getCurrentTimezone(),
   };
+
+  if (input.totalAmount >= input.goalAmount) {
+    await clearPendingSnooze(preferences);
+  }
+
   const signature = buildReminderScheduleSignature({
     goalAmount: input.goalAmount,
     preferences,
@@ -120,6 +128,7 @@ export const enableReminders = async (
       ...preferences,
       enabled: false,
       pendingSnoozeNotificationId: undefined,
+      pendingSnoozeTargetIso: undefined,
       scheduledNotificationIds: [],
     });
 
@@ -155,6 +164,7 @@ export const disableReminders = async (
     ...preferences,
     enabled: false,
     pendingSnoozeNotificationId: undefined,
+    pendingSnoozeTargetIso: undefined,
     scheduledNotificationIds: [],
   });
 
@@ -168,7 +178,7 @@ export const updateReminderSchedulePreference = (
   updates: Partial<Pick<ReminderPreferences, 'intervalMinutes' | 'sleepTime' | 'wakeTime'>>,
 ): ReminderPreferences => {
   const nextPreferences = setReminderPreferences({
-    ...preferences,
+    ...buildPreferencesWithoutPendingSnooze(preferences),
     ...updates,
   });
 
@@ -182,7 +192,7 @@ export const updateReminderModePreference = (
   mode: ReminderMode,
 ): ReminderPreferences => {
   const nextPreferences = setReminderPreferences({
-    ...preferences,
+    ...buildPreferencesWithoutPendingSnooze(preferences),
     mode,
     sound:
       mode === 'active' && preferences.sound.type === 'silent'
@@ -216,7 +226,7 @@ export const updateReminderSoundPreference = (
   sound: ReminderSoundPreference,
 ): ReminderPreferences => {
   const nextPreferences = setReminderPreferences({
-    ...preferences,
+    ...buildPreferencesWithoutPendingSnooze(preferences),
     sound,
   });
 
@@ -272,6 +282,7 @@ export const pauseReminders = async (
     ...preferences,
     pausedUntilIso: pausedUntil.toISOString(),
     pendingSnoozeNotificationId: undefined,
+    pendingSnoozeTargetIso: undefined,
     scheduledNotificationIds: [],
   });
 

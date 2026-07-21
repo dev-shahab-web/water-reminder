@@ -119,10 +119,21 @@ Expo notification response
 -> reminder action service
 -> snooze manager
 -> cancel previous pending snooze
+-> compute one-off snooze target timestamp
+-> suppress snooze if target is within 10 minutes of a normal reminder
 -> schedule one one-off snoozed reminder
--> persist pending snooze id
+-> persist pending snooze id and target timestamp
 -> dismiss handled notification
 ```
+
+Snooze/base schedule policy:
+
+- Snooze never mutates the base reminder schedule.
+- At most one pending snoozed reminder may exist.
+- A new snooze replaces the previous pending snooze.
+- If the snooze target is within 10 minutes before or after a scheduled normal reminder, the snooze is suppressed and the normal reminder is preserved.
+- Hydration logging clears a pending snooze only after local persistence succeeds.
+- Pause, disable, goal completion, and schedule-setting changes clear pending snooze state without canceling unrelated normal notification IDs.
 
 Dismiss action:
 

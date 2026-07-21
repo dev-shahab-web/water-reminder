@@ -20,6 +20,7 @@ export const reminderStorageKeys = {
   mode: 'reminderMode',
   pausedUntilIso: 'reminderPausedUntil',
   pendingSnoozeNotificationId: 'reminderPendingSnoozeNotificationId',
+  pendingSnoozeTargetIso: 'reminderPendingSnoozeTargetIso',
   preferenceSchemaVersion: 'reminderPreferenceSchemaVersion',
   scheduledNotificationIds: 'reminderScheduledNotificationIds',
   sleepTime: 'reminderSleepTime',
@@ -119,6 +120,7 @@ export const getReminderPreferences = (): ReminderPreferences => {
   const pendingSnoozeNotificationId = storage.getString(
     reminderStorageKeys.pendingSnoozeNotificationId,
   );
+  const pendingSnoozeTargetIso = storage.getString(reminderStorageKeys.pendingSnoozeTargetIso);
   const preferenceSchemaVersion = storage.getNumber(reminderStorageKeys.preferenceSchemaVersion);
   const soundType = storage.getString(reminderStorageKeys.soundType);
   const parsedMode = isReminderMode(mode) ? mode : defaultReminderPreferences.mode;
@@ -134,6 +136,7 @@ export const getReminderPreferences = (): ReminderPreferences => {
     mode: parsedMode,
     pausedUntilIso,
     pendingSnoozeNotificationId,
+    pendingSnoozeTargetIso,
     preferenceSchemaVersion: reminderPreferenceSchemaVersion,
     scheduledNotificationIds: parseScheduledIds(
       storage.getString(reminderStorageKeys.scheduledNotificationIds),
@@ -196,6 +199,12 @@ export const setReminderPreferences = (preferences: ReminderPreferences): Remind
       reminderStorageKeys.pendingSnoozeNotificationId,
       preferences.pendingSnoozeNotificationId,
     );
+  }
+
+  if (preferences.pendingSnoozeTargetIso === undefined) {
+    storage.remove(reminderStorageKeys.pendingSnoozeTargetIso);
+  } else {
+    storage.set(reminderStorageKeys.pendingSnoozeTargetIso, preferences.pendingSnoozeTargetIso);
   }
 
   storage.remove(reminderStorageKeys.soundCustomName);

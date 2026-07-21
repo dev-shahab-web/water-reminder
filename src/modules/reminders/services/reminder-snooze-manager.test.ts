@@ -52,6 +52,10 @@ const preferences: ReminderPreferences = {
   scheduledNotificationIds: ['base-1', 'base-2'],
 };
 
+const scheduledReminderIdAt = (iso: string, index = 0): string => {
+  return `hydration-reminder-${new Date(iso).getTime()}-${index}`;
+};
+
 describe('reminder snooze manager', () => {
   beforeEach(() => {
     mockStorageValues.clear();
@@ -77,6 +81,7 @@ describe('reminder snooze manager', () => {
     expect(nextPreferences.pendingSnoozeNotificationId).toBe(
       'hydration-reminder-snooze-1784628600000',
     );
+    expect(nextPreferences.pendingSnoozeTargetIso).toBe('2026-07-21T10:10:00.000Z');
   });
 
   it('replaces the latest pending snooze instead of creating duplicates', async () => {
@@ -85,6 +90,7 @@ describe('reminder snooze manager', () => {
       preferences: {
         ...preferences,
         pendingSnoozeNotificationId: 'previous-snooze',
+        pendingSnoozeTargetIso: '2026-07-21T09:45:00.000Z',
       },
     });
 
@@ -93,6 +99,59 @@ describe('reminder snooze manager', () => {
     expect(nextPreferences.pendingSnoozeNotificationId).toBe(
       'hydration-reminder-snooze-1784628600000',
     );
+    expect(nextPreferences.pendingSnoozeTargetIso).toBe('2026-07-21T10:10:00.000Z');
+  });
+
+  it('suppresses a snooze that lands exactly on the next normal reminder', async () => {
+    const nextPreferences = await snoozeReminder({
+      durationMinutes: 30,
+      now: new Date('2026-07-21T07:30:00.000Z'),
+      preferences: {
+        ...preferences,
+        scheduledNotificationIds: [scheduledReminderIdAt('2026-07-21T08:00:00.000Z')],
+      },
+    });
+
+    expect(mockScheduleLocalNotification).not.toHaveBeenCalled();
+    expect(nextPreferences.pendingSnoozeNotificationId).toBeUndefined();
+    expect(nextPreferences.pendingSnoozeTargetIso).toBeUndefined();
+    expect(nextPreferences.scheduledNotificationIds).toEqual([
+      scheduledReminderIdAt('2026-07-21T08:00:00.000Z'),
+    ]);
+  });
+
+  it('suppresses a snooze within ten minutes of the next normal reminder', async () => {
+    const nextPreferences = await snoozeReminder({
+      durationMinutes: 15,
+      now: new Date('2026-07-21T07:30:00.000Z'),
+      preferences: {
+        ...preferences,
+        scheduledNotificationIds: [scheduledReminderIdAt('2026-07-21T07:54:00.000Z')],
+      },
+    });
+
+    expect(mockScheduleLocalNotification).not.toHaveBeenCalled();
+    expect(nextPreferences.pendingSnoozeNotificationId).toBeUndefined();
+  });
+
+  it('schedules outside the ten-minute merge window without changing the base schedule', async () => {
+    const nextPreferences = await snoozeReminder({
+      durationMinutes: 15,
+      now: new Date('2026-07-21T07:30:00.000Z'),
+      preferences: {
+        ...preferences,
+        scheduledNotificationIds: [scheduledReminderIdAt('2026-07-21T08:00:00.000Z')],
+      },
+    });
+
+    expect(mockScheduleLocalNotification).toHaveBeenCalledTimes(1);
+    expect(mockScheduleLocalNotification.mock.calls[0]?.[0]).toMatchObject({
+      date: new Date('2026-07-21T07:45:00.000Z'),
+      identifier: 'hydration-reminder-snooze-1784619900000',
+    });
+    expect(nextPreferences.scheduledNotificationIds).toEqual([
+      scheduledReminderIdAt('2026-07-21T08:00:00.000Z'),
+    ]);
   });
 
   it('does not schedule snooze when snooze is disabled', async () => {
@@ -130,5 +189,22 @@ describe('reminder snooze manager', () => {
 
     expect(mockCancelLocalNotifications).toHaveBeenCalledWith(['stale-snooze']);
     expect(nextPreferences.pendingSnoozeNotificationId).toBeUndefined();
+    expect(nextPreferences.pendingSnoozeTargetIso).toBeUndefined();
+  });
+
+  it('clears stale pending snooze ids idempotently without canceling normal reminders', async () => {
+    await clearPendingSnooze({
+      ...preferences,
+      pendingSnoozeNotificationId: 'stale-snooze',
+      pendingSnoozeTargetIso: '2026-07-21T10:10:00.000Z',
+      scheduledNotificationIds: ['normal-1'],
+    });
+    await clearPendingSnooze({
+      ...preferences,
+      scheduledNotificationIds: ['normal-1'],
+    });
+
+    expect(mockCancelLocalNotifications).toHaveBeenCalledTimes(1);
+    expect(mockCancelLocalNotifications).toHaveBeenCalledWith(['stale-snooze']);
   });
 });
