@@ -49,7 +49,14 @@ Sound preferences:
 
 - `silent`: schedules through the quiet reminder channel and sets content sound to `false`.
 - `system_default`: schedules through the active reminder channel and sets content sound to `default`.
-- `device_picker`: opens Android notification settings where supported and uses the active reminder channel so the device-controlled sound can apply.
+- Legacy `device_picker` values are treated as device-managed active-channel sound preferences. The app does not present an in-app tone picker.
+
+Sound settings navigation:
+
+- Gentle mode renders sound as `Silent` and does not open any settings.
+- Active mode renders sound as `System default` and opens Android notification settings for `hydration-active-v1` where supported.
+- The app initializes notification channels before opening settings so `hydration-active-v1` exists before Android displays channel controls.
+- Fallback order is specific channel settings, app notification settings, generic app settings, then a non-blocking message if no settings destination opens.
 
 The Test Notification action must use the same `ReminderNotificationFactory` and `scheduleLocalNotification` pipeline as real reminders. It may only differ by delivery time.
 

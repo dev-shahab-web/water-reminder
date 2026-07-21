@@ -401,11 +401,11 @@ export function SettingsScreen() {
             void reminders.pause(option);
           }}
           onResume={reminders.resume}
+          onNotificationSoundPress={() => {
+            void reminders.openNotificationSoundSettings();
+          }}
           onSleepTimeChange={reminders.updateSleepTime}
           onSnoozeEnabledChange={reminders.updateSnoozeEnabled}
-          onSoundChange={(sound) => {
-            void reminders.updateSound(sound);
-          }}
           onToggleEnabled={() => {
             void reminders.toggleEnabled();
           }}
@@ -415,7 +415,6 @@ export function SettingsScreen() {
           preview={reminders.preview}
           sleepTime={reminders.preferences.sleepTime}
           snoozeEnabled={reminders.preferences.snoozeEnabled}
-          sound={reminders.preferences.sound}
           status={reminders.status}
           summary={reminders.summary}
           vibrationEnabled={reminders.preferences.vibrationEnabled}

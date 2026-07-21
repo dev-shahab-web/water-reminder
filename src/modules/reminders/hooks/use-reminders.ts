@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { playErrorHaptic, playReminderPauseHaptic } from '@platform/haptics';
 import {
   getNotificationRegistrationStatus,
-  openDeviceNotificationSoundPicker,
+  openActiveReminderNotificationSettings,
 } from '@platform/notifications';
 import { trackEvent } from '@platform/telemetry';
 import { getOnboardingState } from '@modules/onboarding/repository/onboarding-storage';
@@ -14,7 +14,6 @@ import type {
   ReminderPauseOption,
   ReminderPreferences,
   ReminderSnoozeMinutes,
-  ReminderSoundPreference,
 } from '../types';
 import {
   activateRemindersWithGrantedPermission,
@@ -29,7 +28,6 @@ import {
   updateReminderModePreference,
   updateReminderSchedulePreference,
   updateReminderSnoozePreference,
-  updateReminderSoundPreference,
   updateReminderVibrationPreference,
 } from '../services/reminder-engine';
 import { calculateReminderSchedule } from '../utils/scheduler';
@@ -232,27 +230,29 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
     [preferences],
   );
 
-  const updateSound = useCallback(
-    async (sound: ReminderSoundPreference) => {
-      setPermissionMessage(undefined);
-      setPreferences(updateReminderSoundPreference(preferences, sound));
+  const openNotificationSoundSettings = useCallback(async () => {
+    setPermissionMessage(undefined);
 
-      if (sound.type !== 'device_picker') {
-        return;
-      }
+    const result = await openActiveReminderNotificationSettings();
 
-      const result = await openDeviceNotificationSoundPicker();
+    if (result.destination === 'app_notifications') {
+      setPermissionMessage('Open Active hydration reminders to change the reminder tone.');
+    }
 
-      if (result === 'failed') {
-        setPermissionMessage('Android notification sound settings could not be opened.');
-      }
+    if (result.destination === 'app_settings') {
+      setPermissionMessage(
+        'Open Notifications, then Active hydration reminders, to change the tone.',
+      );
+    }
 
-      if (result === 'unsupported') {
-        setPermissionMessage('Device notification sound settings are available on Android.');
-      }
-    },
-    [preferences],
-  );
+    if (result.destination === 'failed') {
+      setPermissionMessage('Android notification sound settings could not be opened.');
+    }
+
+    if (result.destination === 'unsupported') {
+      setPermissionMessage('Notification sound changes are available on Android.');
+    }
+  }, []);
 
   const updateSnoozeEnabled = useCallback(
     (snoozeEnabled: boolean) => {
@@ -292,9 +292,9 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
     updateDefaultSnooze,
     updateInterval,
     updateMode,
+    openNotificationSoundSettings,
     updateSleepTime,
     updateSnoozeEnabled,
-    updateSound,
     updateVibration,
     updateWakeTime,
   };

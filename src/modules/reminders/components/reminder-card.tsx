@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from 'react';
-import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
+import { Platform, StyleSheet, Switch, Text, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
 import {
@@ -16,8 +16,6 @@ import type {
   ReminderMode,
   ReminderPauseOption,
   ReminderSnoozeMinutes,
-  ReminderSoundPreference,
-  ReminderSoundType,
   ReminderStatus,
 } from '../types';
 
@@ -35,23 +33,6 @@ const modeOptions: { description: string; label: string; value: ReminderMode }[]
   },
 ];
 const snoozeOptions: ReminderSnoozeMinutes[] = [5, 10, 15, 30, 60];
-const soundOptions: { description: string; label: string; value: ReminderSoundType }[] = [
-  {
-    description: 'Quiet lock-screen reminders with no app sound.',
-    label: 'Silent',
-    value: 'silent',
-  },
-  {
-    description: 'Use Android’s default notification sound.',
-    label: 'System default',
-    value: 'system_default',
-  },
-  {
-    description: 'Open Android notification settings to choose a device sound.',
-    label: 'Device notification sound',
-    value: 'device_picker',
-  },
-];
 const wakeOptions = ['07:00', '08:00', '09:00', '10:00'] as const;
 const sleepOptions = ['20:00', '21:00', '22:00', '23:00'] as const;
 const pauseOptions: { label: string; value: ReminderPauseOption }[] = [
@@ -68,9 +49,9 @@ type ReminderCardProps = {
   onDefaultSnoozeChange: (duration: ReminderSnoozeMinutes) => void;
   onPause: (option: ReminderPauseOption) => void;
   onResume: () => void;
+  onNotificationSoundPress?: () => void | Promise<void>;
   onSleepTimeChange: (time: string) => void;
   onSnoozeEnabledChange: (enabled: boolean) => void;
-  onSoundChange: (sound: ReminderSoundPreference) => void | Promise<void>;
   onToggleEnabled: () => void;
   onWakeTimeChange: (time: string) => void;
   onIntervalChange: (interval: ReminderIntervalMinutes) => void;
@@ -80,7 +61,6 @@ type ReminderCardProps = {
   preview: string;
   sleepTime: string;
   snoozeEnabled: boolean;
-  sound: ReminderSoundPreference;
   status: ReminderStatus;
   summary: string;
   vibrationEnabled: boolean;
@@ -95,11 +75,11 @@ export const ReminderCard = memo(function ReminderCard({
   onDefaultSnoozeChange,
   onIntervalChange,
   onModeChange,
+  onNotificationSoundPress,
   onPause,
   onResume,
   onSleepTimeChange,
   onSnoozeEnabledChange,
-  onSoundChange,
   onToggleEnabled,
   onVibrationChange,
   onWakeTimeChange,
@@ -107,7 +87,6 @@ export const ReminderCard = memo(function ReminderCard({
   preview,
   sleepTime,
   snoozeEnabled,
-  sound,
   status,
   summary,
   vibrationEnabled,
@@ -226,7 +205,7 @@ export const ReminderCard = memo(function ReminderCard({
                 suffix="min"
               />
             ) : null}
-            <SoundPreferenceRow sound={sound} onChange={onSoundChange} />
+            <SoundPreferenceRow mode={mode} onPress={onNotificationSoundPress} />
           </ControlGroup>
 
           <ControlGroup label="Pause">
@@ -354,47 +333,21 @@ function PreferenceSwitch({
 }
 
 function SoundPreferenceRow({
-  onChange,
-  sound,
+  mode,
+  onPress,
 }: {
-  onChange: (sound: ReminderSoundPreference) => void | Promise<void>;
-  sound: ReminderSoundPreference;
+  mode: ReminderMode;
+  onPress?: () => void | Promise<void>;
 }) {
   const theme = useTheme<AppTheme>();
-  const selectedOption =
-    soundOptions.find((option) => option.value === sound.type) ?? soundOptions[0];
-  const openSoundPicker = () => {
-    Alert.alert('Notification sound', 'Choose how hydration reminders should sound.', [
-      ...soundOptions.map((option) => ({
-        onPress: () => {
-          void onChange({ type: option.value });
-        },
-        text: option.label,
-      })),
-      {
-        style: 'cancel' as const,
-        text: 'Cancel',
-      },
-    ]);
-  };
+  const isActiveMode = mode === 'active';
+  const isAndroid = Platform.OS === 'android';
+  const isInteractive = isActiveMode && isAndroid && onPress !== undefined;
+  const value = isActiveMode ? 'System default' : 'Silent';
+  const supportingText = getSoundSupportingText({ isActiveMode, isAndroid });
 
-  return (
-    <AnimatedPressableScale
-      accessibilityHint={selectedOption.description}
-      accessibilityLabel={`Notification sound. ${selectedOption.label}`}
-      accessibilityRole="button"
-      onPress={openSoundPicker}
-      pressedScale={0.98}
-      style={({ pressed }) => [
-        styles.soundRow,
-        {
-          backgroundColor: theme.app.colors.surfaceSubtle,
-          borderColor: theme.app.colors.borderSubtle,
-          borderRadius: theme.app.radius.md,
-          opacity: pressed ? 0.78 : 1,
-        },
-      ]}
-    >
+  const content = (
+    <>
       <View style={styles.preferenceText}>
         <Text
           style={[
@@ -406,7 +359,7 @@ function SoundPreferenceRow({
             },
           ]}
         >
-          Sound
+          Notification sound
         </Text>
         <Text
           style={[
@@ -418,7 +371,7 @@ function SoundPreferenceRow({
             },
           ]}
         >
-          {selectedOption.description}
+          {supportingText}
         </Text>
       </View>
       <View style={styles.soundValueGroup}>
@@ -432,17 +385,80 @@ function SoundPreferenceRow({
             },
           ]}
         >
-          {selectedOption.label}
+          {value}
         </Text>
-        <MaterialCommunityIcon
-          color={theme.app.colors.textSecondary}
-          name="chevron-right"
-          size={20}
-        />
+        {isInteractive ? (
+          <MaterialCommunityIcon
+            color={theme.app.colors.textSecondary}
+            name="chevron-right"
+            size={20}
+            testID="notification-sound-chevron"
+          />
+        ) : null}
       </View>
+    </>
+  );
+
+  if (!isInteractive) {
+    return (
+      <View
+        accessibilityHint={supportingText}
+        accessibilityLabel={`Notification sound. ${value}`}
+        style={[
+          styles.soundRow,
+          {
+            backgroundColor: theme.app.colors.surfaceSubtle,
+            borderColor: theme.app.colors.borderSubtle,
+            borderRadius: theme.app.radius.md,
+          },
+        ]}
+      >
+        {content}
+      </View>
+    );
+  }
+
+  return (
+    <AnimatedPressableScale
+      accessibilityHint={supportingText}
+      accessibilityLabel={`Notification sound. ${value}`}
+      accessibilityRole="button"
+      onPress={() => {
+        void onPress();
+      }}
+      pressedScale={0.98}
+      style={({ pressed }) => [
+        styles.soundRow,
+        {
+          backgroundColor: theme.app.colors.surfaceSubtle,
+          borderColor: theme.app.colors.borderSubtle,
+          borderRadius: theme.app.radius.md,
+          opacity: pressed ? 0.78 : 1,
+        },
+      ]}
+    >
+      {content}
     </AnimatedPressableScale>
   );
 }
+
+const getSoundSupportingText = ({
+  isActiveMode,
+  isAndroid,
+}: {
+  isActiveMode: boolean;
+  isAndroid: boolean;
+}): string => {
+  if (!isActiveMode) {
+    return 'Gentle reminders do not play a sound.';
+  }
+
+  if (!isAndroid) {
+    return 'Notification sound is managed by Android notification channels.';
+  }
+
+  return 'Change the tone in Android notification settings.';
+};
 
 function ReminderOffState() {
   const theme = useTheme<AppTheme>();

@@ -41,6 +41,7 @@ export {
   type NotificationChannelDefinition,
 } from './notification-channels';
 export {
-  openDeviceNotificationSoundPicker,
-  type NotificationSoundPickerResult,
+  openActiveReminderNotificationSettings,
+  type NotificationSoundSettingsDestination,
+  type NotificationSoundSettingsResult,
 } from './notification-sound-settings';

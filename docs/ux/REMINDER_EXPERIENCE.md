@@ -24,7 +24,7 @@ Settings:
 - Vibration on or off.
 - Snooze enabled or disabled.
 - Default snooze duration: 5, 10, 15, 30, or 60 minutes.
-- Sound preference: Silent, System default, or Device notification sound.
+- Sound preference: Gentle mode is silent. Active mode uses the system-default channel sound and lets users change the tone from Android notification settings.
 - Pause reminders today.
 
 Defaults:
@@ -57,7 +57,8 @@ Sound:
 
 - Silent keeps notification delivery quiet.
 - System default uses Android's default notification sound.
-- Device notification sound opens Android notification settings where supported so the user can choose a device-managed sound.
+- In Active mode, the notification sound row opens Android notification settings for the active hydration reminder channel where supported.
+- In Gentle mode, the notification sound row is read-only because Gentle reminders do not play a sound.
 - Android notification channels remain user-controlled after creation.
 
 Persistent:
