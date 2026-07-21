@@ -6,6 +6,7 @@ import {
 import { refreshHydrationWidgets } from '@modules/widgets';
 
 import type {
+  ReminderMode,
   ReminderPauseOption,
   ReminderPreferences,
   ReminderScheduleInput,
@@ -162,6 +163,36 @@ export const updateReminderSchedulePreference = (
   const nextPreferences = setReminderPreferences({
     ...preferences,
     ...updates,
+  });
+
+  void refreshHydrationWidgets('reminder_changed');
+
+  return nextPreferences;
+};
+
+export const updateReminderModePreference = (
+  preferences: ReminderPreferences,
+  mode: ReminderMode,
+): ReminderPreferences => {
+  const nextPreferences = setReminderPreferences({
+    ...preferences,
+    mode,
+    vibrationEnabled:
+      mode === 'active' && preferences.mode !== 'active' ? true : preferences.vibrationEnabled,
+  });
+
+  void refreshHydrationWidgets('reminder_changed');
+
+  return nextPreferences;
+};
+
+export const updateReminderVibrationPreference = (
+  preferences: ReminderPreferences,
+  vibrationEnabled: boolean,
+): ReminderPreferences => {
+  const nextPreferences = setReminderPreferences({
+    ...preferences,
+    vibrationEnabled,
   });
 
   void refreshHydrationWidgets('reminder_changed');

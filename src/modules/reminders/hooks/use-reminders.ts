@@ -4,7 +4,12 @@ import { playErrorHaptic, playReminderPauseHaptic } from '@platform/haptics';
 import { getNotificationRegistrationStatus } from '@platform/notifications';
 import { trackEvent } from '@platform/telemetry';
 
-import type { ReminderIntervalMinutes, ReminderPauseOption, ReminderPreferences } from '../types';
+import type {
+  ReminderIntervalMinutes,
+  ReminderMode,
+  ReminderPauseOption,
+  ReminderPreferences,
+} from '../types';
 import {
   disableReminders,
   enableReminders,
@@ -13,7 +18,9 @@ import {
   pauseReminders,
   reconcileReminderSchedule,
   resumeReminders,
+  updateReminderModePreference,
   updateReminderSchedulePreference,
+  updateReminderVibrationPreference,
 } from '../services/reminder-engine';
 import { calculateReminderSchedule } from '../utils/scheduler';
 import { formatReminderTime } from '../utils/time';
@@ -158,6 +165,20 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
     [preferences],
   );
 
+  const updateMode = useCallback(
+    (mode: ReminderMode) => {
+      setPreferences(updateReminderModePreference(preferences, mode));
+    },
+    [preferences],
+  );
+
+  const updateVibration = useCallback(
+    (vibrationEnabled: boolean) => {
+      setPreferences(updateReminderVibrationPreference(preferences, vibrationEnabled));
+    },
+    [preferences],
+  );
+
   const pause = useCallback(
     async (option: ReminderPauseOption) => {
       setPreferences(await pauseReminders(preferences, option));
@@ -180,7 +201,9 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
     summary,
     toggleEnabled,
     updateInterval,
+    updateMode,
     updateSleepTime,
+    updateVibration,
     updateWakeTime,
   };
 };
