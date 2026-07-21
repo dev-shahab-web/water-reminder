@@ -4,6 +4,7 @@ import { Platform } from 'react-native';
 import { logger } from '@core/logger';
 
 import {
+  DEFAULT_NOTIFICATION_ACTION,
   REMINDER_ACTION_DISMISS,
   REMINDER_ACTION_DRINK,
   REMINDER_ACTION_SNOOZE,
@@ -32,6 +33,12 @@ export type LocalNotificationRequest = {
   sound?: false | 'default';
   title: string;
   vibrate?: number[];
+};
+
+export type NotificationResponsePayload = {
+  actionIdentifier: string;
+  data: Record<string, unknown>;
+  notificationIdentifier: string;
 };
 
 export const requestNotificationPermissions = async (): Promise<NotificationRegistrationStatus> => {
@@ -182,14 +189,30 @@ export const cancelLocalNotifications = async (identifiers: readonly string[]): 
   );
 };
 
+export const dismissPresentedNotification = async (identifier: string): Promise<void> => {
+  try {
+    await Notifications.dismissNotificationAsync(identifier);
+  } catch (error) {
+    logger.warn('Unable to dismiss notification.', { error, identifier });
+  }
+};
+
 export const addNotificationResponseListener = (
-  listener: () => void,
+  listener: (response: NotificationResponsePayload) => void,
 ): Notifications.Subscription => {
   return Notifications.addNotificationResponseReceivedListener((response) => {
     const data = response.notification.request.content.data;
 
     if (data?.source === 'hydration-reminder' || isReminderNotificationData(data)) {
-      listener();
+      listener({
+        actionIdentifier: response.actionIdentifier,
+        data,
+        notificationIdentifier: response.notification.request.identifier,
+      });
     }
   });
+};
+
+export const isDefaultNotificationAction = (actionIdentifier: string): boolean => {
+  return actionIdentifier === DEFAULT_NOTIFICATION_ACTION;
 };

@@ -9,6 +9,7 @@ export {
 } from './state/hydration-slice';
 export type { HydrationEntry, HydrationEntrySource, HydrationSummary } from './types';
 export { calculateHydrationSummary, getSuccessMicrocopy } from './utils/summary';
+export { defaultQuickAddAmountMl, quickAddAmountsMl } from './constants';
 export {
   addLocalDays,
   formatEntryTime,

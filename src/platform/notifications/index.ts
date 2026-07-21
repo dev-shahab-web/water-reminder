@@ -1,17 +1,21 @@
 export {
   addNotificationResponseListener,
   cancelLocalNotifications,
-  getNotificationRegistrationStatus,
+  dismissPresentedNotification,
   ensureNotificationCategories,
+  getNotificationRegistrationStatus,
   initializeNotificationInfrastructure,
   initializeNotifications,
+  isDefaultNotificationAction,
   requestNotificationPermissions,
   resetNotificationCategoryInitializationForTests,
   scheduleLocalNotification,
   type LocalNotificationRequest,
   type NotificationRegistrationStatus,
+  type NotificationResponsePayload,
 } from './notification-service';
 export {
+  DEFAULT_NOTIFICATION_ACTION,
   REMINDER_ACTION_DISMISS,
   REMINDER_ACTION_DRINK,
   REMINDER_ACTION_SNOOZE,

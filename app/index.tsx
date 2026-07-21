@@ -11,6 +11,7 @@ import {
   HydrationRing,
   HydrationTimeline,
   QuickAddButton,
+  quickAddAmountsMl,
   getGreeting,
   useHomeHydration,
 } from '@modules/hydration';
@@ -29,8 +30,6 @@ import {
   SectionHeader,
 } from '@shared/components';
 import type { AppTheme } from '@shared/theme';
-
-const quickAddAmounts = [250, 500, 750] as const;
 
 export default function HomeScreen() {
   const theme = useTheme<AppTheme>();
@@ -270,7 +269,7 @@ export default function HomeScreen() {
           title="Quick add"
         />
         <View style={styles.quickAddRow}>
-          {quickAddAmounts.map((amount) => (
+          {quickAddAmountsMl.map((amount) => (
             <QuickAddButton
               key={amount}
               amount={amount}

@@ -1,3 +1,4 @@
+export const DEFAULT_NOTIFICATION_ACTION = 'expo.modules.notifications.actions.DEFAULT';
 export const REMINDER_ACTION_DRINK = 'water_reminder.reminder.drink';
 export const REMINDER_ACTION_SNOOZE = 'water_reminder.reminder.snooze';
 export const REMINDER_ACTION_DISMISS = 'water_reminder.reminder.dismiss';
