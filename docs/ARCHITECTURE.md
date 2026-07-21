@@ -703,6 +703,7 @@ Reminder preference changes
 -> build schedule signature
 -> cancel previous scheduled ids if needed
 -> calculateReminderSchedule
+-> reminder notification factory
 -> scheduleLocalNotification
 -> persist scheduled ids
 ```
@@ -712,9 +713,34 @@ Notification tap flow:
 ```txt
 Expo notification response
 -> AppShell listener
--> router.replace("/")
--> reminderPulse param
--> HydrationRing subtle ripple
+-> reminder action service
+-> open Home / Drink / Snooze / Dismiss
+```
+
+Drink action flow:
+
+```txt
+Reminder action service
+-> occurrence idempotency check
+-> hydration log thunk
+-> SQLite
+-> Redux
+-> widget refresh
+-> Health Connect best-effort sync
+-> reload today's entries
+-> reconcile reminders
+-> dismiss notification
+```
+
+Snooze action flow:
+
+```txt
+Reminder action service
+-> snooze manager
+-> cancel previous pending snooze
+-> schedule hydration-snooze-v1 one-off notification
+-> persist pending snooze id
+-> dismiss notification
 ```
 
 Reminder rules:
@@ -727,6 +753,10 @@ Reminder rules:
 - Do not remind after goal completion.
 - Do not remind while paused or disabled.
 - Use calm copy only.
+- Gentle mode is default and silent.
+- Active mode uses system-default sound and vibration with default importance.
+- Snooze is one-off and never mutates the base schedule.
+- Notification action data uses versioned metadata and never includes hydration amounts, schedules, goals, Health Connect identifiers, or user identifiers.
 
 ## Motion System
 

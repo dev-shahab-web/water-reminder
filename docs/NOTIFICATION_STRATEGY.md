@@ -9,9 +9,32 @@ Use local notifications to support hydration habits without making the app feel 
 - Ask for permission only when reminders are enabled.
 - Schedule local reminders within the user's active hours.
 - Use a configurable interval, with conservative defaults.
+- Support Gentle and Active reminder modes.
+- Support one-off snooze without changing the base daily reminder schedule.
 - Cancel and reschedule notifications when relevant settings change.
 - Pause reminders for the rest of the current local day.
 - Avoid reminders after the user completes the daily goal unless product review decides otherwise.
+
+## Reminder Modes
+
+Gentle is the default for new and existing users.
+
+Gentle:
+
+- Silent notification.
+- Low-disruption Android channel.
+- Vibration off by default.
+- Calm copy only.
+
+Active:
+
+- System-default notification sound through the Active Android channel.
+- Vibration enabled by default when Active is first selected.
+- Android default importance, not high importance.
+- Must respect Do Not Disturb and user-controlled channel settings.
+- Still calm and never alarm-like.
+
+Persistent mode is not implemented. It remains a future product boundary and must not be exposed until reviewed.
 
 ## Reminder Copy Principles
 
@@ -22,9 +45,10 @@ Use local notifications to support hydration habits without making the app feel 
 
 Example tone:
 
-- "Time for some water."
+- "Time for a sip."
 - "A small sip can help keep the habit going."
-- "Hydration check-in."
+- "Small sip, steady habit."
+- "Take a moment to hydrate."
 
 ## Permission States
 
@@ -40,6 +64,18 @@ Example tone:
 - If remaining active window is too short, schedule no additional reminders.
 - If daily goal is met, cancel remaining reminders for the day.
 - If reminders are paused, cancel pending notifications until the pause expires.
+- If a reminder is snoozed, schedule one one-off snoozed reminder and preserve the base schedule.
+- If snooze is repeated, replace the previous pending snooze.
+
+## Notification Actions
+
+Reminder notifications may expose up to three actions:
+
+- Drink: logs the default quick-add amount through the existing hydration flow.
+- Snooze: uses the configured default snooze duration.
+- Dismiss: closes the current notification without logging water.
+
+Drink action handling is idempotent by reminder occurrence id. SQLite remains the canonical source of truth; widgets, Redux, Health Connect, and reminder reconciliation are side effects after local persistence.
 
 ## Assumptions
 
@@ -53,13 +89,15 @@ Example tone:
 - User denies permission but leaves reminders enabled in app settings.
 - User grants permission, then revokes it at OS level.
 - Device battery optimization delays or suppresses notifications.
+- Android Doze mode delays one-off or scheduled notifications.
 - Device time zone changes after notifications are scheduled.
 - User sets sleep time earlier than wake time for overnight schedules.
 - User completes goal immediately after a reminder has already fired.
+- App is killed when the user presses a notification action.
+- User changes Android notification-channel settings outside the app.
 
 ## Suggested Improvements
 
-- Add snooze actions after basic scheduling is reliable.
 - Add adaptive reminder cadence based on current progress pace.
 - Add notification copy preferences: minimal, encouraging, or silent-style.
 - Add system-settings deep-link if permission recovery is common.
