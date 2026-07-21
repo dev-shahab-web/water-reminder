@@ -9,6 +9,7 @@ import { initializeDatabase } from '@platform/database';
 import { initializeNotifications } from '@platform/notifications';
 import { initializeStorage } from '@platform/storage';
 import { initializeTelemetry, recordHandledError } from '@platform/telemetry';
+import { registerReminderHydrationEffects } from '@modules/reminders/services/reminder-hydration-effects';
 import { refreshHydrationWidgets } from '@modules/widgets';
 import { BrandMark } from '@shared/components';
 import type { AppTheme } from '@shared/theme';
@@ -27,6 +28,7 @@ export function ApplicationBootstrap({ children }: PropsWithChildren) {
     const bootstrap = async () => {
       try {
         initializeStorage();
+        registerReminderHydrationEffects();
         await Promise.all([initializeDatabase(), initializeNotifications()]);
         await initializeTelemetry();
         void refreshHydrationWidgets('bootstrap');

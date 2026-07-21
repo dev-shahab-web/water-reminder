@@ -1,5 +1,6 @@
 import {
   cancelLocalNotifications,
+  initializeNotificationInfrastructure,
   requestNotificationPermissions,
   scheduleLocalNotification,
 } from '@platform/notifications';
@@ -55,12 +56,12 @@ export const getReminderStatus = ({
     return 'complete';
   }
 
-  if (!preferences.enabled) {
-    return 'disabled';
+  if (!hasPermission && (preferences.enabled || preferences.activationState === 'not_configured')) {
+    return 'blocked';
   }
 
-  if (!hasPermission) {
-    return 'blocked';
+  if (!preferences.enabled) {
+    return 'disabled';
   }
 
   if (
@@ -119,6 +120,7 @@ export const reconcileReminderSchedule = async (
 export const enableReminders = async (
   preferences: ReminderPreferences,
 ): Promise<{ granted: boolean; preferences: ReminderPreferences }> => {
+  await initializeNotificationInfrastructure();
   const permission = await requestNotificationPermissions();
 
   if (!permission.granted) {
@@ -126,6 +128,7 @@ export const enableReminders = async (
     await clearPendingSnooze(preferences);
     const nextPreferences = setReminderPreferences({
       ...preferences,
+      activationState: 'not_configured',
       enabled: false,
       pendingSnoozeNotificationId: undefined,
       pendingSnoozeTargetIso: undefined,
@@ -142,6 +145,7 @@ export const enableReminders = async (
 
   const nextPreferences = setReminderPreferences({
     ...preferences,
+    activationState: 'enabled',
     enabled: true,
     pausedUntilIso: undefined,
   });
@@ -154,6 +158,21 @@ export const enableReminders = async (
   };
 };
 
+export const activateRemindersWithGrantedPermission = (
+  preferences: ReminderPreferences,
+): ReminderPreferences => {
+  const nextPreferences = setReminderPreferences({
+    ...preferences,
+    activationState: 'enabled',
+    enabled: true,
+    pausedUntilIso: undefined,
+  });
+
+  void refreshHydrationWidgets('reminder_changed');
+
+  return nextPreferences;
+};
+
 export const disableReminders = async (
   preferences: ReminderPreferences,
 ): Promise<ReminderPreferences> => {
@@ -162,6 +181,7 @@ export const disableReminders = async (
 
   const nextPreferences = setReminderPreferences({
     ...preferences,
+    activationState: 'disabled_by_user',
     enabled: false,
     pendingSnoozeNotificationId: undefined,
     pendingSnoozeTargetIso: undefined,

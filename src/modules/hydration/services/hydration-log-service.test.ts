@@ -5,17 +5,13 @@ import type { HydrationEntry } from '../types';
 /* eslint-disable @typescript-eslint/no-require-imports */
 
 const mockAddHydrationEntry = jest.fn<() => Promise<HydrationEntry>>();
-const mockClearPendingSnoozeAfterHydrationPersistence = jest.fn(async () => undefined);
+const mockReminderCleanupAfterHydrationPersistence = jest.fn(async () => undefined);
 const mockRefreshHydrationWidgets = jest.fn(async (_reason: string) => undefined);
 const mockQueueBestEffortHealthConnectSync = jest.fn(() => undefined);
 const mockTrackEventSafely = jest.fn(() => undefined);
 
 jest.mock('../repository/hydration-repository', () => ({
   addHydrationEntry: mockAddHydrationEntry,
-}));
-
-jest.mock('@modules/reminders/services/reminder-snooze-manager', () => ({
-  clearPendingSnoozeAfterHydrationPersistence: mockClearPendingSnoozeAfterHydrationPersistence,
 }));
 
 jest.mock('@modules/widgets', () => ({
@@ -30,7 +26,7 @@ jest.mock('@platform/telemetry', () => ({
   trackEventSafely: mockTrackEventSafely,
 }));
 
-const { persistHydrationLog } =
+const { persistHydrationLog, setHydrationLogReminderCleanup } =
   require('./hydration-log-service') as typeof import('./hydration-log-service');
 
 const entry: HydrationEntry = {
@@ -45,6 +41,7 @@ const entry: HydrationEntry = {
 describe('hydration log service reminder effects', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    setHydrationLogReminderCleanup(mockReminderCleanupAfterHydrationPersistence);
   });
 
   it('clears pending snooze only after hydration is persisted', async () => {
@@ -56,7 +53,7 @@ describe('hydration log service reminder effects', () => {
       amount: 250,
       source: 'quick_add',
     });
-    expect(mockClearPendingSnoozeAfterHydrationPersistence).toHaveBeenCalledTimes(1);
+    expect(mockReminderCleanupAfterHydrationPersistence).toHaveBeenCalledTimes(1);
     expect(mockRefreshHydrationWidgets).toHaveBeenCalledWith('hydration_changed');
   });
 
@@ -67,6 +64,6 @@ describe('hydration log service reminder effects', () => {
       'SQLite unavailable.',
     );
 
-    expect(mockClearPendingSnoozeAfterHydrationPersistence).not.toHaveBeenCalled();
+    expect(mockReminderCleanupAfterHydrationPersistence).not.toHaveBeenCalled();
   });
 });

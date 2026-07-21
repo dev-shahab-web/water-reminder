@@ -168,7 +168,7 @@ export const ReminderCard = memo(function ReminderCard({
 
       <PrimaryButton
         icon={enabled ? 'bell-off-outline' : 'bell-outline'}
-        label={enabled ? 'Turn reminders off' : 'Turn reminders on'}
+        label={enabled ? 'Turn reminders off' : 'Enable reminders'}
         onPress={onToggleEnabled}
       />
 
@@ -638,16 +638,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   modeOptionList: {
-    flexDirection: 'row',
     gap: 8,
   },
   optionButton: {
     borderWidth: 1,
-    flexBasis: 96,
-    flexGrow: 1,
     minHeight: 44,
     paddingHorizontal: 10,
     paddingVertical: 9,
+    width: '100%',
   },
   optionDescription: {
     marginTop: 4,

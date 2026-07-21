@@ -1,6 +1,7 @@
 import { getStorage } from '@platform/storage';
 
 import type {
+  ReminderActivationState,
   ReminderIntervalMinutes,
   ReminderMode,
   ReminderPreferences,
@@ -10,9 +11,10 @@ import type {
 } from '../types';
 import { getCurrentTimezone } from '../utils/time';
 
-export const reminderPreferenceSchemaVersion = 2;
+export const reminderPreferenceSchemaVersion = 3;
 
 export const reminderStorageKeys = {
+  activationState: 'reminderActivationState',
   defaultSnoozeMinutes: 'reminderDefaultSnoozeMinutes',
   enabled: 'reminderEnabled',
   intervalMinutes: 'reminderIntervalMinutes',
@@ -33,6 +35,7 @@ export const reminderStorageKeys = {
 } as const;
 
 export const defaultReminderPreferences: ReminderPreferences = {
+  activationState: 'not_configured',
   defaultSnoozeMinutes: 10,
   enabled: false,
   intervalMinutes: 120,
@@ -51,6 +54,10 @@ export const defaultReminderPreferences: ReminderPreferences = {
 
 const isIntervalOption = (value: number | undefined): value is ReminderIntervalMinutes => {
   return value === 30 || value === 60 || value === 90 || value === 120 || value === 180;
+};
+
+const isActivationState = (value: string | undefined): value is ReminderActivationState => {
+  return value === 'not_configured' || value === 'enabled' || value === 'disabled_by_user';
 };
 
 const isReminderMode = (value: string | undefined): value is ReminderMode => {
@@ -114,6 +121,7 @@ const parseScheduledIds = (value: string | undefined): string[] => {
 export const getReminderPreferences = (): ReminderPreferences => {
   const storage = getStorage();
   const defaultSnoozeMinutes = storage.getNumber(reminderStorageKeys.defaultSnoozeMinutes);
+  const activationState = storage.getString(reminderStorageKeys.activationState);
   const intervalMinutes = storage.getNumber(reminderStorageKeys.intervalMinutes);
   const mode = storage.getString(reminderStorageKeys.mode);
   const pausedUntilIso = storage.getString(reminderStorageKeys.pausedUntilIso);
@@ -126,6 +134,11 @@ export const getReminderPreferences = (): ReminderPreferences => {
   const parsedMode = isReminderMode(mode) ? mode : defaultReminderPreferences.mode;
 
   const preferences: ReminderPreferences = {
+    activationState: isActivationState(activationState)
+      ? activationState
+      : storage.getBoolean(reminderStorageKeys.enabled) === true
+        ? 'enabled'
+        : defaultReminderPreferences.activationState,
     defaultSnoozeMinutes: isSnoozeOption(defaultSnoozeMinutes)
       ? defaultSnoozeMinutes
       : defaultReminderPreferences.defaultSnoozeMinutes,
@@ -171,6 +184,7 @@ export const setReminderPreferences = (preferences: ReminderPreferences): Remind
   const storage = getStorage();
 
   storage.set(reminderStorageKeys.defaultSnoozeMinutes, preferences.defaultSnoozeMinutes);
+  storage.set(reminderStorageKeys.activationState, preferences.activationState);
   storage.set(reminderStorageKeys.enabled, preferences.enabled);
   storage.set(reminderStorageKeys.intervalMinutes, preferences.intervalMinutes);
   storage.set(reminderStorageKeys.mode, preferences.mode);

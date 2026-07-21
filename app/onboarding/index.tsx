@@ -5,6 +5,10 @@ import { useTheme } from 'react-native-paper';
 
 import { DEFAULT_HYDRATION_GOAL_ML, useOnboardingState } from '@modules/onboarding';
 import {
+  disableReminders,
+  loadReminderPreferences,
+} from '@modules/reminders/services/reminder-engine';
+import {
   BrandMark,
   ChoiceCard,
   OnboardingPage,
@@ -39,7 +43,8 @@ export default function OnboardingWelcomeScreen() {
     }
   }, [state.onboardingCompleted]);
 
-  const handleUseDefaults = () => {
+  const handleUseDefaults = async () => {
+    await disableReminders(loadReminderPreferences());
     complete({
       hydrationGoal: DEFAULT_HYDRATION_GOAL_ML,
       reminderPreference: 'manual',
@@ -61,7 +66,9 @@ export default function OnboardingWelcomeScreen() {
           <SecondaryButton
             accessibilityLabel="Use default hydration settings"
             label="Use defaults"
-            onPress={handleUseDefaults}
+            onPress={() => {
+              void handleUseDefaults();
+            }}
           />
         </>
       }

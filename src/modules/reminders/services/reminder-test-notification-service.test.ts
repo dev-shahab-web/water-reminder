@@ -28,6 +28,7 @@ jest.mock('@platform/notifications', () => ({
 }));
 
 const preferences: ReminderPreferences = {
+  activationState: 'enabled',
   defaultSnoozeMinutes: 10,
   enabled: true,
   intervalMinutes: 60,

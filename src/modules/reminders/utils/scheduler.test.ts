@@ -13,6 +13,7 @@ import type { ReminderPreferences } from '../types';
 import { calculateReminderSchedule, getSmartIntervalMinutes } from './scheduler';
 
 const preferences: ReminderPreferences = {
+  activationState: 'enabled',
   defaultSnoozeMinutes: 10,
   enabled: true,
   intervalMinutes: 60,

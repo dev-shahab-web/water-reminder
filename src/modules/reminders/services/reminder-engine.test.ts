@@ -8,6 +8,9 @@ import {
 import { defaultReminderPreferences } from '../repository/reminder-preferences-storage';
 import type { ReminderPreferences } from '../types';
 import {
+  activateRemindersWithGrantedPermission,
+  enableReminders,
+  getReminderStatus,
   reconcileReminderSchedule,
   updateDefaultSnoozePreference,
   updateReminderModePreference,
@@ -22,6 +25,12 @@ const mockScheduleLocalNotification = jest.fn(async (request: { identifier?: str
   request.identifier === undefined ? 'scheduled-id' : request.identifier,
 );
 const mockRefreshHydrationWidgets = jest.fn(async (_reason: string) => undefined);
+const mockInitializeNotificationInfrastructure = jest.fn(async () => undefined);
+const mockRequestNotificationPermissions = jest.fn(async () => ({
+  canAskAgain: true,
+  granted: true,
+  status: 'granted',
+}));
 
 jest.mock('@platform/storage', () => ({
   getStorage: () => ({
@@ -53,7 +62,8 @@ jest.mock('@platform/storage', () => ({
 jest.mock('@platform/notifications', () => ({
   cancelLocalNotifications: (identifiers: readonly string[]) =>
     mockCancelLocalNotifications(identifiers),
-  requestNotificationPermissions: jest.fn(),
+  initializeNotificationInfrastructure: () => mockInitializeNotificationInfrastructure(),
+  requestNotificationPermissions: () => mockRequestNotificationPermissions(),
   scheduleLocalNotification: (request: { identifier?: string }) =>
     mockScheduleLocalNotification(request),
 }));
@@ -78,6 +88,58 @@ describe('reminder engine experience preferences', () => {
     mockCancelLocalNotifications.mockClear();
     mockScheduleLocalNotification.mockClear();
     mockRefreshHydrationWidgets.mockClear();
+    mockInitializeNotificationInfrastructure.mockClear();
+    mockRequestNotificationPermissions.mockClear();
+    mockRequestNotificationPermissions.mockResolvedValue({
+      canAskAgain: true,
+      granted: true,
+      status: 'granted',
+    });
+  });
+
+  it('enables reminders after notification permission is granted', async () => {
+    await expect(enableReminders(defaultReminderPreferences)).resolves.toMatchObject({
+      granted: true,
+      preferences: {
+        activationState: 'enabled',
+        enabled: true,
+      },
+    });
+    expect(mockInitializeNotificationInfrastructure).toHaveBeenCalledTimes(1);
+    expect(mockRequestNotificationPermissions).toHaveBeenCalledTimes(1);
+  });
+
+  it('activates existing onboarding reminder intent without requesting permission again', () => {
+    expect(activateRemindersWithGrantedPermission(defaultReminderPreferences)).toMatchObject({
+      activationState: 'enabled',
+      enabled: true,
+      pausedUntilIso: undefined,
+    });
+    expect(mockRequestNotificationPermissions).not.toHaveBeenCalled();
+  });
+
+  it('keeps reminders blocked and internally disabled when permission is denied', async () => {
+    mockRequestNotificationPermissions.mockResolvedValue({
+      canAskAgain: false,
+      granted: false,
+      status: 'denied',
+    });
+
+    await expect(enableReminders(defaultReminderPreferences)).resolves.toMatchObject({
+      granted: false,
+      preferences: {
+        activationState: 'not_configured',
+        enabled: false,
+      },
+    });
+    expect(
+      getReminderStatus({
+        goalAmount: 2000,
+        hasPermission: false,
+        preferences: defaultReminderPreferences,
+        totalAmount: 0,
+      }),
+    ).toBe('blocked');
   });
 
   it('enables vibration the first time Active mode is selected', () => {

@@ -48,6 +48,7 @@ describe('reminder preferences storage', () => {
     expect(mockStorageValues.get(reminderStorageKeys.preferenceSchemaVersion)).toBe(
       reminderPreferenceSchemaVersion,
     );
+    expect(mockStorageValues.get(reminderStorageKeys.activationState)).toBe('not_configured');
     expect(mockStorageValues.get(reminderStorageKeys.mode)).toBe('gentle');
     expect(mockStorageValues.get(reminderStorageKeys.vibrationEnabled)).toBe(false);
     expect(mockStorageValues.get(reminderStorageKeys.snoozeEnabled)).toBe(true);
@@ -68,6 +69,7 @@ describe('reminder preferences storage', () => {
     );
 
     expect(getReminderPreferences()).toEqual({
+      activationState: 'enabled',
       defaultSnoozeMinutes: 10,
       enabled: true,
       intervalMinutes: 90,
@@ -89,6 +91,7 @@ describe('reminder preferences storage', () => {
   it('can safely rerun migration without changing already migrated values', () => {
     setReminderPreferences({
       ...defaultReminderPreferences,
+      activationState: 'enabled',
       defaultSnoozeMinutes: 30,
       enabled: true,
       intervalMinutes: 30,
@@ -105,6 +108,7 @@ describe('reminder preferences storage', () => {
 
     expect(secondRead).toEqual(firstRead);
     expect(secondRead).toMatchObject({
+      activationState: 'enabled',
       defaultSnoozeMinutes: 30,
       mode: 'active',
       pendingSnoozeNotificationId: 'snooze-1',
@@ -121,6 +125,7 @@ describe('reminder preferences storage', () => {
       reminderPreferenceSchemaVersion,
     );
     mockStorageValues.set(reminderStorageKeys.mode, 'persistent');
+    mockStorageValues.set(reminderStorageKeys.activationState, 'maybe');
     mockStorageValues.set(reminderStorageKeys.defaultSnoozeMinutes, 45);
     mockStorageValues.set(reminderStorageKeys.soundType, 'loud');
     mockStorageValues.set(reminderStorageKeys.intervalMinutes, 12);

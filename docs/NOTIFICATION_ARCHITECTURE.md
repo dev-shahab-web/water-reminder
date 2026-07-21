@@ -53,6 +53,14 @@ Sound preferences:
 
 The Test Notification action must use the same `ReminderNotificationFactory` and `scheduleLocalNotification` pipeline as real reminders. It may only differ by delivery time.
 
+Activation state:
+
+- `not_configured`: reminders have not completed a successful app-level enable flow.
+- `enabled`: the user enabled reminders and the app may schedule local notifications when OS permission allows.
+- `disabled_by_user`: the user explicitly chose not to use reminders or turned them off.
+
+Android notification permission alone does not mean reminders are enabled. The app enables reminders only through the user-facing enable flow or a one-time migration from a previously stored onboarding intent of `enabled`. This prevents launch-time permission checks from re-enabling reminders after a user deliberately turns them off.
+
 Notification category:
 
 - `water_reminder.hydration_reminder.v1`

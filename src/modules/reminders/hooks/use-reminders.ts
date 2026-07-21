@@ -6,6 +6,7 @@ import {
   openDeviceNotificationSoundPicker,
 } from '@platform/notifications';
 import { trackEvent } from '@platform/telemetry';
+import { getOnboardingState } from '@modules/onboarding/repository/onboarding-storage';
 
 import type {
   ReminderIntervalMinutes,
@@ -16,6 +17,7 @@ import type {
   ReminderSoundPreference,
 } from '../types';
 import {
+  activateRemindersWithGrantedPermission,
   disableReminders,
   enableReminders,
   getReminderStatus,
@@ -64,6 +66,37 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
   }, []);
 
   useEffect(() => {
+    if (!hasPermission || preferences.activationState !== 'not_configured') {
+      return;
+    }
+
+    if (getOnboardingState().reminderPreference !== 'enabled') {
+      return;
+    }
+
+    let isMounted = true;
+
+    const activateFromOnboardingIntent = async () => {
+      const activatedPreferences = activateRemindersWithGrantedPermission(preferences);
+      const scheduledPreferences = await reconcileReminderSchedule({
+        goalAmount,
+        preferences: activatedPreferences,
+        totalAmount,
+      });
+
+      if (isMounted) {
+        setPreferences(scheduledPreferences);
+      }
+    };
+
+    void activateFromOnboardingIntent();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [goalAmount, hasPermission, preferences, totalAmount]);
+
+  useEffect(() => {
     if (!preferences.enabled || !hasPermission) {
       return;
     }
@@ -108,16 +141,20 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
       totalAmount,
     });
 
-    if (!preferences.enabled) {
-      return 'Reminders are off.';
-    }
-
     if (status === 'paused') {
       return 'Paused for now.';
     }
 
+    if (status === 'blocked') {
+      return 'Notifications need permission before reminders can run.';
+    }
+
     if (status === 'complete') {
       return 'Done for today. Reminders are quiet.';
+    }
+
+    if (!preferences.enabled) {
+      return 'Reminders are off.';
     }
 
     return schedule[0] === undefined
@@ -143,14 +180,22 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
 
     const result = await enableReminders(preferences);
     trackEvent(result.granted ? 'reminder_enabled' : 'reminder_disabled', { source: 'app' });
-    setPreferences(result.preferences);
     setHasPermission(result.granted);
 
     if (!result.granted) {
+      setPreferences(result.preferences);
       setPermissionMessage('Notifications are blocked. Manual tracking still works.');
       await playErrorHaptic();
+      return;
     }
-  }, [preferences]);
+
+    const scheduledPreferences = await reconcileReminderSchedule({
+      goalAmount,
+      preferences: result.preferences,
+      totalAmount,
+    });
+    setPreferences(scheduledPreferences);
+  }, [goalAmount, preferences, totalAmount]);
 
   const updateInterval = useCallback(
     (intervalMinutes: ReminderIntervalMinutes) => {

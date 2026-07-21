@@ -8,7 +8,12 @@ import {
   clampHydrationGoal,
   useOnboardingState,
 } from '@modules/onboarding';
-import { requestNotificationPermissions } from '@platform/notifications';
+import {
+  disableReminders,
+  enableReminders,
+  loadReminderPreferences,
+  reconcileReminderSchedule,
+} from '@modules/reminders/services/reminder-engine';
 import { OnboardingPage, PrimaryButton, SecondaryButton, SectionHeader } from '@shared/components';
 import type { AppTheme } from '@shared/theme';
 
@@ -39,14 +44,24 @@ export default function ReminderPermissionScreen() {
     router.replace('/');
   };
 
+  const skipReminders = async () => {
+    await disableReminders(loadReminderPreferences());
+    finishOnboarding('manual');
+  };
+
   const handleEnableReminders = async () => {
     setIsRequestingPermission(true);
     setPermissionMessage(undefined);
 
     try {
-      const permissions = await requestNotificationPermissions();
+      const result = await enableReminders(loadReminderPreferences());
 
-      if (permissions.granted) {
+      if (result.granted) {
+        await reconcileReminderSchedule({
+          goalAmount: hydrationGoal,
+          preferences: result.preferences,
+          totalAmount: 0,
+        });
         finishOnboarding('enabled');
         return;
       }
@@ -78,7 +93,7 @@ export default function ReminderPermissionScreen() {
             disabled={isRequestingPermission}
             label="Not now"
             onPress={() => {
-              finishOnboarding('manual');
+              void skipReminders();
             }}
           />
         </>
