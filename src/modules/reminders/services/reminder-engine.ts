@@ -20,6 +20,7 @@ import {
 } from '../repository/reminder-preferences-storage';
 import { buildReminderScheduleSignature, calculateReminderSchedule } from '../utils/scheduler';
 import { addMinutes, getCurrentTimezone, getEndOfLocalDay } from '../utils/time';
+import { clearPendingSnooze } from './reminder-snooze-manager';
 
 export const loadReminderPreferences = (): ReminderPreferences => {
   const preferences = getReminderPreferences();
@@ -112,9 +113,11 @@ export const enableReminders = async (
 
   if (!permission.granted) {
     await cancelLocalNotifications(preferences.scheduledNotificationIds);
+    await clearPendingSnooze(preferences);
     const nextPreferences = setReminderPreferences({
       ...preferences,
       enabled: false,
+      pendingSnoozeNotificationId: undefined,
       scheduledNotificationIds: [],
     });
 
@@ -144,10 +147,12 @@ export const disableReminders = async (
   preferences: ReminderPreferences,
 ): Promise<ReminderPreferences> => {
   await cancelLocalNotifications(preferences.scheduledNotificationIds);
+  await clearPendingSnooze(preferences);
 
   const nextPreferences = setReminderPreferences({
     ...preferences,
     enabled: false,
+    pendingSnoozeNotificationId: undefined,
     scheduledNotificationIds: [],
   });
 
@@ -213,10 +218,12 @@ export const pauseReminders = async (
         : getEndOfLocalDay(now);
 
   await cancelLocalNotifications(preferences.scheduledNotificationIds);
+  await clearPendingSnooze(preferences);
 
   const nextPreferences = setReminderPreferences({
     ...preferences,
     pausedUntilIso: pausedUntil.toISOString(),
+    pendingSnoozeNotificationId: undefined,
     scheduledNotificationIds: [],
   });
 
