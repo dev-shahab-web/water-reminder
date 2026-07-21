@@ -1,3 +1,5 @@
+import type { HydrationReminderChannelId } from '@platform/notifications';
+
 export const REMINDER_INTERVAL_OPTIONS = [30, 60, 90, 120, 180] as const;
 export const REMINDER_PAUSE_OPTIONS = ['30min', '1hour', 'today'] as const;
 export const REMINDER_MODES = ['gentle', 'active'] as const;
@@ -40,9 +42,15 @@ export type ReminderScheduleInput = {
 };
 
 export type ReminderScheduleItem = {
+  androidChannelId: HydrationReminderChannelId;
   body: string;
+  categoryIdentifier?: string;
+  data: Record<string, unknown>;
   date: Date;
+  identifier: string;
+  sound: false | 'default';
   title: string;
+  vibrate?: number[];
 };
 
 export type ReminderStatus = 'active' | 'blocked' | 'disabled' | 'paused' | 'complete';

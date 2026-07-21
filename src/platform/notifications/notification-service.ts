@@ -28,6 +28,7 @@ export type LocalNotificationRequest = {
   categoryIdentifier?: string;
   data?: Record<string, unknown>;
   date: Date;
+  identifier?: string;
   sound?: false | 'default';
   title: string;
   vibrate?: number[];
@@ -139,6 +140,7 @@ export const scheduleLocalNotification = async ({
   categoryIdentifier,
   data,
   date,
+  identifier,
   sound = false,
   title,
   vibrate,
@@ -155,6 +157,7 @@ export const scheduleLocalNotification = async ({
         sound,
         title,
       },
+      ...(identifier === undefined ? {} : { identifier }),
       trigger: {
         ...(androidChannelId === undefined ? {} : { channelId: androidChannelId }),
         date,
