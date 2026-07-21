@@ -3,6 +3,19 @@ import { Platform } from 'react-native';
 
 import { logger } from '@core/logger';
 
+import {
+  REMINDER_ACTION_DISMISS,
+  REMINDER_ACTION_DRINK,
+  REMINDER_ACTION_SNOOZE,
+  REMINDER_NOTIFICATION_CATEGORY,
+  isReminderNotificationData,
+  reminderNotificationActionLabels,
+} from './notification-actions';
+import {
+  ensureNotificationChannels,
+  type HydrationReminderChannelId,
+} from './notification-channels';
+
 export type NotificationRegistrationStatus = {
   canAskAgain: boolean;
   granted: boolean;
@@ -10,9 +23,14 @@ export type NotificationRegistrationStatus = {
 };
 
 export type LocalNotificationRequest = {
+  androidChannelId?: HydrationReminderChannelId;
   body: string;
+  categoryIdentifier?: string;
+  data?: Record<string, unknown>;
   date: Date;
+  sound?: false | 'default';
   title: string;
+  vibrate?: number[];
 };
 
 export const requestNotificationPermissions = async (): Promise<NotificationRegistrationStatus> => {
@@ -47,6 +65,14 @@ export const getNotificationRegistrationStatus =
   };
 
 export const initializeNotifications = async (): Promise<NotificationRegistrationStatus> => {
+  await initializeNotificationInfrastructure();
+
+  return getNotificationRegistrationStatus();
+};
+
+let categorySetupPromise: Promise<void> | null = null;
+
+export const initializeNotificationInfrastructure = async (): Promise<void> => {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldPlaySound: false,
@@ -56,32 +82,81 @@ export const initializeNotifications = async (): Promise<NotificationRegistratio
     }),
   });
 
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      importance: Notifications.AndroidImportance.DEFAULT,
-      name: 'Default',
-    });
+  await Promise.all([ensureNotificationChannels(), ensureNotificationCategories()]);
+};
+
+export const ensureNotificationCategories = async (): Promise<void> => {
+  if (Platform.OS === 'web') {
+    return;
   }
 
-  return getNotificationRegistrationStatus();
+  if (categorySetupPromise) {
+    return categorySetupPromise;
+  }
+
+  categorySetupPromise = Notifications.setNotificationCategoryAsync(
+    REMINDER_NOTIFICATION_CATEGORY,
+    [
+      {
+        buttonTitle: reminderNotificationActionLabels[REMINDER_ACTION_DRINK],
+        identifier: REMINDER_ACTION_DRINK,
+        options: {
+          opensAppToForeground: true,
+        },
+      },
+      {
+        buttonTitle: reminderNotificationActionLabels[REMINDER_ACTION_SNOOZE],
+        identifier: REMINDER_ACTION_SNOOZE,
+        options: {
+          opensAppToForeground: true,
+        },
+      },
+      {
+        buttonTitle: reminderNotificationActionLabels[REMINDER_ACTION_DISMISS],
+        identifier: REMINDER_ACTION_DISMISS,
+        options: {
+          opensAppToForeground: false,
+        },
+      },
+    ],
+  )
+    .then(() => undefined)
+    .catch((error: unknown) => {
+      categorySetupPromise = null;
+      logger.warn('Unable to initialize notification categories.', { error });
+    });
+
+  return categorySetupPromise;
+};
+
+export const resetNotificationCategoryInitializationForTests = (): void => {
+  categorySetupPromise = null;
 };
 
 export const scheduleLocalNotification = async ({
+  androidChannelId,
   body,
+  categoryIdentifier,
+  data,
   date,
+  sound = false,
   title,
+  vibrate,
 }: LocalNotificationRequest): Promise<string | undefined> => {
   try {
     return await Notifications.scheduleNotificationAsync({
       content: {
         body,
-        data: {
+        data: data ?? {
           source: 'hydration-reminder',
         },
-        sound: false,
+        ...(categoryIdentifier === undefined ? {} : { categoryIdentifier }),
+        ...(vibrate === undefined ? {} : { vibrate }),
+        sound,
         title,
       },
       trigger: {
+        ...(androidChannelId === undefined ? {} : { channelId: androidChannelId }),
         date,
         type: Notifications.SchedulableTriggerInputTypes.DATE,
       },
@@ -108,7 +183,9 @@ export const addNotificationResponseListener = (
   listener: () => void,
 ): Notifications.Subscription => {
   return Notifications.addNotificationResponseReceivedListener((response) => {
-    if (response.notification.request.content.data?.source === 'hydration-reminder') {
+    const data = response.notification.request.content.data;
+
+    if (data?.source === 'hydration-reminder' || isReminderNotificationData(data)) {
       listener();
     }
   });

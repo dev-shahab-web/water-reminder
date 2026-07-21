@@ -4,11 +4,19 @@ import type { ReminderPreferences } from '../types';
 import { calculateReminderSchedule, getSmartIntervalMinutes } from './scheduler';
 
 const preferences: ReminderPreferences = {
+  defaultSnoozeMinutes: 10,
   enabled: true,
   intervalMinutes: 60,
+  mode: 'gentle',
+  preferenceSchemaVersion: 1,
   scheduledNotificationIds: [],
   sleepTime: '17:00',
+  snoozeEnabled: true,
+  sound: {
+    type: 'system_default',
+  },
   timezone: 'UTC',
+  vibrationEnabled: false,
   wakeTime: '09:00',
 };
 
