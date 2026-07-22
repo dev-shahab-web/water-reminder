@@ -27,6 +27,9 @@ const mockSetNotificationChannelAsync = jest.fn(
   async (_id: string, _configuration: unknown) => null,
 );
 const mockSetNotificationHandler = jest.fn((_handler: unknown) => undefined);
+const mockAddNotificationReceivedListener = jest.fn((_listener: unknown) => ({
+  remove: jest.fn(),
+}));
 
 const setPlatform = (os: typeof Platform.OS): void => {
   Object.defineProperty(Platform, 'OS', {
@@ -45,6 +48,8 @@ jest.mock('expo-notifications', () => ({
   setNotificationChannelAsync: (id: string, configuration: unknown) =>
     mockSetNotificationChannelAsync(id, configuration),
   setNotificationHandler: (handler: unknown) => mockSetNotificationHandler(handler),
+  addNotificationReceivedListener: (listener: unknown) =>
+    mockAddNotificationReceivedListener(listener),
 }));
 
 describe('notification service infrastructure', () => {
@@ -52,6 +57,7 @@ describe('notification service infrastructure', () => {
     mockSetNotificationCategoryAsync.mockClear();
     mockSetNotificationChannelAsync.mockClear();
     mockSetNotificationHandler.mockClear();
+    mockAddNotificationReceivedListener.mockClear();
     resetNotificationCategoryInitializationForTests();
     resetNotificationChannelInitializationForTests();
     setNotificationChannelCreatorForTests(async ({ configuration, id }) => {
@@ -111,6 +117,7 @@ describe('notification service infrastructure', () => {
     expect(mockSetNotificationHandler).toHaveBeenCalledTimes(1);
     expect(mockSetNotificationChannelAsync).toHaveBeenCalledTimes(3);
     expect(mockSetNotificationCategoryAsync).toHaveBeenCalledTimes(1);
+    expect(mockAddNotificationReceivedListener).toHaveBeenCalledTimes(1);
   });
 
   it('handles category registration failures without throwing', async () => {

@@ -12,7 +12,7 @@ import { motionDuration } from './motion-tokens';
 
 type AnimatedCounterProps = {
   style?: StyleProp<TextStyle>;
-  value: number;
+  value: number | string;
 };
 
 export const AnimatedCounter = memo(function AnimatedCounter({

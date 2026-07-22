@@ -9,6 +9,8 @@ import {
 } from '@platform/haptics';
 import { trackEventSafely } from '@platform/telemetry';
 import { useAppDispatch, useAppSelector } from '@state/store/hooks';
+import type { MeasurementUnit } from '@modules/settings';
+import { getMeasurementValue, ouncesToMilliliters } from '@modules/settings/utils/settings-options';
 
 import {
   editHydrationEntry,
@@ -30,7 +32,11 @@ type AmountModalState = {
   mode: 'custom' | 'edit';
 };
 
-export const useHomeHydration = (goalAmount: number, enabled: boolean) => {
+export const useHomeHydration = (
+  goalAmount: number,
+  enabled: boolean,
+  measurementUnit: MeasurementUnit,
+) => {
   const dispatch = useAppDispatch();
   const { entries, errorMessage, status } = useAppSelector((rootState) => rootState.hydration);
   const [amountModal, setAmountModal] = useState<AmountModalState | undefined>();
@@ -55,7 +61,7 @@ export const useHomeHydration = (goalAmount: number, enabled: boolean) => {
   );
 
   const validateAmountInput = useCallback((): number | undefined => {
-    const parsedAmount = Number.parseInt(amountInput, 10);
+    const parsedAmount = Number.parseFloat(amountInput);
 
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       setAmountError('Enter an amount greater than zero.');
@@ -63,15 +69,18 @@ export const useHomeHydration = (goalAmount: number, enabled: boolean) => {
       return undefined;
     }
 
-    if (parsedAmount > maxSingleEntryAmount) {
+    const amountMl =
+      measurementUnit === 'oz' ? ouncesToMilliliters(parsedAmount) : Math.round(parsedAmount);
+
+    if (amountMl > maxSingleEntryAmount) {
       setAmountError('That is more than one entry can log.');
       void playErrorHaptic();
       return undefined;
     }
 
     setAmountError(undefined);
-    return parsedAmount;
-  }, [amountInput]);
+    return amountMl;
+  }, [amountInput, measurementUnit]);
 
   const playLogFeedback = useCallback(
     async ({ nextTotal, previousTotal }: { nextTotal: number; previousTotal: number }) => {
@@ -180,11 +189,14 @@ export const useHomeHydration = (goalAmount: number, enabled: boolean) => {
     trackEventSafely('custom_amount_opened', { source: 'app' });
   }, []);
 
-  const openEditEntry = useCallback((entry: HydrationEntry) => {
-    setAmountError(undefined);
-    setAmountInput(String(entry.amount));
-    setAmountModal({ entry, mode: 'edit' });
-  }, []);
+  const openEditEntry = useCallback(
+    (entry: HydrationEntry) => {
+      setAmountError(undefined);
+      setAmountInput(String(getMeasurementValue(entry.amount, measurementUnit)));
+      setAmountModal({ entry, mode: 'edit' });
+    },
+    [measurementUnit],
+  );
 
   const closeAmountModal = useCallback(() => {
     setAmountModal(undefined);
@@ -209,10 +221,17 @@ export const useHomeHydration = (goalAmount: number, enabled: boolean) => {
     }
   }, [dispatch]);
 
-  const changeAmountInput = useCallback((value: string) => {
-    setAmountInput(value.replace(/\D/g, ''));
-    setAmountError(undefined);
-  }, []);
+  const changeAmountInput = useCallback(
+    (value: string) => {
+      setAmountInput(
+        measurementUnit === 'oz'
+          ? value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1')
+          : value.replace(/\D/g, ''),
+      );
+      setAmountError(undefined);
+    },
+    [measurementUnit],
+  );
 
   const undoRecentLog = useCallback(async () => {
     if (lastLoggedEntry === undefined) {
@@ -258,9 +277,13 @@ export const useHomeHydration = (goalAmount: number, enabled: boolean) => {
     [dispatch, lastLoggedEntry],
   );
 
-  const parsedAmountInput = Number.parseInt(amountInput, 10);
+  const parsedAmountInput = Number.parseFloat(amountInput);
+  const parsedAmountInputMl =
+    measurementUnit === 'oz' && Number.isFinite(parsedAmountInput)
+      ? ouncesToMilliliters(parsedAmountInput)
+      : parsedAmountInput;
   const guidanceMessage =
-    parsedAmountInput > largeEntryAmount
+    parsedAmountInputMl > largeEntryAmount
       ? 'That looks high for one drink. Save it only if it is right.'
       : undefined;
 

@@ -3,21 +3,30 @@ import { useTheme } from 'react-native-paper';
 
 import { AnimatedCard } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
+import type { MeasurementUnit } from '@modules/settings';
+import { formatMeasurementAmount } from '@modules/settings/utils/settings-options';
 
 import type { HydrationSummary } from '../../types';
 
 type HistoryDaySummaryProps = {
+  measurementUnit: MeasurementUnit;
   summary: HydrationSummary;
 };
 
-export function HistoryDaySummary({ summary }: HistoryDaySummaryProps) {
+export function HistoryDaySummary({ measurementUnit, summary }: HistoryDaySummaryProps) {
   const theme = useTheme<AppTheme>();
   const percentComplete = Math.round(summary.percent * 100);
   const isComplete = summary.totalAmount >= summary.goalAmount;
 
   return (
     <AnimatedCard
-      accessibilityLabel={`${summary.totalAmount} milliliters logged. Daily goal ${summary.goalAmount} milliliters. ${percentComplete} percent complete.`}
+      accessibilityLabel={`${formatMeasurementAmount(
+        summary.totalAmount,
+        measurementUnit,
+      )} logged. Daily goal ${formatMeasurementAmount(
+        summary.goalAmount,
+        measurementUnit,
+      )}. ${percentComplete} percent complete.`}
       style={[
         styles.card,
         {
@@ -27,11 +36,15 @@ export function HistoryDaySummary({ summary }: HistoryDaySummaryProps) {
         },
       ]}
     >
-      <Metric label="Total" value={`${summary.totalAmount} ml`} />
-      <Metric label="Goal" value={`${summary.goalAmount} ml`} />
+      <Metric label="Total" value={formatMeasurementAmount(summary.totalAmount, measurementUnit)} />
+      <Metric label="Goal" value={formatMeasurementAmount(summary.goalAmount, measurementUnit)} />
       <Metric
         label={isComplete ? 'Status' : 'Remaining'}
-        value={isComplete ? 'Goal met' : `${summary.remainingAmount} ml`}
+        value={
+          isComplete
+            ? 'Goal met'
+            : formatMeasurementAmount(summary.remainingAmount, measurementUnit)
+        }
       />
     </AnimatedCard>
   );

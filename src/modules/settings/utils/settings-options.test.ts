@@ -23,10 +23,11 @@ describe('settings options', () => {
   });
 
   it('converts hydration amounts between ml and oz', () => {
-    expect(millilitersToOunces(250)).toBe(8);
+    expect(millilitersToOunces(250)).toBeCloseTo(8.45, 2);
     expect(ouncesToMilliliters(8)).toBe(237);
     expect(formatMeasurementAmount(500, 'ml')).toBe('500 ml');
-    expect(formatMeasurementAmount(500, 'oz')).toBe('17 oz');
+    expect(formatMeasurementAmount(250, 'oz')).toBe('8.45 oz');
+    expect(formatMeasurementAmount(500, 'oz')).toBe('16.91 oz');
   });
 
   it('returns readable theme labels', () => {

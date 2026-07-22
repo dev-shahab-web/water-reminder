@@ -1,4 +1,9 @@
-import { cancelLocalNotifications, scheduleLocalNotification } from '@platform/notifications';
+import {
+  cancelLocalNotifications,
+  getScheduledLocalNotifications,
+  scheduleLocalNotification,
+} from '@platform/notifications';
+import { logger } from '@core/logger';
 
 import type { ReminderPreferences, ReminderSnoozeMinutes } from '../types';
 import {
@@ -47,21 +52,42 @@ const snoozeReminderWithoutLock = async ({
   preferences: ReminderPreferences;
 }): Promise<ReminderPreferences> => {
   if (!preferences.snoozeEnabled) {
+    logger.info('Reminder snooze skipped.', {
+      reason: 'snooze_disabled',
+    });
     return preferences;
   }
 
   const snoozeMinutes = durationMinutes ?? preferences.defaultSnoozeMinutes;
 
   if (!isReminderSnoozeMinutes(snoozeMinutes)) {
+    logger.info('Reminder snooze skipped.', {
+      reason: 'invalid_duration',
+    });
     return preferences;
   }
+
+  logger.info('Reminder snooze preferences loaded.', {
+    defaultSnoozeMinutes: preferences.defaultSnoozeMinutes,
+    mode: preferences.mode,
+    snoozeEnabled: preferences.snoozeEnabled,
+  });
 
   await cancelPendingSnoozeNotification(preferences);
 
   const date = addMinutes(now, snoozeMinutes);
   const pendingSnoozeTargetIso = date.toISOString();
 
+  logger.info('Reminder snooze target calculated.', {
+    durationMinutes: snoozeMinutes,
+    targetIso: pendingSnoozeTargetIso,
+  });
+
   if (isSnoozeWithinNormalReminderMergeWindow({ preferences, targetDate: date })) {
+    logger.info('Reminder snooze skipped.', {
+      reason: 'base_schedule_collision',
+      targetIso: pendingSnoozeTargetIso,
+    });
     return setReminderPreferences({
       ...preferences,
       pendingSnoozeNotificationId: undefined,
@@ -79,18 +105,47 @@ const snoozeReminderWithoutLock = async ({
     source: 'snoozed',
     vibrationEnabled: preferences.vibrationEnabled,
   });
+  logger.info('Reminder snooze schedule requested.', {
+    channelId: notificationContent.androidChannelId,
+    occurrenceId,
+    targetIso: pendingSnoozeTargetIso,
+  });
   const pendingSnoozeNotificationId = await scheduleLocalNotification({
     ...notificationContent,
     date,
     identifier: occurrenceId,
   });
+  logger.info('Reminder snooze schedule completed.', {
+    notificationId: pendingSnoozeNotificationId,
+    targetIso: pendingSnoozeTargetIso,
+  });
 
-  return setReminderPreferences({
+  const nextPreferences = setReminderPreferences({
     ...preferences,
     pendingSnoozeNotificationId,
     pendingSnoozeTargetIso:
       pendingSnoozeNotificationId === undefined ? undefined : pendingSnoozeTargetIso,
   });
+
+  logger.info('Reminder snooze persisted.', {
+    pendingSnoozeNotificationId: nextPreferences.pendingSnoozeNotificationId,
+    pendingSnoozeTargetIso: nextPreferences.pendingSnoozeTargetIso,
+  });
+
+  const scheduledNotifications = await getScheduledLocalNotifications();
+  logger.info('Reminder snooze scheduled notification audit.', {
+    scheduledHydrationNotificationCount: scheduledNotifications.filter((notification) =>
+      notification.identifier.startsWith('hydration-reminder'),
+    ).length,
+    snoozeNotificationPresent:
+      pendingSnoozeNotificationId === undefined
+        ? false
+        : scheduledNotifications.some(
+            (notification) => notification.identifier === pendingSnoozeNotificationId,
+          ),
+  });
+
+  return nextPreferences;
 };
 
 export const clearPendingSnooze = async (

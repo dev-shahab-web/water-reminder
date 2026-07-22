@@ -31,6 +31,7 @@ import {
   updateReminderSnoozePreference,
   updateReminderVibrationPreference,
 } from '../services/reminder-engine';
+import { subscribeToReminderPreferences } from '../repository/reminder-preferences-storage';
 import { calculateReminderSchedule } from '../utils/scheduler';
 import { formatReminderTime } from '../utils/time';
 
@@ -75,6 +76,14 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    return subscribeToReminderPreferences(() => {
+      const nextPreferences = loadReminderPreferences();
+      preferenceVersionRef.current += 1;
+      setPreferences(nextPreferences);
+    });
   }, []);
 
   useEffect(() => {

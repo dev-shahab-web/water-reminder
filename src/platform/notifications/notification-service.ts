@@ -85,6 +85,7 @@ export const initializeNotifications = async (): Promise<NotificationRegistratio
 };
 
 let categorySetupPromise: Promise<void> | null = null;
+let receivedTraceSubscription: Notifications.Subscription | undefined;
 
 export const initializeNotificationInfrastructure = async (): Promise<void> => {
   Notifications.setNotificationHandler({
@@ -97,6 +98,7 @@ export const initializeNotificationInfrastructure = async (): Promise<void> => {
   });
 
   await Promise.all([ensureNotificationChannels(), ensureNotificationCategories()]);
+  ensureReminderDeliveryTrace();
 };
 
 export const ensureNotificationCategories = async (): Promise<void> => {
@@ -145,6 +147,26 @@ export const ensureNotificationCategories = async (): Promise<void> => {
 
 export const resetNotificationCategoryInitializationForTests = (): void => {
   categorySetupPromise = null;
+  receivedTraceSubscription = undefined;
+};
+
+const ensureReminderDeliveryTrace = (): void => {
+  if (receivedTraceSubscription !== undefined) {
+    return;
+  }
+
+  receivedTraceSubscription = Notifications.addNotificationReceivedListener((notification) => {
+    const data = notification.request.content.data;
+
+    if (!isReminderNotificationData(data)) {
+      return;
+    }
+
+    logger.info('Reminder notification delivered.', {
+      identifier: notification.request.identifier,
+      source: data.source,
+    });
+  });
 };
 
 export const scheduleLocalNotification = async ({
@@ -230,6 +252,11 @@ export const addNotificationResponseListener = (
     const data = response.notification.request.content.data;
 
     if (data?.source === 'hydration-reminder' || isReminderNotificationData(data)) {
+      logger.info('Reminder notification action received.', {
+        actionIdentifier: response.actionIdentifier,
+        notificationIdentifier: response.notification.request.identifier,
+        source: isReminderNotificationData(data) ? data.source : 'legacy',
+      });
       listener({
         actionIdentifier: response.actionIdentifier,
         data,

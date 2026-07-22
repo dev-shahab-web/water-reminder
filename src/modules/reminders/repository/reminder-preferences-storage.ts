@@ -54,6 +54,22 @@ export const defaultReminderPreferences: ReminderPreferences = {
   wakeTime: '09:00',
 };
 
+const subscribers = new Set<() => void>();
+
+const notifySubscribers = () => {
+  subscribers.forEach((subscriber) => {
+    subscriber();
+  });
+};
+
+export const subscribeToReminderPreferences = (subscriber: () => void): (() => void) => {
+  subscribers.add(subscriber);
+
+  return () => {
+    subscribers.delete(subscriber);
+  };
+};
+
 const isIntervalOption = (value: number | undefined): value is ReminderIntervalMinutes => {
   return value === 30 || value === 60 || value === 90 || value === 120 || value === 180;
 };
@@ -232,6 +248,7 @@ export const setReminderPreferences = (preferences: ReminderPreferences): Remind
   }
 
   storage.remove(reminderStorageKeys.soundCustomName);
+  notifySubscribers();
 
   return preferences;
 };

@@ -16,12 +16,19 @@ import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { AnimatedCounter, motionDuration } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
+import type { MeasurementUnit } from '@modules/settings';
+import {
+  formatMeasurementAmount,
+  getMeasurementUnitLabel,
+  getMeasurementValue,
+} from '@modules/settings/utils/settings-options';
 
 type HydrationRingProps = {
   attentionKey?: string;
   continuousMotionEnabled?: boolean;
   goalAmount: number;
   message: string;
+  measurementUnit: MeasurementUnit;
   remainingAmount: number;
   reduceMotion?: boolean;
   totalAmount: number;
@@ -41,6 +48,7 @@ export const HydrationRing = memo(function HydrationRing({
   continuousMotionEnabled = true,
   goalAmount,
   message,
+  measurementUnit,
   remainingAmount,
   reduceMotion = false,
   totalAmount,
@@ -186,7 +194,7 @@ export const HydrationRing = memo(function HydrationRing({
     <Animated.View
       accessibilityLabel={`${totalAmount} milliliters logged. ${
         isComplete ? 'Daily goal complete.' : `${remainingAmount} milliliters remaining.`
-      } Daily goal ${goalAmount} milliliters.`}
+      } Daily goal ${formatMeasurementAmount(goalAmount, measurementUnit)}.`}
       accessibilityRole="progressbar"
       accessibilityValue={{
         max: goalAmount,
@@ -280,7 +288,7 @@ export const HydrationRing = memo(function HydrationRing({
           ]}
         />
         <View style={styles.centerCopy}>
-          <AnimatedAmount amount={totalAmount} />
+          <AnimatedAmount amount={getMeasurementValue(totalAmount, measurementUnit)} />
           <Text
             style={[
               styles.unit,
@@ -292,7 +300,7 @@ export const HydrationRing = memo(function HydrationRing({
               },
             ]}
           >
-            ml today
+            {getMeasurementUnitLabel(measurementUnit)} today
           </Text>
           <Text
             style={[
@@ -324,7 +332,7 @@ export const HydrationRing = memo(function HydrationRing({
 });
 
 type AnimatedAmountProps = {
-  amount: number;
+  amount: number | string;
 };
 
 function AnimatedAmount({ amount }: AnimatedAmountProps) {

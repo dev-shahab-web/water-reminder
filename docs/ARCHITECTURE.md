@@ -607,6 +607,13 @@ Canonical rules:
 - `healthConnectDataOrigin` records the origin package when Health Connect provides it.
 - `healthConnectSyncedAt` records the last local sync time for explainability.
 
+Measurement units:
+
+- Hydration entries, goals, quick-add presets, widget snapshots, reminders, Health Connect values, imports, and exports remain canonical milliliters.
+- `settingsMeasurementUnit` controls display only.
+- UI surfaces convert at the display/input boundary, then convert back to milliliters before persistence.
+- Never store mixed-unit hydration records.
+
 Database files:
 
 - `src/platform/database/database-service.native.ts`
@@ -776,6 +783,7 @@ Home remains the fast habit loop, not a settings dashboard.
 - Quick Add presets are stored in MMKV as small preference-style configuration.
 - Default presets are 250 ml, 500 ml, and 750 ml.
 - Presets have stable ids, preserve user order, validate 50-5,000 ml, reject duplicates, and keep at least one preset.
+- Preset amounts are persisted in milliliters and displayed in the selected measurement unit.
 - Preset management lives in `/quick-add-presets`.
 - Today's activity on Home is a horizontal recent-entry strip limited to recent items; full history remains on the History screen.
 - Detailed reminder configuration lives in `/settings/reminders`; Home renders only a compact reminder summary with pause/resume and settings shortcuts.

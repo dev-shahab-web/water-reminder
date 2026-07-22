@@ -11,22 +11,28 @@ import { useTheme } from 'react-native-paper';
 
 import { motionDuration } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
+import type { MeasurementUnit } from '@modules/settings';
+import { formatMeasurementAmount } from '@modules/settings/utils/settings-options';
 
 import type { DailyHydrationPoint } from '../types/statistics';
 
 type WeeklyBarChartProps = {
   goalAmount: number;
+  measurementUnit: MeasurementUnit;
   points: readonly DailyHydrationPoint[];
 };
 
-export function WeeklyBarChart({ goalAmount, points }: WeeklyBarChartProps) {
+export function WeeklyBarChart({ goalAmount, measurementUnit, points }: WeeklyBarChartProps) {
   const theme = useTheme<AppTheme>();
   const maxValue = Math.max(goalAmount, ...points.map((point) => point.totalAmount), 1);
 
   return (
     <View
       accessibilityLabel={points
-        .map((point) => `${point.dateKey}: ${point.totalAmount} milliliters`)
+        .map(
+          (point) =>
+            `${point.dateKey}: ${formatMeasurementAmount(point.totalAmount, measurementUnit)}`,
+        )
         .join('. ')}
       style={styles.container}
     >
@@ -92,7 +98,7 @@ export function WeeklyBarChart({ goalAmount, points }: WeeklyBarChartProps) {
                     },
                   ]}
                 >
-                  {point.totalAmount}
+                  {formatMeasurementAmount(point.totalAmount, measurementUnit)}
                 </Text>
               </View>
             );

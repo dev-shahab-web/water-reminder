@@ -11,6 +11,16 @@ const mockCancelLocalNotifications = jest.fn(async (_identifiers: readonly strin
 const mockScheduleLocalNotification = jest.fn(async (request: { identifier?: string }) =>
   request.identifier === undefined ? 'snooze-id' : request.identifier,
 );
+const mockGetScheduledLocalNotifications = jest.fn(async () => [
+  {
+    data: {
+      schemaVersion: 1,
+      source: 'snoozed',
+      type: 'hydration_reminder',
+    },
+    identifier: 'hydration-reminder-snooze-1784628600000',
+  },
+]);
 
 jest.mock('@platform/storage', () => ({
   getStorage: () => ({
@@ -42,6 +52,7 @@ jest.mock('@platform/storage', () => ({
 jest.mock('@platform/notifications', () => ({
   cancelLocalNotifications: (identifiers: readonly string[]) =>
     mockCancelLocalNotifications(identifiers),
+  getScheduledLocalNotifications: () => mockGetScheduledLocalNotifications(),
   scheduleLocalNotification: (request: { identifier?: string }) =>
     mockScheduleLocalNotification(request),
 }));
@@ -60,6 +71,7 @@ describe('reminder snooze manager', () => {
   beforeEach(() => {
     mockStorageValues.clear();
     mockCancelLocalNotifications.mockClear();
+    mockGetScheduledLocalNotifications.mockClear();
     mockScheduleLocalNotification.mockClear();
   });
 

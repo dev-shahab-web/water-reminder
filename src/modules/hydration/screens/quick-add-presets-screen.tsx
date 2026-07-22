@@ -11,6 +11,12 @@ import {
   SectionHeader,
 } from '@shared/components';
 import type { AppTheme } from '@shared/theme';
+import { useSettingsSnapshot } from '@modules/settings';
+import {
+  formatMeasurementAmount,
+  getMeasurementValue,
+  ouncesToMilliliters,
+} from '@modules/settings/utils/settings-options';
 
 import type { QuickAddPreset } from '../types';
 import {
@@ -23,6 +29,7 @@ import { useQuickAddPresets } from '../hooks/use-quick-add-presets';
 
 export function QuickAddPresetsScreen() {
   const theme = useTheme<AppTheme>();
+  const settings = useSettingsSnapshot();
   const { addPreset, movePreset, presets, removePreset, updatePreset } = useQuickAddPresets();
   const [draftAmount, setDraftAmount] = useState('');
   const [editingPreset, setEditingPreset] = useState<QuickAddPreset | undefined>();
@@ -35,7 +42,11 @@ export function QuickAddPresetsScreen() {
   };
 
   const savePreset = () => {
-    const amountMl = Number.parseInt(draftAmount, 10);
+    const parsedAmount = Number.parseFloat(draftAmount);
+    const amountMl =
+      settings.measurementUnit === 'oz'
+        ? ouncesToMilliliters(parsedAmount)
+        : Math.round(parsedAmount);
     const validationMessage = validateQuickAddPresetAmount({
       amountMl,
       currentPresetId: editingPreset?.id,
@@ -62,30 +73,34 @@ export function QuickAddPresetsScreen() {
 
   const startEditing = (preset: QuickAddPreset) => {
     setEditingPreset(preset);
-    setDraftAmount(String(preset.amountMl));
+    setDraftAmount(String(getMeasurementValue(preset.amountMl, settings.measurementUnit)));
     setErrorMessage(undefined);
   };
 
   const confirmRemovePreset = (preset: QuickAddPreset) => {
-    Alert.alert('Remove quick add preset?', `${preset.amountMl} ml will leave Quick add.`, [
-      { style: 'cancel', text: 'Keep it' },
-      {
-        onPress: () => {
-          try {
-            removePreset(preset.id);
-            if (editingPreset?.id === preset.id) {
-              resetDraft();
+    Alert.alert(
+      'Remove quick add preset?',
+      `${formatMeasurementAmount(preset.amountMl, settings.measurementUnit)} will leave Quick add.`,
+      [
+        { style: 'cancel', text: 'Keep it' },
+        {
+          onPress: () => {
+            try {
+              removePreset(preset.id);
+              if (editingPreset?.id === preset.id) {
+                resetDraft();
+              }
+            } catch (error) {
+              setErrorMessage(
+                error instanceof Error ? error.message : 'Preset could not be removed.',
+              );
             }
-          } catch (error) {
-            setErrorMessage(
-              error instanceof Error ? error.message : 'Preset could not be removed.',
-            );
-          }
+          },
+          style: 'destructive',
+          text: 'Remove',
         },
-        style: 'destructive',
-        text: 'Remove',
-      },
-    ]);
+      ],
+    );
   };
 
   const canAddPreset = editingPreset !== undefined || presets.length < maxQuickAddPresetCount;
@@ -142,7 +157,13 @@ export function QuickAddPresetsScreen() {
         ]}
       >
         <SectionHeader
-          subtitle={`${minQuickAddPresetAmountMl}-${maxQuickAddPresetAmountMl} ml · up to ${maxQuickAddPresetCount} presets`}
+          subtitle={`${formatMeasurementAmount(
+            minQuickAddPresetAmountMl,
+            settings.measurementUnit,
+          )}-${formatMeasurementAmount(
+            maxQuickAddPresetAmountMl,
+            settings.measurementUnit,
+          )} · up to ${maxQuickAddPresetCount} presets`}
           title={editingPreset === undefined ? 'Add preset' : 'Edit preset'}
         />
         <View style={styles.inputRow}>
@@ -151,7 +172,11 @@ export function QuickAddPresetsScreen() {
             editable={canAddPreset}
             keyboardType="number-pad"
             onChangeText={(value) => {
-              setDraftAmount(value.replace(/\D/g, ''));
+              setDraftAmount(
+                settings.measurementUnit === 'oz'
+                  ? value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1')
+                  : value.replace(/\D/g, ''),
+              );
               setErrorMessage(undefined);
             }}
             placeholder="Amount"
@@ -231,7 +256,7 @@ export function QuickAddPresetsScreen() {
                   },
                 ]}
               >
-                {preset.amountMl} ml
+                {formatMeasurementAmount(preset.amountMl, settings.measurementUnit)}
               </Text>
               <Text
                 style={[
@@ -248,7 +273,10 @@ export function QuickAddPresetsScreen() {
             </View>
             <View style={styles.rowActions}>
               <IconButton
-                accessibilityLabel={`Move ${preset.amountMl} milliliter preset earlier`}
+                accessibilityLabel={`Move ${formatMeasurementAmount(
+                  preset.amountMl,
+                  settings.measurementUnit,
+                )} preset earlier`}
                 disabled={index === 0}
                 icon="chevron-up"
                 onPress={() => {
@@ -258,7 +286,10 @@ export function QuickAddPresetsScreen() {
                 style={styles.rowButton}
               />
               <IconButton
-                accessibilityLabel={`Move ${preset.amountMl} milliliter preset later`}
+                accessibilityLabel={`Move ${formatMeasurementAmount(
+                  preset.amountMl,
+                  settings.measurementUnit,
+                )} preset later`}
                 disabled={index === presets.length - 1}
                 icon="chevron-down"
                 onPress={() => {
@@ -268,7 +299,10 @@ export function QuickAddPresetsScreen() {
                 style={styles.rowButton}
               />
               <IconButton
-                accessibilityLabel={`Edit ${preset.amountMl} milliliter preset`}
+                accessibilityLabel={`Edit ${formatMeasurementAmount(
+                  preset.amountMl,
+                  settings.measurementUnit,
+                )} preset`}
                 icon="pencil-outline"
                 onPress={() => {
                   startEditing(preset);
@@ -277,7 +311,10 @@ export function QuickAddPresetsScreen() {
                 style={styles.rowButton}
               />
               <IconButton
-                accessibilityLabel={`Remove ${preset.amountMl} milliliter preset`}
+                accessibilityLabel={`Remove ${formatMeasurementAmount(
+                  preset.amountMl,
+                  settings.measurementUnit,
+                )} preset`}
                 disabled={presets.length <= 1}
                 icon="trash-can-outline"
                 onPress={() => {

@@ -4,23 +4,32 @@ import { Icon, useTheme } from 'react-native-paper';
 
 import { AnimatedPressableScale } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
+import type { MeasurementUnit } from '@modules/settings';
+import {
+  getMeasurementUnitLabel,
+  getMeasurementValue,
+} from '@modules/settings/utils/settings-options';
 
 type QuickAddButtonProps = {
   amount: number;
   disabled?: boolean;
+  measurementUnit: MeasurementUnit;
   onPress: () => void;
 };
 
 export const QuickAddButton = memo(function QuickAddButton({
   amount,
   disabled = false,
+  measurementUnit,
   onPress,
 }: QuickAddButtonProps) {
   const theme = useTheme<AppTheme>();
 
   return (
     <AnimatedPressableScale
-      accessibilityLabel={`Add ${amount} milliliters of water`}
+      accessibilityLabel={`Add ${getMeasurementValue(amount, measurementUnit)} ${getMeasurementUnitLabel(
+        measurementUnit,
+      )} of water`}
       accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
@@ -49,7 +58,7 @@ export const QuickAddButton = memo(function QuickAddButton({
             },
           ]}
         >
-          {amount}
+          {getMeasurementValue(amount, measurementUnit)}
         </Text>
         <Text
           style={[
@@ -61,7 +70,7 @@ export const QuickAddButton = memo(function QuickAddButton({
             },
           ]}
         >
-          ml
+          {getMeasurementUnitLabel(measurementUnit)}
         </Text>
       </View>
     </AnimatedPressableScale>
@@ -76,16 +85,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     justifyContent: 'center',
+    marginRight: 10,
     minHeight: 72,
     minWidth: 88,
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     shadowOffset: {
       height: 3,
       width: 0,
     },
     shadowOpacity: 0.08,
     shadowRadius: 8,
-    width: 104,
+    width: 96,
   },
   content: {
     alignItems: 'center',

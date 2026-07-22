@@ -7,6 +7,7 @@ import {
   isReminderNotificationData,
   type NotificationResponsePayload,
 } from '@platform/notifications';
+import { logger } from '@core/logger';
 import { defaultQuickAddAmountMl, loadTodayHydration, logHydration } from '@modules/hydration';
 import { getOnboardingState } from '@modules/onboarding/repository/onboarding-storage';
 import type { AppDispatch } from '@state/store';
@@ -43,6 +44,10 @@ export const handleReminderNotificationResponse = async ({
   }
 
   if (response.actionIdentifier === REMINDER_ACTION_SNOOZE) {
+    logger.info('Reminder snooze handler entered.', {
+      notificationIdentifier: response.notificationIdentifier,
+      source: response.data.source,
+    });
     await snoozeReminder({
       preferences: loadReminderPreferences(),
     });

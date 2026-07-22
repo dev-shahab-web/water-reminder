@@ -173,6 +173,7 @@ Expo notification response
 -> suppress snooze if target is within 10 minutes of a normal reminder
 -> schedule one one-off snoozed reminder
 -> persist pending snooze id and target timestamp
+-> audit Expo scheduled notification queue
 -> dismiss handled notification
 ```
 
@@ -184,6 +185,7 @@ Snooze/base schedule policy:
 - If the snooze target is within 10 minutes before or after a scheduled normal reminder, the snooze is suppressed and the normal reminder is preserved.
 - Hydration logging clears a pending snooze only after local persistence succeeds.
 - Pause, disable, goal completion, and schedule-setting changes clear pending snooze state without canceling unrelated normal notification IDs.
+- Snooze diagnostics log action receipt, handler entry, preference loading, target calculation, schedule request, returned notification id, persistence, scheduled queue audit, and delivery receipt when Expo reports delivery. Diagnostics must not log hydration history, amounts, goals, Health Connect identifiers, or reminder schedules beyond the one snooze target needed to debug delivery.
 
 Dismiss action:
 

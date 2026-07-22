@@ -5,6 +5,8 @@ import { useTheme } from 'react-native-paper';
 import { IconButton, PrimaryButton, SecondaryButton, SectionHeader } from '@shared/components';
 import { AnimatedPressableScale, EmptyState } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
+import type { MeasurementUnit } from '@modules/settings';
+import { formatMeasurementAmount } from '@modules/settings/utils/settings-options';
 
 import type { HydrationEntry } from '../types';
 import { formatEntryTime } from '../utils/date';
@@ -13,6 +15,7 @@ const maxVisibleEntries = 12;
 
 type TodayDrinksStripProps = {
   entries: readonly HydrationEntry[];
+  measurementUnit: MeasurementUnit;
   onAddDefault: () => void;
   onDeleteEntry: (entry: HydrationEntry) => void;
   onEditEntry: (entry: HydrationEntry) => void;
@@ -22,6 +25,7 @@ type TodayDrinksStripProps = {
 
 export const TodayDrinksStrip = memo(function TodayDrinksStrip({
   entries,
+  measurementUnit,
   onAddDefault,
   onDeleteEntry,
   onEditEntry,
@@ -59,9 +63,9 @@ export const TodayDrinksStrip = memo(function TodayDrinksStrip({
             variant="glass"
           />
           <PrimaryButton
-            accessibilityLabel="Add 250 milliliters of water"
+            accessibilityLabel={`Add ${formatMeasurementAmount(250, measurementUnit)} of water`}
             icon="water"
-            label="Add 250 ml"
+            label={`Add ${formatMeasurementAmount(250, measurementUnit)}`}
             onPress={onAddDefault}
           />
         </View>
@@ -73,7 +77,9 @@ export const TodayDrinksStrip = memo(function TodayDrinksStrip({
     <View style={styles.section}>
       <View style={styles.headerRow}>
         <SectionHeader
-          subtitle={`${entries.length} ${entries.length === 1 ? 'entry' : 'entries'} · ${totalAmount} ml`}
+          subtitle={`${entries.length} ${
+            entries.length === 1 ? 'entry' : 'entries'
+          } · ${formatMeasurementAmount(totalAmount, measurementUnit)}`}
           title="Today"
         />
         <SecondaryButton
@@ -91,7 +97,12 @@ export const TodayDrinksStrip = memo(function TodayDrinksStrip({
         horizontal
         keyExtractor={(entry) => entry.id}
         renderItem={({ item }) => (
-          <DrinkCard entry={item} onDeleteEntry={onDeleteEntry} onEditEntry={onEditEntry} />
+          <DrinkCard
+            entry={item}
+            measurementUnit={measurementUnit}
+            onDeleteEntry={onDeleteEntry}
+            onEditEntry={onEditEntry}
+          />
         )}
         showsHorizontalScrollIndicator={false}
       />
@@ -101,10 +112,12 @@ export const TodayDrinksStrip = memo(function TodayDrinksStrip({
 
 function DrinkCard({
   entry,
+  measurementUnit,
   onDeleteEntry,
   onEditEntry,
 }: {
   entry: HydrationEntry;
+  measurementUnit: MeasurementUnit;
   onDeleteEntry: (entry: HydrationEntry) => void;
   onEditEntry: (entry: HydrationEntry) => void;
 }) {
@@ -122,7 +135,9 @@ function DrinkCard({
       ]}
     >
       <AnimatedPressableScale
-        accessibilityLabel={`${entry.amount} milliliters at ${formatEntryTime(entry.timestamp)}. Edit entry.`}
+        accessibilityLabel={`${formatMeasurementAmount(entry.amount, measurementUnit)} at ${formatEntryTime(
+          entry.timestamp,
+        )}. Edit entry.`}
         accessibilityRole="button"
         onPress={() => {
           onEditEntry(entry);
@@ -152,7 +167,7 @@ function DrinkCard({
             },
           ]}
         >
-          {entry.amount} ml
+          {formatMeasurementAmount(entry.amount, measurementUnit)}
         </Text>
       </AnimatedPressableScale>
       <View style={styles.actions}>

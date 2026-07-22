@@ -8,6 +8,7 @@ import { useTheme } from 'react-native-paper';
 import { appConfig } from '@core/config';
 import {
   AmountEntryModal,
+  AddPresetCard,
   HydrationRing,
   QuickAddButton,
   TodayDrinksStrip,
@@ -19,6 +20,7 @@ import {
 import { useOnboardingState } from '@modules/onboarding';
 import { CompactReminderCard, useReminders } from '@modules/reminders';
 import { useSettingsSnapshot } from '@modules/settings';
+import { formatMeasurementAmount } from '@modules/settings/utils/settings-options';
 import { useStatisticsPreview } from '@modules/statistics';
 import { trackEventSafely } from '@platform/telemetry';
 import { AnimatedCard, shouldUseContinuousMotion } from '@shared/motion';
@@ -63,7 +65,7 @@ export default function HomeScreen() {
     successMessage,
     summary,
     undoRecentLog,
-  } = useHomeHydration(state.hydrationGoal, state.onboardingCompleted);
+  } = useHomeHydration(state.hydrationGoal, state.onboardingCompleted, settings.measurementUnit);
   const reminders = useReminders({
     goalAmount: summary.goalAmount,
     totalAmount: summary.totalAmount,
@@ -186,15 +188,22 @@ export default function HomeScreen() {
           })}
           goalAmount={summary.goalAmount}
           message={ringMessage}
+          measurementUnit={settings.measurementUnit}
           remainingAmount={summary.remainingAmount}
           reduceMotion={reduceMotion}
           totalAmount={summary.totalAmount}
         />
 
         <View style={styles.metricRow}>
-          <Metric label="Today" value={`${summary.totalAmount} ml`} />
-          <Metric label="Remaining" value={`${summary.remainingAmount} ml`} />
-          <Metric label="Goal" value={`${summary.goalAmount} ml`} />
+          <Metric
+            label="Remaining"
+            value={formatMeasurementAmount(summary.remainingAmount, settings.measurementUnit)}
+          />
+          <Metric
+            label="Goal"
+            value={formatMeasurementAmount(summary.goalAmount, settings.measurementUnit)}
+          />
+          <Metric label="Completion" value={`${Math.round(summary.percent * 100)}%`} />
         </View>
       </AnimatedCard>
 
@@ -222,7 +231,7 @@ export default function HomeScreen() {
               },
             ]}
           >
-            {lastLoggedEntry.amount} ml logged.
+            {formatMeasurementAmount(lastLoggedEntry.amount, settings.measurementUnit)} logged.
           </Text>
           <SecondaryButton
             accessibilityLabel={`Undo ${lastLoggedEntry.amount} milliliter log`}
@@ -276,10 +285,18 @@ export default function HomeScreen() {
           data={presets}
           horizontal
           keyExtractor={(preset) => preset.id}
+          ListFooterComponent={
+            <AddPresetCard
+              onPress={() => {
+                router.push('/quick-add-presets' as never);
+              }}
+            />
+          }
           renderItem={({ item }) => (
             <QuickAddButton
               amount={item.amountMl}
               disabled={isSaving}
+              measurementUnit={settings.measurementUnit}
               onPress={() => {
                 void logAmount(item.amountMl, 'quick_add');
               }}
@@ -294,15 +311,6 @@ export default function HomeScreen() {
             icon="plus"
             label="Custom amount"
             onPress={openCustomAmount}
-            style={styles.quickAddActionButton}
-          />
-          <SecondaryButton
-            accessibilityLabel="Manage quick add presets"
-            icon="tune"
-            label="Manage presets"
-            onPress={() => {
-              router.push('/quick-add-presets' as never);
-            }}
             style={styles.quickAddActionButton}
           />
         </View>
@@ -338,11 +346,13 @@ export default function HomeScreen() {
 
       <StatisticsPreviewCard
         currentStreak={statisticsPreview?.currentStreak ?? 0}
+        measurementUnit={settings.measurementUnit}
         weeklyAverage={statisticsPreview?.weeklyAverage ?? 0}
       />
 
       <TodayDrinksStrip
         entries={summary.entries}
+        measurementUnit={settings.measurementUnit}
         onAddDefault={() => {
           void logAmount(defaultQuickAddAmountMl, 'quick_add');
         }}
@@ -365,6 +375,7 @@ export default function HomeScreen() {
         }}
         saveLabel={amountModal?.mode === 'edit' ? 'Save changes' : 'Log water'}
         title={amountModal?.mode === 'edit' ? 'Edit entry' : 'Custom amount'}
+        unitLabel={settings.measurementUnit}
         value={amountInput}
         visible={amountModal !== undefined}
       />
@@ -374,9 +385,11 @@ export default function HomeScreen() {
 
 function StatisticsPreviewCard({
   currentStreak,
+  measurementUnit,
   weeklyAverage,
 }: {
   currentStreak: number;
+  measurementUnit: 'ml' | 'oz';
   weeklyAverage: number;
 }) {
   const theme = useTheme<AppTheme>();
@@ -395,7 +408,10 @@ function StatisticsPreviewCard({
       <SectionHeader subtitle="A quiet look at your recent rhythm." title="Statistics" />
       <View style={styles.statisticsPreviewMetrics}>
         <Metric label="Current streak" value={`${currentStreak} days`} />
-        <Metric label="Weekly average" value={`${weeklyAverage} ml`} />
+        <Metric
+          label="Weekly average"
+          value={formatMeasurementAmount(weeklyAverage, measurementUnit)}
+        />
       </View>
       <SecondaryButton
         accessibilityLabel="Open hydration statistics"
