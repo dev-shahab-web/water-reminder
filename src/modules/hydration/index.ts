@@ -35,7 +35,6 @@ export { AmountEntryModal } from './components/amount-entry-modal';
 export { HydrationRing } from './components/hydration-ring';
 export { HydrationTimeline } from './components/hydration-timeline';
 export { TodayDrinksStrip } from './components/today-drinks-strip';
-export { QuickAddButton } from './components/quick-add-button';
-export { AddPresetCard } from './components/add-preset-card';
+export { QuickAddButton, type QuickAddCardVariant } from './components/quick-add-button';
 export { useHomeHydration } from './hooks/use-home-hydration';
 export { useQuickAddPresets } from './hooks/use-quick-add-presets';
