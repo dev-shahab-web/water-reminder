@@ -76,7 +76,7 @@ describe('notification service infrastructure', () => {
         buttonTitle: 'Snooze',
         identifier: REMINDER_ACTION_SNOOZE,
         options: {
-          opensAppToForeground: true,
+          opensAppToForeground: false,
         },
       },
       {

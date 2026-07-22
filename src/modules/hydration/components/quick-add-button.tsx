@@ -75,8 +75,6 @@ const styles = StyleSheet.create({
   button: {
     alignItems: 'center',
     borderWidth: 1,
-    flexBasis: 112,
-    flexGrow: 1,
     justifyContent: 'center',
     minHeight: 72,
     minWidth: 88,
@@ -87,6 +85,7 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.08,
     shadowRadius: 8,
+    width: 104,
   },
   content: {
     alignItems: 'center',

@@ -22,7 +22,12 @@ export function AppShell() {
   useEffect(() => {
     const subscription = addNotificationResponseListener((response) => {
       void handleReminderNotificationResponse({ dispatch, response }).then((result) => {
-        if (result === 'ignored' || result === 'dismissed' || result === 'duplicate') {
+        if (
+          result === 'ignored' ||
+          result === 'dismissed' ||
+          result === 'duplicate' ||
+          result === 'snoozed'
+        ) {
           return;
         }
 

@@ -1,4 +1,5 @@
 export { ReminderCard } from './components/reminder-card';
+export { CompactReminderCard } from './components/compact-reminder-card';
 export { useReminders } from './hooks/use-reminders';
 export { handleReminderNotificationResponse } from './services/reminder-action-service';
 export { loadReminderPreferences, reconcileReminderSchedule } from './services/reminder-engine';

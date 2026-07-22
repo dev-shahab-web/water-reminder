@@ -1,6 +1,6 @@
 import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { AppState, type AppStateStatus } from 'react-native';
 import Animated, { Easing, FadeInDown, FadeOutUp, useReducedMotion } from 'react-native-reanimated';
 import { useTheme } from 'react-native-paper';
@@ -9,14 +9,15 @@ import { appConfig } from '@core/config';
 import {
   AmountEntryModal,
   HydrationRing,
-  HydrationTimeline,
   QuickAddButton,
-  quickAddAmountsMl,
+  TodayDrinksStrip,
+  defaultQuickAddAmountMl,
   getGreeting,
   useHomeHydration,
+  useQuickAddPresets,
 } from '@modules/hydration';
 import { useOnboardingState } from '@modules/onboarding';
-import { ReminderCard, useReminders } from '@modules/reminders';
+import { CompactReminderCard, useReminders } from '@modules/reminders';
 import { useSettingsSnapshot } from '@modules/settings';
 import { useStatisticsPreview } from '@modules/statistics';
 import { trackEventSafely } from '@platform/telemetry';
@@ -40,6 +41,7 @@ export default function HomeScreen() {
   const settings = useSettingsSnapshot();
   const reduceMotion = systemReduceMotion || settings.reduceMotion;
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
+  const { presets } = useQuickAddPresets();
   const {
     amountError,
     amountInput,
@@ -268,25 +270,42 @@ export default function HomeScreen() {
           subtitle="One tap is enough for the drinks you log most."
           title="Quick add"
         />
-        <View style={styles.quickAddRow}>
-          {quickAddAmountsMl.map((amount) => (
+        <FlatList
+          accessibilityLabel="Quick add water presets"
+          contentContainerStyle={styles.quickAddList}
+          data={presets}
+          horizontal
+          keyExtractor={(preset) => preset.id}
+          renderItem={({ item }) => (
             <QuickAddButton
-              key={amount}
-              amount={amount}
+              amount={item.amountMl}
               disabled={isSaving}
               onPress={() => {
-                void logAmount(amount, 'quick_add');
+                void logAmount(item.amountMl, 'quick_add');
               }}
             />
-          ))}
-        </View>
-        <PrimaryButton
-          accessibilityLabel="Add a custom water amount"
-          disabled={isSaving}
-          icon="plus"
-          label="Custom amount"
-          onPress={openCustomAmount}
+          )}
+          showsHorizontalScrollIndicator={false}
         />
+        <View style={styles.quickAddActions}>
+          <PrimaryButton
+            accessibilityLabel="Add a custom water amount"
+            disabled={isSaving}
+            icon="plus"
+            label="Custom amount"
+            onPress={openCustomAmount}
+            style={styles.quickAddActionButton}
+          />
+          <SecondaryButton
+            accessibilityLabel="Manage quick add presets"
+            icon="tune"
+            label="Manage presets"
+            onPress={() => {
+              router.push('/quick-add-presets' as never);
+            }}
+            style={styles.quickAddActionButton}
+          />
+        </View>
         <SecondaryButton
           accessibilityLabel="Open hydration history"
           icon="history"
@@ -298,36 +317,23 @@ export default function HomeScreen() {
         />
       </View>
 
-      <ReminderCard
-        defaultSnoozeMinutes={reminders.preferences.defaultSnoozeMinutes}
+      <CompactReminderCard
         enabled={reminders.preferences.enabled}
-        intervalMinutes={reminders.preferences.intervalMinutes}
         mode={reminders.preferences.mode}
-        onDefaultSnoozeChange={reminders.updateDefaultSnooze}
-        onIntervalChange={reminders.updateInterval}
-        onModeChange={reminders.updateMode}
         onPause={(option) => {
           void reminders.pause(option);
         }}
         onResume={reminders.resume}
-        onNotificationSoundPress={() => {
-          void reminders.openNotificationSoundSettings();
+        onOpenSettings={() => {
+          router.push('/settings/reminders' as never);
         }}
-        onSleepTimeChange={reminders.updateSleepTime}
-        onSnoozeEnabledChange={reminders.updateSnoozeEnabled}
         onToggleEnabled={() => {
           void reminders.toggleEnabled();
         }}
-        onVibrationChange={reminders.updateVibration}
-        onWakeTimeChange={reminders.updateWakeTime}
         permissionMessage={reminders.permissionMessage}
         preview={reminders.preview}
-        sleepTime={reminders.preferences.sleepTime}
-        snoozeEnabled={reminders.preferences.snoozeEnabled}
         status={reminders.status}
         summary={reminders.summary}
-        vibrationEnabled={reminders.preferences.vibrationEnabled}
-        wakeTime={reminders.preferences.wakeTime}
       />
 
       <StatisticsPreviewCard
@@ -335,10 +341,18 @@ export default function HomeScreen() {
         weeklyAverage={statisticsPreview?.weeklyAverage ?? 0}
       />
 
-      <HydrationTimeline
+      <TodayDrinksStrip
         entries={summary.entries}
+        onAddDefault={() => {
+          void logAmount(defaultQuickAddAmountMl, 'quick_add');
+        }}
         onDeleteEntry={confirmDeleteEntry}
         onEditEntry={openEditEntry}
+        onOpenHistory={() => {
+          trackEventSafely('history_opened', { source: 'app' });
+          router.push('/history' as never);
+        }}
+        totalAmount={summary.totalAmount}
       />
 
       <AmountEntryModal
@@ -495,10 +509,18 @@ const styles = StyleSheet.create({
   metricValue: {
     fontWeight: '800',
   },
-  quickAddRow: {
+  quickAddActionButton: {
+    flexBasis: 180,
+    flexGrow: 1,
+  },
+  quickAddActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
+  },
+  quickAddList: {
+    gap: 10,
+    paddingRight: 4,
   },
   screen: {
     alignSelf: 'center',

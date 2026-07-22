@@ -122,7 +122,7 @@ export const ensureNotificationCategories = async (): Promise<void> => {
         buttonTitle: reminderNotificationActionLabels[REMINDER_ACTION_SNOOZE],
         identifier: REMINDER_ACTION_SNOOZE,
         options: {
-          opensAppToForeground: true,
+          opensAppToForeground: false,
         },
       },
       {

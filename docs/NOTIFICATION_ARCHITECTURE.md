@@ -108,6 +108,13 @@ Action identifiers:
 
 Action identifiers are not user-facing copy and must remain stable for native callbacks and idempotency.
 
+Action foreground behavior:
+
+- Drink now may foreground the app because it commits a hydration entry and refreshes the Home surface.
+- Snooze is registered with `opensAppToForeground: false` so a successful Expo notification response can schedule the one-off snooze and dismiss the current notification without visibly opening Water Reminder.
+- Dismiss is registered with `opensAppToForeground: false`.
+- Expo still owns response delivery. If the app process is killed, non-foreground Snooze handling is not guaranteed without a native Android receiver. Water Reminder does not currently include a custom native action receiver.
+
 ## Metadata Contract
 
 Reminder notification data:

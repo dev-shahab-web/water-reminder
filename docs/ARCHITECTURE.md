@@ -748,6 +748,8 @@ Reminder action service
 -> dismiss notification
 ```
 
+Snooze is configured as a non-foreground notification action where Expo can deliver the response to JavaScript. Drink may foreground the app for reliability; Dismiss never foregrounds. A killed-process, fully headless Snooze guarantee would require an approved native Android receiver.
+
 Reminder rules:
 
 - Local notifications only.
@@ -766,6 +768,17 @@ Reminder rules:
 - Test reminders use `source: test`, a stable `hydration-reminder-test` identifier, and the current effective reminder mode channel.
 - Vibration and Enable Snooze are controlled preferences with one switch handler each. Schedule reconciliation may update schedule-owned fields, but it must not overwrite these UI-owned booleans from stale async results.
 - Notification action data uses versioned metadata and never includes hydration amounts, schedules, goals, Health Connect identifiers, or user identifiers.
+
+## Home Interaction Surfaces
+
+Home remains the fast habit loop, not a settings dashboard.
+
+- Quick Add presets are stored in MMKV as small preference-style configuration.
+- Default presets are 250 ml, 500 ml, and 750 ml.
+- Presets have stable ids, preserve user order, validate 50-5,000 ml, reject duplicates, and keep at least one preset.
+- Preset management lives in `/quick-add-presets`.
+- Today's activity on Home is a horizontal recent-entry strip limited to recent items; full history remains on the History screen.
+- Detailed reminder configuration lives in `/settings/reminders`; Home renders only a compact reminder summary with pause/resume and settings shortcuts.
 
 ## Motion System
 
