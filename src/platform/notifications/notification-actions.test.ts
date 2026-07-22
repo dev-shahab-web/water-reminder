@@ -53,6 +53,20 @@ describe('notification action contracts', () => {
     });
   });
 
+  it('accepts test reminder metadata without treating it as malformed', () => {
+    expect(
+      buildReminderNotificationData({
+        occurrenceId: 'hydration-reminder-test',
+        source: 'test',
+      }),
+    ).toEqual({
+      occurrenceId: 'hydration-reminder-test',
+      schemaVersion: 1,
+      source: 'test',
+      type: 'hydration_reminder',
+    });
+  });
+
   it('rejects malformed and unknown notification payloads safely', () => {
     expect(isReminderNotificationData(undefined)).toBe(false);
     expect(

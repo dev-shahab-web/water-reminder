@@ -24,6 +24,7 @@ export type ReminderSoundPreference = {
 
 export type ReminderPreferences = {
   activationState: ReminderActivationState;
+  activeModeDefaultsApplied: boolean;
   defaultSnoozeMinutes: ReminderSnoozeMinutes;
   enabled: boolean;
   intervalMinutes: ReminderIntervalMinutes;

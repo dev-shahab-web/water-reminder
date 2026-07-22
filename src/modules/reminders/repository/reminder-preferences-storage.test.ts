@@ -49,6 +49,7 @@ describe('reminder preferences storage', () => {
       reminderPreferenceSchemaVersion,
     );
     expect(mockStorageValues.get(reminderStorageKeys.activationState)).toBe('not_configured');
+    expect(mockStorageValues.get(reminderStorageKeys.activeModeDefaultsApplied)).toBe(false);
     expect(mockStorageValues.get(reminderStorageKeys.mode)).toBe('gentle');
     expect(mockStorageValues.get(reminderStorageKeys.vibrationEnabled)).toBe(false);
     expect(mockStorageValues.get(reminderStorageKeys.snoozeEnabled)).toBe(true);
@@ -70,6 +71,7 @@ describe('reminder preferences storage', () => {
 
     expect(getReminderPreferences()).toEqual({
       activationState: 'enabled',
+      activeModeDefaultsApplied: false,
       defaultSnoozeMinutes: 10,
       enabled: true,
       intervalMinutes: 90,
@@ -92,6 +94,7 @@ describe('reminder preferences storage', () => {
     setReminderPreferences({
       ...defaultReminderPreferences,
       activationState: 'enabled',
+      activeModeDefaultsApplied: true,
       defaultSnoozeMinutes: 30,
       enabled: true,
       intervalMinutes: 30,
@@ -109,6 +112,7 @@ describe('reminder preferences storage', () => {
     expect(secondRead).toEqual(firstRead);
     expect(secondRead).toMatchObject({
       activationState: 'enabled',
+      activeModeDefaultsApplied: true,
       defaultSnoozeMinutes: 30,
       mode: 'active',
       pendingSnoozeNotificationId: 'snooze-1',

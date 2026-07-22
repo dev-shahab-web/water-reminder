@@ -1,9 +1,18 @@
 import {
   cancelLocalNotifications,
+  getScheduledLocalNotifications,
   initializeNotificationInfrastructure,
   requestNotificationPermissions,
   scheduleLocalNotification,
+  type ScheduledLocalNotification,
 } from '@platform/notifications';
+import { isReminderNotificationData } from '@platform/notifications/notification-actions';
+import {
+  HYDRATION_ACTIVE_CHANNEL_ID,
+  HYDRATION_GENTLE_CHANNEL_ID,
+  HYDRATION_SNOOZE_CHANNEL_ID,
+  type HydrationReminderChannelId,
+} from '@platform/notifications/notification-channels';
 import { refreshHydrationWidgets } from '@modules/widgets';
 
 import type {
@@ -27,6 +36,17 @@ import {
   buildPreferencesWithoutPendingSnooze,
   clearPendingSnooze,
 } from './reminder-snooze-manager';
+
+const hydrationReminderIdentifierPrefix = 'hydration-reminder-';
+
+type ScheduledHydrationReconciliationSummary = {
+  canceledCount: number;
+  missingPersistedCount: number;
+  preservedCount: number;
+  requiresRebuild: boolean;
+};
+
+let scheduleOperationQueue: Promise<void> = Promise.resolve();
 
 export const loadReminderPreferences = (): ReminderPreferences => {
   const preferences = getReminderPreferences();
@@ -77,7 +97,13 @@ export const getReminderStatus = ({
 export const reconcileReminderSchedule = async (
   input: Omit<ReminderScheduleInput, 'now'>,
 ): Promise<ReminderPreferences> => {
-  const preferences = {
+  return runSerializedScheduleOperation(() => reconcileReminderScheduleWithoutLock(input));
+};
+
+const reconcileReminderScheduleWithoutLock = async (
+  input: Omit<ReminderScheduleInput, 'now'>,
+): Promise<ReminderPreferences> => {
+  let preferences = {
     ...input.preferences,
     timezone: getCurrentTimezone(),
   };
@@ -86,13 +112,35 @@ export const reconcileReminderSchedule = async (
     await clearPendingSnooze(preferences);
   }
 
+  const requestedSignature = buildReminderScheduleSignature({
+    goalAmount: input.goalAmount,
+    preferences,
+    totalAmount: input.totalAmount,
+  });
+  const latestPreferences = {
+    ...getReminderPreferences(),
+    timezone: preferences.timezone,
+  };
+  const latestSignature = buildReminderScheduleSignature({
+    goalAmount: input.goalAmount,
+    preferences: latestPreferences,
+    totalAmount: input.totalAmount,
+  });
+
+  if (latestSignature !== requestedSignature) {
+    return latestPreferences;
+  }
+
+  preferences = latestPreferences;
+
   const signature = buildReminderScheduleSignature({
     goalAmount: input.goalAmount,
     preferences,
     totalAmount: input.totalAmount,
   });
+  const scheduledAudit = await reconcileScheduledHydrationNotifications(preferences);
 
-  if (getLastReminderScheduleSignature() === signature) {
+  if (getLastReminderScheduleSignature() === signature && !scheduledAudit.requiresRebuild) {
     return preferences;
   }
 
@@ -106,8 +154,23 @@ export const reconcileReminderSchedule = async (
   const scheduledNotificationIds = (
     await Promise.all(schedule.map((item) => scheduleLocalNotification(item)))
   ).filter((identifier): identifier is string => identifier !== undefined);
+  const latestAfterScheduling = {
+    ...getReminderPreferences(),
+    timezone: preferences.timezone,
+  };
+  const latestAfterSchedulingSignature = buildReminderScheduleSignature({
+    goalAmount: input.goalAmount,
+    preferences: latestAfterScheduling,
+    totalAmount: input.totalAmount,
+  });
+
+  if (latestAfterSchedulingSignature !== signature) {
+    await cancelLocalNotifications(scheduledNotificationIds);
+    return latestAfterScheduling;
+  }
+
   const nextPreferences = setReminderPreferences({
-    ...preferences,
+    ...latestAfterScheduling,
     scheduledNotificationIds,
   });
 
@@ -115,6 +178,54 @@ export const reconcileReminderSchedule = async (
   void refreshHydrationWidgets('reminder_changed');
 
   return nextPreferences;
+};
+
+export const reconcileScheduledHydrationNotifications = async (
+  preferences: ReminderPreferences,
+): Promise<ScheduledHydrationReconciliationSummary> => {
+  const scheduledNotifications = await getScheduledLocalNotifications();
+  const expectedBaseChannelId = getExpectedBaseChannelId(preferences);
+  const persistedBaseIds = new Set(preferences.scheduledNotificationIds);
+  const expectedSnoozeId = preferences.pendingSnoozeNotificationId;
+  const seenBaseOccurrenceIds = new Set<string>();
+  const seenSnoozeOccurrenceIds = new Set<string>();
+  const canceledIdentifiers: string[] = [];
+  let preservedCount = 0;
+
+  for (const notification of scheduledNotifications) {
+    const action = classifyScheduledHydrationNotification({
+      expectedBaseChannelId,
+      expectedSnoozeId,
+      notification,
+      persistedBaseIds,
+      seenBaseOccurrenceIds,
+      seenSnoozeOccurrenceIds,
+    });
+
+    if (action === 'cancel') {
+      canceledIdentifiers.push(notification.identifier);
+    } else if (action === 'preserve') {
+      preservedCount += 1;
+    }
+  }
+
+  if (canceledIdentifiers.length > 0) {
+    await cancelLocalNotifications(canceledIdentifiers);
+  }
+
+  const scheduledIdentifierSet = new Set(
+    scheduledNotifications.map((notification) => notification.identifier),
+  );
+  const missingPersistedCount = preferences.scheduledNotificationIds.filter(
+    (identifier) => !scheduledIdentifierSet.has(identifier),
+  ).length;
+
+  return {
+    canceledCount: canceledIdentifiers.length,
+    missingPersistedCount,
+    preservedCount,
+    requiresRebuild: canceledIdentifiers.length > 0 || missingPersistedCount > 0,
+  };
 };
 
 export const enableReminders = async (
@@ -211,15 +322,17 @@ export const updateReminderModePreference = (
   preferences: ReminderPreferences,
   mode: ReminderMode,
 ): ReminderPreferences => {
+  const shouldApplyActiveDefaults =
+    mode === 'active' && preferences.mode !== 'active' && !preferences.activeModeDefaultsApplied;
   const nextPreferences = setReminderPreferences({
     ...buildPreferencesWithoutPendingSnooze(preferences),
+    activeModeDefaultsApplied: shouldApplyActiveDefaults || preferences.activeModeDefaultsApplied,
     mode,
     sound:
       mode === 'active' && preferences.sound.type === 'silent'
         ? { type: 'system_default' }
         : preferences.sound,
-    vibrationEnabled:
-      mode === 'active' && preferences.mode !== 'active' ? true : preferences.vibrationEnabled,
+    vibrationEnabled: shouldApplyActiveDefaults ? true : preferences.vibrationEnabled,
   });
 
   void refreshHydrationWidgets('reminder_changed');
@@ -260,7 +373,7 @@ export const updateReminderSnoozePreference = (
   snoozeEnabled: boolean,
 ): ReminderPreferences => {
   const nextPreferences = setReminderPreferences({
-    ...preferences,
+    ...(snoozeEnabled ? preferences : buildPreferencesWithoutPendingSnooze(preferences)),
     snoozeEnabled,
   });
 
@@ -320,4 +433,88 @@ export const resumeReminders = (preferences: ReminderPreferences): ReminderPrefe
   void refreshHydrationWidgets('reminder_changed');
 
   return nextPreferences;
+};
+
+const classifyScheduledHydrationNotification = ({
+  expectedBaseChannelId,
+  expectedSnoozeId,
+  notification,
+  persistedBaseIds,
+  seenBaseOccurrenceIds,
+  seenSnoozeOccurrenceIds,
+}: {
+  expectedBaseChannelId: HydrationReminderChannelId;
+  expectedSnoozeId?: string;
+  notification: ScheduledLocalNotification;
+  persistedBaseIds: ReadonlySet<string>;
+  seenBaseOccurrenceIds: Set<string>;
+  seenSnoozeOccurrenceIds: Set<string>;
+}): 'cancel' | 'ignore' | 'preserve' => {
+  const data = notification.data;
+  const hasHydrationIdentifier = notification.identifier.startsWith(
+    hydrationReminderIdentifierPrefix,
+  );
+
+  if (!isReminderNotificationData(data)) {
+    return hasHydrationIdentifier ? 'cancel' : 'ignore';
+  }
+
+  if (data.source === 'test') {
+    return 'preserve';
+  }
+
+  if (data.source === 'snoozed') {
+    const occurrenceId = data.occurrenceId ?? notification.identifier;
+
+    if (
+      notification.identifier !== expectedSnoozeId ||
+      isKnownChannelMismatch(notification.androidChannelId, HYDRATION_SNOOZE_CHANNEL_ID) ||
+      seenSnoozeOccurrenceIds.has(occurrenceId)
+    ) {
+      return 'cancel';
+    }
+
+    seenSnoozeOccurrenceIds.add(occurrenceId);
+    return 'preserve';
+  }
+
+  const occurrenceId = data.occurrenceId ?? notification.identifier;
+
+  if (
+    !persistedBaseIds.has(notification.identifier) ||
+    isKnownChannelMismatch(notification.androidChannelId, expectedBaseChannelId) ||
+    seenBaseOccurrenceIds.has(occurrenceId)
+  ) {
+    return 'cancel';
+  }
+
+  seenBaseOccurrenceIds.add(occurrenceId);
+  return 'preserve';
+};
+
+const isKnownChannelMismatch = (
+  actualChannelId: string | undefined,
+  expectedChannelId: HydrationReminderChannelId,
+): boolean => {
+  return actualChannelId !== undefined && actualChannelId !== expectedChannelId;
+};
+
+const getExpectedBaseChannelId = (preferences: ReminderPreferences): HydrationReminderChannelId => {
+  if (preferences.mode === 'active') {
+    return HYDRATION_ACTIVE_CHANNEL_ID;
+  }
+
+  return HYDRATION_GENTLE_CHANNEL_ID;
+};
+
+const runSerializedScheduleOperation = async <Result>(
+  operation: () => Promise<Result>,
+): Promise<Result> => {
+  const resultPromise = scheduleOperationQueue.then(operation, operation);
+  scheduleOperationQueue = resultPromise.then(
+    () => undefined,
+    () => undefined,
+  );
+
+  return resultPromise;
 };

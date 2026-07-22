@@ -51,13 +51,14 @@ export const buildReminderNotificationContent = ({
   source,
   vibrationEnabled,
 }: ReminderNotificationFactoryInput): ReminderNotificationContent => {
-  const isAudibleReminder = sound.type !== 'silent';
+  const effectiveSound = getEffectiveSound({ mode, sound, source });
+  const isAudibleReminder = effectiveSound.type !== 'silent';
   const shouldVibrate = mode === 'active' && isAudibleReminder && vibrationEnabled;
   const sanitizedOccurrenceId =
     occurrenceId === undefined || occurrenceId.length === 0 ? undefined : occurrenceId;
 
   return {
-    androidChannelId: getReminderChannelId({ sound, source }),
+    androidChannelId: getReminderChannelId({ mode, sound: effectiveSound, source }),
     body: resolveReminderCopy(copyKey),
     ...(snoozeEnabled ? { categoryIdentifier: REMINDER_NOTIFICATION_CATEGORY } : {}),
     copyKey,
@@ -72,15 +73,45 @@ export const buildReminderNotificationContent = ({
 };
 
 const getReminderChannelId = ({
+  mode,
   sound,
   source,
 }: {
+  mode: ReminderMode;
   sound: ReminderSoundPreference;
   source: ReminderNotificationSource;
 }): HydrationReminderChannelId => {
+  if (source === 'snoozed') {
+    return HYDRATION_SNOOZE_CHANNEL_ID;
+  }
+
+  if (mode === 'active') {
+    return HYDRATION_ACTIVE_CHANNEL_ID;
+  }
+
   if (sound.type === 'silent') {
-    return source === 'snoozed' ? HYDRATION_SNOOZE_CHANNEL_ID : HYDRATION_GENTLE_CHANNEL_ID;
+    return HYDRATION_GENTLE_CHANNEL_ID;
   }
 
   return HYDRATION_ACTIVE_CHANNEL_ID;
+};
+
+const getEffectiveSound = ({
+  mode,
+  sound,
+  source,
+}: {
+  mode: ReminderMode;
+  sound: ReminderSoundPreference;
+  source: ReminderNotificationSource;
+}): ReminderSoundPreference => {
+  if (source === 'snoozed' || mode === 'gentle') {
+    return { type: 'silent' };
+  }
+
+  if (sound.type === 'silent') {
+    return { type: 'system_default' };
+  }
+
+  return sound;
 };

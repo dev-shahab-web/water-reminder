@@ -638,16 +638,17 @@ Onboarding:
 
 Reminders:
 
-| Key                                | Type    | Purpose                                                    |
-| ---------------------------------- | ------- | ---------------------------------------------------------- |
-| `reminderEnabled`                  | boolean | Whether reminders are enabled.                             |
-| `reminderIntervalMinutes`          | number  | Interval: 30, 60, 90, 120, or 180.                         |
-| `reminderWakeTime`                 | string  | Active start time, `HH:mm`.                                |
-| `reminderSleepTime`                | string  | Active end time, `HH:mm`.                                  |
-| `reminderTimezone`                 | string  | Last known timezone.                                       |
-| `reminderPausedUntil`              | string  | ISO pause end time.                                        |
-| `reminderScheduledNotificationIds` | string  | JSON array of Expo notification ids.                       |
-| `reminderLastScheduleSignature`    | string  | Last schedule signature to avoid unnecessary rescheduling. |
+| Key                                 | Type    | Purpose                                                              |
+| ----------------------------------- | ------- | -------------------------------------------------------------------- |
+| `reminderEnabled`                   | boolean | Whether reminders are enabled.                                       |
+| `reminderActiveModeDefaultsApplied` | boolean | Whether the one-time Active-mode vibration default has been applied. |
+| `reminderIntervalMinutes`           | number  | Interval: 30, 60, 90, 120, or 180.                                   |
+| `reminderWakeTime`                  | string  | Active start time, `HH:mm`.                                          |
+| `reminderSleepTime`                 | string  | Active end time, `HH:mm`.                                            |
+| `reminderTimezone`                  | string  | Last known timezone.                                                 |
+| `reminderPausedUntil`               | string  | ISO pause end time.                                                  |
+| `reminderScheduledNotificationIds`  | string  | JSON array of Expo notification ids.                                 |
+| `reminderLastScheduleSignature`     | string  | Last schedule signature to avoid unnecessary rescheduling.           |
 
 Settings:
 
@@ -700,6 +701,10 @@ Scheduling flow:
 Reminder preference changes
 -> updateReminderSchedulePreference / enableReminders / pauseReminders
 -> reconcileReminderSchedule
+-> serialize base schedule reconciliation
+-> read canonical reminder preferences and abort stale requests
+-> inspect Expo's scheduled notification queue
+-> cancel stale, legacy, duplicate, or mismatched hydration reminders
 -> build schedule signature
 -> cancel previous scheduled ids if needed
 -> calculateReminderSchedule
@@ -754,8 +759,12 @@ Reminder rules:
 - Do not remind while paused or disabled.
 - Use calm copy only.
 - Gentle mode is default and silent.
-- Active mode uses system-default sound and vibration with default importance.
+- Active mode uses system-default sound and default importance.
+- Active mode applies the vibration default once, then preserves explicit user changes.
 - Snooze is one-off and never mutates the base schedule.
+- Snoozed reminders use `hydration-snooze-v1`; base Gentle uses `hydration-gentle-v1`; base Active uses `hydration-active-v1`.
+- Test reminders use `source: test`, a stable `hydration-reminder-test` identifier, and the current effective reminder mode channel.
+- Vibration and Enable Snooze are controlled preferences with one switch handler each. Schedule reconciliation may update schedule-owned fields, but it must not overwrite these UI-owned booleans from stale async results.
 - Notification action data uses versioned metadata and never includes hydration amounts, schedules, goals, Health Connect identifiers, or user identifiers.
 
 ## Motion System

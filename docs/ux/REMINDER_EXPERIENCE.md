@@ -42,7 +42,7 @@ Defaults:
 Gentle:
 
 - Recommended default.
-- Silent unless the user explicitly changes Sound.
+- Silent.
 - Vibration off unless the user enables it.
 - Best for users who want reminders to stay calm and minimal.
 
@@ -50,7 +50,7 @@ Active:
 
 - More noticeable.
 - System-default sound when Active is first selected from the default Gentle state.
-- Vibration enabled when Active is first selected.
+- Vibration enabled only the first time Active is selected; later explicit user choices are preserved.
 - Still respectful, non-urgent, and not alarm-like.
 
 Sound:
@@ -60,6 +60,7 @@ Sound:
 - In Active mode, the notification sound row opens Android notification settings for the active hydration reminder channel where supported.
 - In Gentle mode, the notification sound row is read-only because Gentle reminders do not play a sound.
 - Android notification channels remain user-controlled after creation.
+- Android channel settings may override the app's requested sound or vibration behavior.
 
 Persistent:
 

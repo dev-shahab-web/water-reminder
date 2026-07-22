@@ -43,7 +43,7 @@ Android channels:
 - `hydration-active-v1`: system-default notification sound, vibration, default importance.
 - `hydration-snooze-v1`: quiet one-off snoozed reminders.
 
-Android users may override channel behavior in system settings. The app must not claim it can force sound, vibration, or visibility after a user changes OS-level channel preferences.
+Android users may override channel behavior in system settings. The app preference represents what Water Reminder requests for future notification content; the Android channel state represents what the OS/user currently allows. The app must not claim it can force sound, vibration, or visibility after a user changes OS-level channel preferences.
 
 Sound preferences:
 
@@ -58,7 +58,35 @@ Sound settings navigation:
 - The app initializes notification channels before opening settings so `hydration-active-v1` exists before Android displays channel controls.
 - Fallback order is specific channel settings, app notification settings, generic app settings, then a non-blocking message if no settings destination opens.
 
-The Test Notification action must use the same `ReminderNotificationFactory` and `scheduleLocalNotification` pipeline as real reminders. It may only differ by delivery time.
+The Test Notification action must use the same `ReminderNotificationFactory` and `scheduleLocalNotification` pipeline as real reminders. It may only differ by delivery time and `source: 'test'` metadata. Repeated test taps replace the previous pending test notification using the stable `hydration-reminder-test` identifier.
+
+Schedule ownership:
+
+- Base Gentle reminders use `hydration-gentle-v1` only.
+- Base Active reminders use `hydration-active-v1` only.
+- Snoozed reminders use `hydration-snooze-v1` only and never mutate the base schedule.
+- Test reminders use the current effective mode channel and are never persisted as base scheduled IDs.
+- No new real reminder should use Android's legacy `default` channel.
+
+Schedule reconciliation:
+
+- `reconcileReminderSchedule` serializes base schedule rebuilds.
+- Reconciliation reads canonical reminder preferences before scheduling and aborts if the request was started from stale preference state.
+- Reconciliation writes only schedule-owned fields back to UI state: scheduled ids, pending snooze ids, pending snooze target, and timezone.
+- Before returning or rebuilding, it audits Expo's currently scheduled notifications, not only MMKV IDs.
+- Hydration reminders are classified by structured metadata and the `hydration-reminder-` legacy identifier prefix.
+- Legacy, default-channel, mismatched-mode, duplicate-occurrence, stale, and orphaned hydration reminders are canceled.
+- If Expo's scheduled-notification inspection result omits a channel id, valid structured reminder metadata is preserved instead of being treated as a channel mismatch.
+- Unrelated app notifications are preserved.
+- Reconciliation is idempotent and may force a rebuild when persisted IDs are missing from Expo's scheduled queue.
+
+Controlled preference updates:
+
+- Vibration and Enable Snooze each have one logical event owner: the nested React Native `Switch`.
+- The surrounding preference row is visual only and must not attach a second toggle handler.
+- Each boolean preference update receives a monotonic operation id in development diagnostics.
+- Development diagnostics trace handler entry, canonical read, canonical write, hook state update, schedule reconciliation start/finish, rerender value, and stale reconciliation ignores.
+- Async reconciliation must never replace `vibrationEnabled` or `snoozeEnabled` from an older preference snapshot.
 
 Activation state:
 
@@ -89,7 +117,7 @@ type ReminderNotificationData = {
   type: 'hydration_reminder';
   schemaVersion: 1;
   occurrenceId?: string;
-  source: 'scheduled' | 'snoozed';
+  source: 'scheduled' | 'snoozed' | 'test';
 };
 ```
 

@@ -65,7 +65,7 @@ jest.mock('@platform/notifications', () => {
       source,
     }: {
       occurrenceId?: string;
-      source: 'scheduled' | 'snoozed';
+      source: 'scheduled' | 'snoozed' | 'test';
     }) => ({
       ...(occurrenceId === undefined ? {} : { occurrenceId }),
       schemaVersion: 1,
@@ -86,7 +86,8 @@ jest.mock('@platform/notifications', () => {
       ((data as { schemaVersion?: unknown; source?: unknown; type?: unknown }).source ===
         'scheduled' ||
         (data as { schemaVersion?: unknown; source?: unknown; type?: unknown }).source ===
-          'snoozed'),
+          'snoozed' ||
+        (data as { schemaVersion?: unknown; source?: unknown; type?: unknown }).source === 'test'),
   };
 });
 
@@ -125,11 +126,12 @@ const dispatch = ((action: { unwrap: () => Promise<unknown> }) => action) as App
 const createResponse = (
   actionIdentifier: string,
   occurrenceId = 'occurrence-1',
+  source: 'scheduled' | 'snoozed' | 'test' = 'scheduled',
 ): NotificationResponsePayload => ({
   actionIdentifier,
   data: buildReminderNotificationData({
     occurrenceId,
-    source: 'scheduled',
+    source,
   }),
   notificationIdentifier: 'notification-1',
 });
@@ -206,6 +208,24 @@ describe('reminder notification action service', () => {
     ).resolves.toBe('snoozed');
 
     expect(mockSnoozeReminder).toHaveBeenCalledTimes(1);
+    expect(mockDismissPresentedNotification).toHaveBeenCalledWith('notification-1');
+  });
+
+  it('allows Snooze actions from test reminder metadata', async () => {
+    await expect(
+      handleReminderNotificationResponse({
+        dispatch,
+        response: createResponse(REMINDER_ACTION_SNOOZE, 'hydration-reminder-test', 'test'),
+      }),
+    ).resolves.toBe('snoozed');
+
+    expect(mockSnoozeReminder).toHaveBeenCalledTimes(1);
+    expect(mockSnoozeReminder).toHaveBeenCalledWith({
+      preferences: expect.objectContaining({
+        defaultSnoozeMinutes: 10,
+        snoozeEnabled: true,
+      }),
+    });
     expect(mockDismissPresentedNotification).toHaveBeenCalledWith('notification-1');
   });
 

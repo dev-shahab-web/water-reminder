@@ -11,10 +11,11 @@ import type {
 } from '../types';
 import { getCurrentTimezone } from '../utils/time';
 
-export const reminderPreferenceSchemaVersion = 3;
+export const reminderPreferenceSchemaVersion = 4;
 
 export const reminderStorageKeys = {
   activationState: 'reminderActivationState',
+  activeModeDefaultsApplied: 'reminderActiveModeDefaultsApplied',
   defaultSnoozeMinutes: 'reminderDefaultSnoozeMinutes',
   enabled: 'reminderEnabled',
   intervalMinutes: 'reminderIntervalMinutes',
@@ -36,6 +37,7 @@ export const reminderStorageKeys = {
 
 export const defaultReminderPreferences: ReminderPreferences = {
   activationState: 'not_configured',
+  activeModeDefaultsApplied: false,
   defaultSnoozeMinutes: 10,
   enabled: false,
   intervalMinutes: 120,
@@ -132,6 +134,12 @@ export const getReminderPreferences = (): ReminderPreferences => {
   const preferenceSchemaVersion = storage.getNumber(reminderStorageKeys.preferenceSchemaVersion);
   const soundType = storage.getString(reminderStorageKeys.soundType);
   const parsedMode = isReminderMode(mode) ? mode : defaultReminderPreferences.mode;
+  const activeModeDefaultsApplied =
+    storage.getBoolean(reminderStorageKeys.activeModeDefaultsApplied) ??
+    (preferenceSchemaVersion === undefined ||
+    preferenceSchemaVersion >= reminderPreferenceSchemaVersion
+      ? defaultReminderPreferences.activeModeDefaultsApplied
+      : parsedMode === 'active');
 
   const preferences: ReminderPreferences = {
     activationState: isActivationState(activationState)
@@ -139,6 +147,7 @@ export const getReminderPreferences = (): ReminderPreferences => {
       : storage.getBoolean(reminderStorageKeys.enabled) === true
         ? 'enabled'
         : defaultReminderPreferences.activationState,
+    activeModeDefaultsApplied,
     defaultSnoozeMinutes: isSnoozeOption(defaultSnoozeMinutes)
       ? defaultSnoozeMinutes
       : defaultReminderPreferences.defaultSnoozeMinutes,
@@ -185,6 +194,7 @@ export const setReminderPreferences = (preferences: ReminderPreferences): Remind
 
   storage.set(reminderStorageKeys.defaultSnoozeMinutes, preferences.defaultSnoozeMinutes);
   storage.set(reminderStorageKeys.activationState, preferences.activationState);
+  storage.set(reminderStorageKeys.activeModeDefaultsApplied, preferences.activeModeDefaultsApplied);
   storage.set(reminderStorageKeys.enabled, preferences.enabled);
   storage.set(reminderStorageKeys.intervalMinutes, preferences.intervalMinutes);
   storage.set(reminderStorageKeys.mode, preferences.mode);

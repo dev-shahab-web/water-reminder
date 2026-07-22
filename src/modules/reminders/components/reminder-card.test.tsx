@@ -53,9 +53,13 @@ const setPlatform = (os: typeof Platform.OS): void => {
 const renderReminderCard = ({
   mode = 'gentle',
   onNotificationSoundPress = jest.fn(),
+  onSnoozeEnabledChange = jest.fn(),
+  onVibrationChange = jest.fn(),
 }: {
   mode?: 'active' | 'gentle';
   onNotificationSoundPress?: () => void;
+  onSnoozeEnabledChange?: (enabled: boolean) => void;
+  onVibrationChange?: (enabled: boolean) => void;
 } = {}) => {
   return render(
     <PaperProvider theme={appLightTheme}>
@@ -71,9 +75,9 @@ const renderReminderCard = ({
         onPause={jest.fn()}
         onResume={jest.fn()}
         onSleepTimeChange={jest.fn()}
-        onSnoozeEnabledChange={jest.fn()}
+        onSnoozeEnabledChange={onSnoozeEnabledChange}
         onToggleEnabled={jest.fn()}
-        onVibrationChange={jest.fn()}
+        onVibrationChange={onVibrationChange}
         onWakeTimeChange={jest.fn()}
         preview="Next reminder around 10:00 AM."
         sleepTime="22:00"
@@ -132,5 +136,31 @@ describe('ReminderCard notification sound row', () => {
     expect(screen.queryByTestId('notification-sound-chevron')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Notification sound. System default' })).toBeNull();
     expect(onNotificationSoundPress).not.toHaveBeenCalled();
+  });
+});
+
+describe('ReminderCard preference switches', () => {
+  beforeEach(() => {
+    setPlatform('android');
+  });
+
+  it('calls the vibration handler exactly once for one switch transition', () => {
+    const onVibrationChange = jest.fn();
+    const screen = renderReminderCard({ onVibrationChange });
+
+    fireEvent(screen.getByLabelText('Vibration'), 'valueChange', false);
+
+    expect(onVibrationChange).toHaveBeenCalledTimes(1);
+    expect(onVibrationChange).toHaveBeenCalledWith(false);
+  });
+
+  it('calls the snooze handler exactly once for one switch transition', () => {
+    const onSnoozeEnabledChange = jest.fn();
+    const screen = renderReminderCard({ onSnoozeEnabledChange });
+
+    fireEvent(screen.getByLabelText('Enable snooze'), 'valueChange', false);
+
+    expect(onSnoozeEnabledChange).toHaveBeenCalledTimes(1);
+    expect(onSnoozeEnabledChange).toHaveBeenCalledWith(false);
   });
 });

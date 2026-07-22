@@ -14,6 +14,7 @@ import { calculateReminderSchedule, getSmartIntervalMinutes } from './scheduler'
 
 const preferences: ReminderPreferences = {
   activationState: 'enabled',
+  activeModeDefaultsApplied: false,
   defaultSnoozeMinutes: 10,
   enabled: true,
   intervalMinutes: 60,

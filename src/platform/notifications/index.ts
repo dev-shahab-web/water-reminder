@@ -4,6 +4,7 @@ export {
   dismissPresentedNotification,
   ensureNotificationCategories,
   getNotificationRegistrationStatus,
+  getScheduledLocalNotifications,
   initializeNotificationInfrastructure,
   initializeNotifications,
   isDefaultNotificationAction,
@@ -13,6 +14,7 @@ export {
   type LocalNotificationRequest,
   type NotificationRegistrationStatus,
   type NotificationResponsePayload,
+  type ScheduledLocalNotification,
 } from './notification-service';
 export {
   DEFAULT_NOTIFICATION_ACTION,

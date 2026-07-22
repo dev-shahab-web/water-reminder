@@ -181,6 +181,36 @@ describe('reminder snooze manager', () => {
     });
   });
 
+  it('uses the configured 5 minute default for one-off snoozed reminders', async () => {
+    const nextPreferences = await snoozeReminder({
+      now: new Date('2026-07-21T10:00:00.000Z'),
+      preferences: {
+        ...preferences,
+        defaultSnoozeMinutes: 5,
+        scheduledNotificationIds: [],
+        snoozeEnabled: true,
+      },
+    });
+
+    expect(mockScheduleLocalNotification).toHaveBeenCalledTimes(1);
+    expect(mockScheduleLocalNotification.mock.calls[0]?.[0]).toMatchObject({
+      androidChannelId: HYDRATION_SNOOZE_CHANNEL_ID,
+      data: {
+        occurrenceId: 'hydration-reminder-snooze-1784628300000',
+        schemaVersion: 1,
+        source: 'snoozed',
+        type: 'hydration_reminder',
+      },
+      date: new Date('2026-07-21T10:05:00.000Z'),
+      identifier: 'hydration-reminder-snooze-1784628300000',
+      sound: false,
+    });
+    expect(nextPreferences.pendingSnoozeNotificationId).toBe(
+      'hydration-reminder-snooze-1784628300000',
+    );
+    expect(nextPreferences.pendingSnoozeTargetIso).toBe('2026-07-21T10:05:00.000Z');
+  });
+
   it('cleans stale pending snooze ids safely', async () => {
     const nextPreferences = await clearPendingSnooze({
       ...preferences,

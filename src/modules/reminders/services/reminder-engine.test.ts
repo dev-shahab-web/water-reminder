@@ -3,9 +3,14 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import {
   HYDRATION_ACTIVE_CHANNEL_ID,
   HYDRATION_GENTLE_CHANNEL_ID,
+  HYDRATION_SNOOZE_CHANNEL_ID,
 } from '@platform/notifications/notification-channels';
 
-import { defaultReminderPreferences } from '../repository/reminder-preferences-storage';
+import {
+  defaultReminderPreferences,
+  getReminderPreferences,
+  setReminderPreferences,
+} from '../repository/reminder-preferences-storage';
 import type { ReminderPreferences } from '../types';
 import {
   activateRemindersWithGrantedPermission,
@@ -21,6 +26,11 @@ import {
 
 const mockStorageValues = new Map<string, boolean | number | string>();
 const mockCancelLocalNotifications = jest.fn(async (_identifiers: readonly string[]) => undefined);
+const mockScheduledNotifications: {
+  androidChannelId?: string;
+  data: Record<string, unknown>;
+  identifier: string;
+}[] = [];
 const mockScheduleLocalNotification = jest.fn(async (request: { identifier?: string }) =>
   request.identifier === undefined ? 'scheduled-id' : request.identifier,
 );
@@ -62,6 +72,7 @@ jest.mock('@platform/storage', () => ({
 jest.mock('@platform/notifications', () => ({
   cancelLocalNotifications: (identifiers: readonly string[]) =>
     mockCancelLocalNotifications(identifiers),
+  getScheduledLocalNotifications: () => Promise.resolve(mockScheduledNotifications),
   initializeNotificationInfrastructure: () => mockInitializeNotificationInfrastructure(),
   requestNotificationPermissions: () => mockRequestNotificationPermissions(),
   scheduleLocalNotification: (request: { identifier?: string }) =>
@@ -74,6 +85,7 @@ jest.mock('@modules/widgets', () => ({
 
 const preferences: ReminderPreferences = {
   ...defaultReminderPreferences,
+  activeModeDefaultsApplied: false,
   enabled: true,
   intervalMinutes: 60,
   scheduledNotificationIds: ['old-reminder'],
@@ -85,6 +97,7 @@ const preferences: ReminderPreferences = {
 describe('reminder engine experience preferences', () => {
   beforeEach(() => {
     mockStorageValues.clear();
+    mockScheduledNotifications.length = 0;
     mockCancelLocalNotifications.mockClear();
     mockScheduleLocalNotification.mockClear();
     mockRefreshHydrationWidgets.mockClear();
@@ -95,6 +108,7 @@ describe('reminder engine experience preferences', () => {
       granted: true,
       status: 'granted',
     });
+    setReminderPreferences(preferences);
   });
 
   it('enables reminders after notification permission is granted', async () => {
@@ -153,6 +167,7 @@ describe('reminder engine experience preferences', () => {
         'active',
       ),
     ).toMatchObject({
+      activeModeDefaultsApplied: true,
       mode: 'active',
       pendingSnoozeNotificationId: undefined,
       pendingSnoozeTargetIso: undefined,
@@ -177,6 +192,23 @@ describe('reminder engine experience preferences', () => {
     });
   });
 
+  it('applies Active vibration defaults only once across mode switches', () => {
+    const activePreferences = updateReminderModePreference(preferences, 'active');
+    const gentlePreferences = updateReminderModePreference(
+      {
+        ...activePreferences,
+        vibrationEnabled: false,
+      },
+      'gentle',
+    );
+
+    expect(updateReminderModePreference(gentlePreferences, 'active')).toMatchObject({
+      activeModeDefaultsApplied: true,
+      mode: 'active',
+      vibrationEnabled: false,
+    });
+  });
+
   it('persists explicit vibration preference changes', () => {
     expect(updateReminderVibrationPreference(preferences, true)).toMatchObject({
       vibrationEnabled: true,
@@ -184,9 +216,22 @@ describe('reminder engine experience preferences', () => {
   });
 
   it('persists snooze experience preference changes', () => {
-    expect(updateReminderSnoozePreference(preferences, false)).toMatchObject({
+    expect(
+      updateReminderSnoozePreference(
+        {
+          ...preferences,
+          pendingSnoozeNotificationId: 'pending-snooze',
+          pendingSnoozeTargetIso: '2026-07-21T10:10:00.000Z',
+        },
+        false,
+      ),
+    ).toMatchObject({
+      pendingSnoozeNotificationId: undefined,
+      pendingSnoozeTargetIso: undefined,
       snoozeEnabled: false,
     });
+    expect(mockCancelLocalNotifications).toHaveBeenCalledWith(['pending-snooze']);
+
     expect(updateDefaultSnoozePreference(preferences, 30)).toMatchObject({
       defaultSnoozeMinutes: 30,
     });
@@ -242,6 +287,175 @@ describe('reminder engine experience preferences', () => {
     });
   });
 
+  it('cancels stale Gentle scheduled reminders before rebuilding Active reminders', async () => {
+    const activePreferences = updateReminderModePreference(preferences, 'active');
+    setReminderPreferences(activePreferences);
+
+    mockScheduledNotifications.push({
+      androidChannelId: HYDRATION_GENTLE_CHANNEL_ID,
+      data: {
+        occurrenceId: 'old-reminder',
+        schemaVersion: 1,
+        source: 'scheduled',
+        type: 'hydration_reminder',
+      },
+      identifier: 'old-reminder',
+    });
+
+    await reconcileReminderSchedule({
+      goalAmount: 2000,
+      preferences: activePreferences,
+      totalAmount: 250,
+    });
+
+    expect(mockCancelLocalNotifications).toHaveBeenCalledWith(['old-reminder']);
+    expect(mockScheduleLocalNotification.mock.calls[0]?.[0]).toMatchObject({
+      androidChannelId: HYDRATION_ACTIVE_CHANNEL_ID,
+    });
+  });
+
+  it('cancels duplicate base occurrences discovered through Expo scheduled metadata', async () => {
+    mockScheduledNotifications.push(
+      {
+        androidChannelId: HYDRATION_GENTLE_CHANNEL_ID,
+        data: {
+          occurrenceId: 'shared-occurrence',
+          schemaVersion: 1,
+          source: 'scheduled',
+          type: 'hydration_reminder',
+        },
+        identifier: 'old-reminder',
+      },
+      {
+        androidChannelId: HYDRATION_GENTLE_CHANNEL_ID,
+        data: {
+          occurrenceId: 'shared-occurrence',
+          schemaVersion: 1,
+          source: 'scheduled',
+          type: 'hydration_reminder',
+        },
+        identifier: 'duplicate-reminder',
+      },
+    );
+
+    await reconcileReminderSchedule({
+      goalAmount: 2000,
+      preferences: {
+        ...preferences,
+        scheduledNotificationIds: ['old-reminder', 'duplicate-reminder'],
+      },
+      totalAmount: 250,
+    });
+
+    expect(mockCancelLocalNotifications).toHaveBeenCalledWith(['duplicate-reminder']);
+  });
+
+  it('cancels legacy hydration reminder identifiers without structured metadata', async () => {
+    mockScheduledNotifications.push({
+      androidChannelId: 'default',
+      data: {
+        source: 'hydration-reminder',
+      },
+      identifier: 'hydration-reminder-legacy',
+    });
+
+    await reconcileReminderSchedule({
+      goalAmount: 2000,
+      preferences,
+      totalAmount: 250,
+    });
+
+    expect(mockCancelLocalNotifications).toHaveBeenCalledWith(['hydration-reminder-legacy']);
+  });
+
+  it('preserves unrelated scheduled notifications while reconciling hydration reminders', async () => {
+    mockScheduledNotifications.push({
+      data: {
+        source: 'other-feature',
+      },
+      identifier: 'unrelated-notification',
+    });
+
+    await reconcileReminderSchedule({
+      goalAmount: 2000,
+      preferences,
+      totalAmount: 250,
+    });
+
+    expect(mockCancelLocalNotifications.mock.calls.flat()).not.toContain('unrelated-notification');
+  });
+
+  it('keeps a valid pending snooze on the snooze channel during reconciliation', async () => {
+    mockScheduledNotifications.push({
+      androidChannelId: HYDRATION_SNOOZE_CHANNEL_ID,
+      data: {
+        occurrenceId: 'pending-snooze',
+        schemaVersion: 1,
+        source: 'snoozed',
+        type: 'hydration_reminder',
+      },
+      identifier: 'pending-snooze',
+    });
+
+    await reconcileReminderSchedule({
+      goalAmount: 2000,
+      preferences: {
+        ...preferences,
+        pendingSnoozeNotificationId: 'pending-snooze',
+      },
+      totalAmount: 250,
+    });
+
+    expect(mockCancelLocalNotifications.mock.calls.flat()).not.toContain('pending-snooze');
+  });
+
+  it('keeps a valid pending snooze when Expo does not expose the scheduled channel id', async () => {
+    mockScheduledNotifications.push({
+      data: {
+        occurrenceId: 'pending-snooze',
+        schemaVersion: 1,
+        source: 'snoozed',
+        type: 'hydration_reminder',
+      },
+      identifier: 'pending-snooze',
+    });
+
+    await reconcileReminderSchedule({
+      goalAmount: 2000,
+      preferences: {
+        ...preferences,
+        pendingSnoozeNotificationId: 'pending-snooze',
+      },
+      totalAmount: 250,
+    });
+
+    expect(mockCancelLocalNotifications.mock.calls.flat()).not.toContain('pending-snooze');
+  });
+
+  it('cancels a pending snooze when Expo exposes an explicit wrong channel id', async () => {
+    mockScheduledNotifications.push({
+      androidChannelId: HYDRATION_ACTIVE_CHANNEL_ID,
+      data: {
+        occurrenceId: 'pending-snooze',
+        schemaVersion: 1,
+        source: 'snoozed',
+        type: 'hydration_reminder',
+      },
+      identifier: 'pending-snooze',
+    });
+
+    await reconcileReminderSchedule({
+      goalAmount: 2000,
+      preferences: {
+        ...preferences,
+        pendingSnoozeNotificationId: 'pending-snooze',
+      },
+      totalAmount: 250,
+    });
+
+    expect(mockCancelLocalNotifications).toHaveBeenCalledWith(['pending-snooze']);
+  });
+
   it('keeps Gentle reminders on the Gentle channel', async () => {
     await reconcileReminderSchedule({
       goalAmount: 2000,
@@ -253,5 +467,32 @@ describe('reminder engine experience preferences', () => {
       androidChannelId: HYDRATION_GENTLE_CHANNEL_ID,
       sound: false,
     });
+  });
+
+  it('does not let stale reconciliation overwrite newer vibration or snooze preferences', async () => {
+    const stalePreferences = {
+      ...preferences,
+      snoozeEnabled: true,
+      vibrationEnabled: false,
+    };
+    setReminderPreferences({
+      ...preferences,
+      scheduledNotificationIds: ['current-reminder'],
+      snoozeEnabled: false,
+      vibrationEnabled: true,
+    });
+
+    await reconcileReminderSchedule({
+      goalAmount: 2000,
+      preferences: stalePreferences,
+      totalAmount: 250,
+    });
+
+    expect(getReminderPreferences()).toMatchObject({
+      scheduledNotificationIds: ['current-reminder'],
+      snoozeEnabled: false,
+      vibrationEnabled: true,
+    });
+    expect(mockScheduleLocalNotification).not.toHaveBeenCalled();
   });
 });

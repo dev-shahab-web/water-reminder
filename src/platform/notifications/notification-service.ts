@@ -41,6 +41,12 @@ export type NotificationResponsePayload = {
   notificationIdentifier: string;
 };
 
+export type ScheduledLocalNotification = {
+  androidChannelId?: string;
+  data: Record<string, unknown>;
+  identifier: string;
+};
+
 export const requestNotificationPermissions = async (): Promise<NotificationRegistrationStatus> => {
   const existingPermissions = await Notifications.getPermissionsAsync();
 
@@ -187,6 +193,26 @@ export const cancelLocalNotifications = async (identifiers: readonly string[]): 
       }
     }),
   );
+};
+
+export const getScheduledLocalNotifications = async (): Promise<ScheduledLocalNotification[]> => {
+  try {
+    const requests = await Notifications.getAllScheduledNotificationsAsync();
+
+    return requests.map((request) => {
+      const trigger = request.trigger as { channelId?: unknown } | null;
+      const channelId = trigger?.channelId;
+
+      return {
+        ...(typeof channelId === 'string' ? { androidChannelId: channelId } : {}),
+        data: request.content.data ?? {},
+        identifier: request.identifier,
+      };
+    });
+  } catch (error) {
+    logger.warn('Unable to inspect scheduled notifications.', { error });
+    return [];
+  }
 };
 
 export const dismissPresentedNotification = async (identifier: string): Promise<void> => {

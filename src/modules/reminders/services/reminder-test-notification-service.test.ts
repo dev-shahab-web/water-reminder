@@ -3,8 +3,12 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { HYDRATION_ACTIVE_CHANNEL_ID } from '@platform/notifications/notification-channels';
 
 import type { ReminderPreferences } from '../types';
-import { scheduleTestReminderNotification } from './reminder-test-notification-service';
+import {
+  TEST_REMINDER_NOTIFICATION_ID,
+  scheduleTestReminderNotification,
+} from './reminder-test-notification-service';
 
+const mockCancelLocalNotifications = jest.fn(async (_identifiers: readonly string[]) => undefined);
 const mockScheduleLocalNotification = jest.fn(async (request: { identifier?: string }) =>
   request.identifier === undefined ? 'test-reminder-id' : request.identifier,
 );
@@ -16,19 +20,22 @@ jest.mock('@platform/notifications', () => ({
     source,
   }: {
     occurrenceId?: string;
-    source: 'scheduled' | 'snoozed';
+    source: 'scheduled' | 'snoozed' | 'test';
   }) => ({
     ...(occurrenceId === undefined ? {} : { occurrenceId }),
     schemaVersion: 1,
     source,
     type: 'hydration_reminder',
   }),
+  cancelLocalNotifications: (identifiers: readonly string[]) =>
+    mockCancelLocalNotifications(identifiers),
   scheduleLocalNotification: (request: { identifier?: string }) =>
     mockScheduleLocalNotification(request),
 }));
 
 const preferences: ReminderPreferences = {
   activationState: 'enabled',
+  activeModeDefaultsApplied: true,
   defaultSnoozeMinutes: 10,
   enabled: true,
   intervalMinutes: 60,
@@ -45,6 +52,7 @@ const preferences: ReminderPreferences = {
 
 describe('reminder test notification service', () => {
   beforeEach(() => {
+    mockCancelLocalNotifications.mockClear();
     mockScheduleLocalNotification.mockClear();
   });
 
@@ -62,11 +70,28 @@ describe('reminder test notification service', () => {
         body: 'Time for a sip.',
         categoryIdentifier: 'water_reminder.hydration_reminder.v1',
         date: new Date('2026-07-21T10:00:02.000Z'),
-        identifier: 'hydration-reminder-test-1784628002000',
+        identifier: TEST_REMINDER_NOTIFICATION_ID,
         sound: 'default',
         title: 'Water Reminder',
         vibrate: [0, 240, 160, 240],
       }),
     );
+    expect(mockScheduleLocalNotification.mock.calls[0]?.[0]).toMatchObject({
+      data: {
+        occurrenceId: TEST_REMINDER_NOTIFICATION_ID,
+        schemaVersion: 1,
+        source: 'test',
+        type: 'hydration_reminder',
+      },
+    });
+  });
+
+  it('replaces any previously scheduled test reminder before scheduling another one', async () => {
+    await scheduleTestReminderNotification({
+      now: new Date('2026-07-21T10:00:00.000Z'),
+      preferences,
+    });
+
+    expect(mockCancelLocalNotifications).toHaveBeenCalledWith([TEST_REMINDER_NOTIFICATION_ID]);
   });
 });

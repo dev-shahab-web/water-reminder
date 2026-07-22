@@ -73,7 +73,7 @@ describe('reminder notification factory', () => {
     expect(content.data.source).toBe('snoozed');
   });
 
-  it('keeps snoozed audible reminders on the active channel', () => {
+  it('keeps snoozed audible reminders on the quiet snooze channel', () => {
     const content = buildReminderNotificationContent({
       copyKey: 'take_moment_hydrate',
       mode: 'active',
@@ -83,9 +83,30 @@ describe('reminder notification factory', () => {
       vibrationEnabled: true,
     });
 
+    expect(content.androidChannelId).toBe(HYDRATION_SNOOZE_CHANNEL_ID);
+    expect(content.sound).toBe(false);
+    expect(content.vibrate).toBeUndefined();
+  });
+
+  it('marks test reminders without changing the effective mode channel', () => {
+    const content = buildReminderNotificationContent({
+      copyKey: 'time_for_sip',
+      mode: 'active',
+      occurrenceId: 'hydration-reminder-test',
+      snoozeEnabled: true,
+      sound: { type: 'system_default' },
+      source: 'test',
+      vibrationEnabled: true,
+    });
+
     expect(content.androidChannelId).toBe(HYDRATION_ACTIVE_CHANNEL_ID);
-    expect(content.sound).toBe('default');
-    expect(content.vibrate).toEqual([0, 240, 160, 240]);
+    expect(content.data).toEqual({
+      occurrenceId: 'hydration-reminder-test',
+      schemaVersion: 1,
+      source: 'test',
+      type: 'hydration_reminder',
+    });
+    expect(isReminderNotificationData(content.data)).toBe(true);
   });
 
   it('omits the action category when snooze is disabled', () => {

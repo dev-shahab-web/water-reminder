@@ -15,7 +15,7 @@ export type ReminderNotificationActionIdentifier = (typeof reminderActionIdentif
 export type ReminderNotificationData = {
   occurrenceId?: string;
   schemaVersion: 1;
-  source: 'scheduled' | 'snoozed';
+  source: 'scheduled' | 'snoozed' | 'test';
   type: 'hydration_reminder';
 };
 
@@ -39,7 +39,7 @@ export const isReminderNotificationData = (value: unknown): value is ReminderNot
   return (
     data.type === 'hydration_reminder' &&
     data.schemaVersion === 1 &&
-    (data.source === 'scheduled' || data.source === 'snoozed') &&
+    (data.source === 'scheduled' || data.source === 'snoozed' || data.source === 'test') &&
     hasValidOccurrenceId
   );
 };
