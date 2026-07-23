@@ -5,7 +5,6 @@ import { useTheme } from 'react-native-paper';
 
 import { appConfig, releaseLinks } from '@core/config';
 import { HealthConnectCard } from '@modules/health-connect';
-import { ReminderCard } from '@modules/reminders';
 import { trackEvent } from '@platform/telemetry';
 import {
   AppScreen,
@@ -386,28 +385,17 @@ export function SettingsScreen() {
 
       <View style={styles.sectionGroup}>
         <SectionHeader
-          subtitle="Reminder controls reuse the same gentle engine from Home."
+          subtitle="Adjust reminder rhythm, sound, vibration, snooze, and pauses."
           title="Notifications"
         />
-        <ReminderCard
-          enabled={reminders.preferences.enabled}
-          intervalMinutes={reminders.preferences.intervalMinutes}
-          onIntervalChange={reminders.updateInterval}
-          onPause={(option) => {
-            void reminders.pause(option);
+        <SettingsRow
+          icon="bell-outline"
+          label="Reminder Settings"
+          onPress={() => {
+            router.push('/settings/reminders' as never);
           }}
-          onResume={reminders.resume}
-          onSleepTimeChange={reminders.updateSleepTime}
-          onToggleEnabled={() => {
-            void reminders.toggleEnabled();
-          }}
-          onWakeTimeChange={reminders.updateWakeTime}
-          permissionMessage={reminders.permissionMessage}
-          preview={reminders.preview}
-          sleepTime={reminders.preferences.sleepTime}
-          status={reminders.status}
-          summary={reminders.summary}
-          wakeTime={reminders.preferences.wakeTime}
+          supportingText={reminders.preview}
+          value={reminders.preferences.enabled ? 'On' : 'Off'}
         />
         <SecondaryButton
           accessibilityLabel="Send a test notification"

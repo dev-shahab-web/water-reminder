@@ -4,12 +4,15 @@ import { useTheme } from 'react-native-paper';
 import { IconButton, SectionHeader } from '@shared/components';
 import { AnimatedCard } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
+import type { MeasurementUnit } from '@modules/settings';
+import { formatMeasurementAmount } from '@modules/settings/utils/settings-options';
 
 import type { HydrationEntry } from '../../types';
 import { formatEntryTime } from '../../utils/date';
 
 type HistoryEntryListProps = {
   entries: readonly HydrationEntry[];
+  measurementUnit: MeasurementUnit;
   onDeleteEntry: (entry: HydrationEntry) => void;
   onEditEntry: (entry: HydrationEntry) => void;
 };
@@ -22,7 +25,12 @@ const sourceLabels: Record<HydrationEntry['source'], string> = {
   widget: 'Widget',
 };
 
-export function HistoryEntryList({ entries, onDeleteEntry, onEditEntry }: HistoryEntryListProps) {
+export function HistoryEntryList({
+  entries,
+  measurementUnit,
+  onDeleteEntry,
+  onEditEntry,
+}: HistoryEntryListProps) {
   const theme = useTheme<AppTheme>();
 
   return (
@@ -53,7 +61,7 @@ export function HistoryEntryList({ entries, onDeleteEntry, onEditEntry }: Histor
                   },
                 ]}
               >
-                {entry.amount} ml
+                {formatMeasurementAmount(entry.amount, measurementUnit)}
               </Text>
               <Text
                 style={[
@@ -70,14 +78,17 @@ export function HistoryEntryList({ entries, onDeleteEntry, onEditEntry }: Histor
             </View>
             <View style={styles.actions}>
               <IconButton
-                accessibilityLabel={`Edit ${entry.amount} milliliter entry`}
+                accessibilityLabel={`Edit ${formatMeasurementAmount(entry.amount, measurementUnit)} entry`}
                 icon="pencil-outline"
                 onPress={() => {
                   onEditEntry(entry);
                 }}
               />
               <IconButton
-                accessibilityLabel={`Delete ${entry.amount} milliliter entry`}
+                accessibilityLabel={`Delete ${formatMeasurementAmount(
+                  entry.amount,
+                  measurementUnit,
+                )} entry`}
                 icon="trash-can-outline"
                 onPress={() => {
                   onDeleteEntry(entry);

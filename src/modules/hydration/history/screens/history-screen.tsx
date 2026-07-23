@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { AmountEntryModal } from '@modules/hydration';
 import { useOnboardingState } from '@modules/onboarding';
+import { useSettingsSnapshot } from '@modules/settings';
 import { AppScreen, IconButton, PrimaryButton, SectionHeader } from '@shared/components';
 import { EmptyState, SkeletonCard } from '@shared/motion';
 
@@ -15,7 +16,8 @@ import { isToday } from '../../utils/date';
 export function HistoryScreen() {
   const params = useLocalSearchParams<{ date?: string }>();
   const { state } = useOnboardingState();
-  const history = useHydrationHistory(state.hydrationGoal, params.date);
+  const settings = useSettingsSnapshot();
+  const history = useHydrationHistory(state.hydrationGoal, settings.measurementUnit, params.date);
 
   const renderContent = () => {
     if (history.status === 'loading') {
@@ -72,9 +74,10 @@ export function HistoryScreen() {
 
     return (
       <>
-        <HistoryDaySummary summary={history.summary} />
+        <HistoryDaySummary measurementUnit={settings.measurementUnit} summary={history.summary} />
         <HistoryEntryList
           entries={history.entries}
+          measurementUnit={settings.measurementUnit}
           onDeleteEntry={history.confirmDeleteEntry}
           onEditEntry={history.openEditEntry}
         />
@@ -119,6 +122,7 @@ export function HistoryScreen() {
         }}
         saveLabel="Save changes"
         title="Edit entry"
+        unitLabel={settings.measurementUnit}
         value={history.editAmountValue}
         visible={history.editModalVisible}
       />

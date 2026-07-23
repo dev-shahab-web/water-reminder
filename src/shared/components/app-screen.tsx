@@ -89,6 +89,8 @@ export function AppScreen({
             },
             style,
           ]}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
           refreshControl={refreshControl}
         >
           {header}

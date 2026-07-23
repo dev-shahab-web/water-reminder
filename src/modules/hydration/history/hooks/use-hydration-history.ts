@@ -3,6 +3,12 @@ import { Alert } from 'react-native';
 
 import { playDeleteConfirmationHaptic, playErrorHaptic } from '@platform/haptics';
 import { useAppDispatch } from '@state/store/hooks';
+import type { MeasurementUnit } from '@modules/settings';
+import {
+  formatMeasurementAmount,
+  getMeasurementValue,
+  ouncesToMilliliters,
+} from '@modules/settings/utils/settings-options';
 
 import {
   getHydrationEntriesForDate,
@@ -28,7 +34,11 @@ type EditState = {
   value: string;
 };
 
-export const useHydrationHistory = (goalAmount: number, initialDateKey?: string) => {
+export const useHydrationHistory = (
+  goalAmount: number,
+  measurementUnit: MeasurementUnit,
+  initialDateKey?: string,
+) => {
   const dispatch = useAppDispatch();
   const [selectedDate, setSelectedDate] = useState(() =>
     getDateFromLocalDateKey(initialDateKey ?? getLocalDateKey()),
@@ -102,32 +112,41 @@ export const useHydrationHistory = (goalAmount: number, initialDateKey?: string)
     setSelectedDate(new Date());
   }, []);
 
-  const openEditEntry = useCallback((entry: HydrationEntry) => {
-    setAmountError(undefined);
-    setEditState({
-      entry,
-      value: String(entry.amount),
-    });
-  }, []);
+  const openEditEntry = useCallback(
+    (entry: HydrationEntry) => {
+      setAmountError(undefined);
+      setEditState({
+        entry,
+        value: String(getMeasurementValue(entry.amount, measurementUnit)),
+      });
+    },
+    [measurementUnit],
+  );
 
   const closeEditEntry = useCallback(() => {
     setEditState(undefined);
   }, []);
 
-  const changeEditAmount = useCallback((value: string) => {
-    setEditState((currentState) =>
-      currentState === undefined
-        ? currentState
-        : {
-            ...currentState,
-            value: value.replace(/\D/g, ''),
-          },
-    );
-    setAmountError(undefined);
-  }, []);
+  const changeEditAmount = useCallback(
+    (value: string) => {
+      setEditState((currentState) =>
+        currentState === undefined
+          ? currentState
+          : {
+              ...currentState,
+              value:
+                measurementUnit === 'oz'
+                  ? value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1')
+                  : value.replace(/\D/g, ''),
+            },
+      );
+      setAmountError(undefined);
+    },
+    [measurementUnit],
+  );
 
   const validateEditAmount = useCallback((): number | undefined => {
-    const parsedAmount = Number.parseInt(editState?.value ?? '', 10);
+    const parsedAmount = Number.parseFloat(editState?.value ?? '');
 
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       setAmountError('Enter an amount greater than zero.');
@@ -135,15 +154,18 @@ export const useHydrationHistory = (goalAmount: number, initialDateKey?: string)
       return undefined;
     }
 
-    if (parsedAmount > maxSingleEntryAmount) {
+    const amountMl =
+      measurementUnit === 'oz' ? ouncesToMilliliters(parsedAmount) : Math.round(parsedAmount);
+
+    if (amountMl > maxSingleEntryAmount) {
       setAmountError('That is more than one entry can log.');
       void playErrorHaptic();
       return undefined;
     }
 
     setAmountError(undefined);
-    return parsedAmount;
-  }, [editState?.value]);
+    return amountMl;
+  }, [editState?.value, measurementUnit]);
 
   const saveEditEntry = useCallback(async () => {
     if (editState === undefined) {
@@ -168,32 +190,40 @@ export const useHydrationHistory = (goalAmount: number, initialDateKey?: string)
 
   const confirmDeleteEntry = useCallback(
     (entry: HydrationEntry) => {
-      Alert.alert('Delete this entry?', `${entry.amount} ml will be removed from this day.`, [
-        {
-          style: 'cancel',
-          text: 'Keep it',
-        },
-        {
-          onPress: async () => {
-            try {
-              await dispatch(removeHydrationEntry(entry.id)).unwrap();
-              await playDeleteConfirmationHaptic();
-              loadSelectedDate();
-            } catch {
-              setErrorMessage("We couldn't delete that entry. Please try again.");
-              await playErrorHaptic();
-            }
+      Alert.alert(
+        'Delete this entry?',
+        `${formatMeasurementAmount(entry.amount, measurementUnit)} will be removed from this day.`,
+        [
+          {
+            style: 'cancel',
+            text: 'Keep it',
           },
-          style: 'destructive',
-          text: 'Delete',
-        },
-      ]);
+          {
+            onPress: async () => {
+              try {
+                await dispatch(removeHydrationEntry(entry.id)).unwrap();
+                await playDeleteConfirmationHaptic();
+                loadSelectedDate();
+              } catch {
+                setErrorMessage("We couldn't delete that entry. Please try again.");
+                await playErrorHaptic();
+              }
+            },
+            style: 'destructive',
+            text: 'Delete',
+          },
+        ],
+      );
     },
-    [dispatch, loadSelectedDate],
+    [dispatch, loadSelectedDate, measurementUnit],
   );
 
+  const editAmountMl =
+    measurementUnit === 'oz'
+      ? ouncesToMilliliters(Number.parseFloat(editState?.value ?? '0'))
+      : Number.parseFloat(editState?.value ?? '0');
   const guidanceMessage =
-    Number.parseInt(editState?.value ?? '', 10) > largeEntryAmount
+    editAmountMl > largeEntryAmount
       ? 'That looks high for one drink. Save it only if it is right.'
       : undefined;
 

@@ -2,6 +2,9 @@ import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { useOnboardingState } from '@modules/onboarding';
+import { useSettingsSnapshot } from '@modules/settings';
+import type { MeasurementUnit } from '@modules/settings';
+import { formatMeasurementAmount } from '@modules/settings/utils/settings-options';
 import {
   AppScreen,
   IconButton,
@@ -21,6 +24,7 @@ import { formatHour } from '../utils/insights';
 
 export function StatisticsScreen() {
   const { state } = useOnboardingState();
+  const settings = useSettingsSnapshot();
   const statistics = useStatisticsDashboard(state.hydrationGoal);
 
   if (statistics.status === 'loading') {
@@ -55,15 +59,23 @@ export function StatisticsScreen() {
     return null;
   }
 
-  return <StatisticsDashboard data={statistics.data} goalAmount={state.hydrationGoal} />;
+  return (
+    <StatisticsDashboard
+      data={statistics.data}
+      goalAmount={state.hydrationGoal}
+      measurementUnit={settings.measurementUnit}
+    />
+  );
 }
 
 function StatisticsDashboard({
   data,
   goalAmount,
+  measurementUnit,
 }: {
   data: StatisticsDashboardData;
   goalAmount: number;
+  measurementUnit: MeasurementUnit;
 }) {
   return (
     <AppScreen scrollable style={styles.screen}>
@@ -100,11 +112,17 @@ function StatisticsDashboard({
 
       <Section title="Today's summary">
         <View style={styles.cardGrid}>
-          <StatCard label="Current" value={`${data.today.totalAmount} ml`} />
-          <StatCard label="Goal" value={`${goalAmount} ml`} />
+          <StatCard
+            label="Current"
+            value={formatMeasurementAmount(data.today.totalAmount, measurementUnit)}
+          />
+          <StatCard label="Goal" value={formatMeasurementAmount(goalAmount, measurementUnit)} />
           <StatCard
             label="Remaining"
-            value={`${Math.max(goalAmount - data.today.totalAmount, 0)} ml`}
+            value={formatMeasurementAmount(
+              Math.max(goalAmount - data.today.totalAmount, 0),
+              measurementUnit,
+            )}
           />
           <StatCard label="Complete" value={`${Math.round(data.today.percentComplete * 100)}%`} />
         </View>
@@ -119,7 +137,11 @@ function StatisticsDashboard({
       </Section>
 
       <Section title="Weekly overview">
-        <WeeklyBarChart goalAmount={goalAmount} points={data.weeklyTotals} />
+        <WeeklyBarChart
+          goalAmount={goalAmount}
+          measurementUnit={measurementUnit}
+          points={data.weeklyTotals}
+        />
       </Section>
 
       <Section title="Monthly overview">
@@ -128,10 +150,16 @@ function StatisticsDashboard({
 
       <Section title="Summary insights">
         <View style={styles.cardGrid}>
-          <StatCard label="Average intake" value={`${data.averageIntake} ml`} />
+          <StatCard
+            label="Average intake"
+            value={formatMeasurementAmount(data.averageIntake, measurementUnit)}
+          />
           <StatCard label="Average complete" value={`${data.averageCompletionPercent}%`} />
-          <StatCard label="Best day" value={formatDayValue(data.bestDay)} />
-          <StatCard label="Lowest logged day" value={formatDayValue(data.worstDay)} />
+          <StatCard label="Best day" value={formatDayValue(data.bestDay, measurementUnit)} />
+          <StatCard
+            label="Lowest logged day"
+            value={formatDayValue(data.worstDay, measurementUnit)}
+          />
           <StatCard
             label="Usual hour"
             value={
@@ -156,8 +184,13 @@ function Section({ children, title }: { children: React.ReactNode; title: string
   );
 }
 
-function formatDayValue(day: DailyHydrationTotal | undefined): string {
-  return day === undefined ? 'More data needed' : `${day.totalAmount} ml`;
+function formatDayValue(
+  day: DailyHydrationTotal | undefined,
+  measurementUnit: MeasurementUnit,
+): string {
+  return day === undefined
+    ? 'More data needed'
+    : formatMeasurementAmount(day.totalAmount, measurementUnit);
 }
 
 const styles = StyleSheet.create({

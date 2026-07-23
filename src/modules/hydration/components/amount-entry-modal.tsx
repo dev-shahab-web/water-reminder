@@ -1,14 +1,18 @@
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useTheme } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PrimaryButton, SecondaryButton, SectionHeader } from '@shared/components';
 import type { AppTheme } from '@shared/theme';
@@ -21,6 +25,7 @@ type AmountEntryModalProps = {
   onSave: () => void;
   saveLabel: string;
   title: string;
+  unitLabel: string;
   value: string;
   visible: boolean;
 };
@@ -33,92 +38,133 @@ export function AmountEntryModal({
   onSave,
   saveLabel,
   title,
+  unitLabel,
   value,
   visible,
 }: AmountEntryModalProps) {
   const theme = useTheme<AppTheme>();
+  const insets = useSafeAreaInsets();
+  const { height, width } = useWindowDimensions();
+  const horizontalMargin = theme.app.spacing[4];
+  const verticalMargin = theme.app.spacing[4];
+  const availableHeight = Math.max(280, height - insets.top - insets.bottom - verticalMargin * 2);
+  const dialogMaxHeight = Math.floor(availableHeight * 0.9);
+  const dialogWidth = Math.min(width - horizontalMargin * 2, 460);
 
   return (
-    <Modal animationType="fade" onRequestClose={onCancel} transparent visible={visible}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.backdrop}
-      >
+    <Modal
+      animationType="fade"
+      onRequestClose={onCancel}
+      statusBarTranslucent
+      transparent
+      visible={visible}
+    >
+      <View style={styles.modalRoot}>
         <Pressable
           accessibilityLabel="Close amount entry"
           style={styles.scrim}
           onPress={onCancel}
         />
-        <View
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
+          pointerEvents="box-none"
           style={[
-            styles.sheet,
+            styles.keyboardAvoiding,
             {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.app.colors.borderSubtle,
-              borderRadius: theme.app.radius.lg,
+              paddingBottom: insets.bottom + verticalMargin,
+              paddingHorizontal: horizontalMargin,
+              paddingTop: insets.top + verticalMargin,
             },
           ]}
         >
-          <SectionHeader subtitle="Enter the amount in milliliters." title={title} />
-          <TextInput
-            accessibilityLabel="Water amount in milliliters"
-            keyboardType="number-pad"
-            onChangeText={onChangeAmount}
-            onSubmitEditing={onSave}
-            placeholder="250"
-            placeholderTextColor={theme.app.colors.textSecondary}
-            returnKeyType="done"
-            selectTextOnFocus
+          <View
             style={[
-              styles.input,
+              styles.sheet,
               {
-                borderColor:
-                  errorMessage === undefined
-                    ? theme.app.colors.borderSubtle
-                    : theme.app.colors.statusError,
-                borderRadius: theme.app.radius.md,
-                color: theme.app.colors.textPrimary,
-                fontSize: theme.app.typography.fontSize.title,
-                lineHeight: theme.app.typography.lineHeight.title,
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.app.colors.borderSubtle,
+                borderRadius: theme.app.radius.lg,
+                maxHeight: dialogMaxHeight,
+                width: dialogWidth,
               },
             ]}
-            value={value}
-          />
-          {errorMessage === undefined ? null : (
-            <Text
-              accessibilityRole="alert"
-              style={[
-                styles.supportingText,
-                {
-                  color: theme.app.colors.statusError,
-                  fontSize: theme.app.typography.fontSize.caption,
-                  lineHeight: theme.app.typography.lineHeight.caption,
-                },
-              ]}
+          >
+            <ScrollView
+              bounces={false}
+              contentContainerStyle={styles.sheetScrollContent}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
             >
-              {errorMessage}
-            </Text>
-          )}
-          {guidanceMessage === undefined ? null : (
-            <Text
-              style={[
-                styles.supportingText,
-                {
-                  color: theme.app.colors.textSecondary,
-                  fontSize: theme.app.typography.fontSize.caption,
-                  lineHeight: theme.app.typography.lineHeight.caption,
-                },
-              ]}
-            >
-              {guidanceMessage}
-            </Text>
-          )}
-          <View style={styles.actions}>
-            <PrimaryButton icon="check" label={saveLabel} onPress={onSave} />
-            <SecondaryButton icon="close" label="Cancel" onPress={onCancel} />
+              <SectionHeader subtitle={`Enter the amount in ${unitLabel}.`} title={title} />
+              <TextInput
+                accessibilityLabel={`Water amount in ${unitLabel}`}
+                keyboardType="number-pad"
+                onChangeText={onChangeAmount}
+                onSubmitEditing={onSave}
+                placeholder="250"
+                placeholderTextColor={theme.app.colors.textSecondary}
+                returnKeyType="done"
+                selectTextOnFocus
+                style={[
+                  styles.input,
+                  {
+                    borderColor:
+                      errorMessage === undefined
+                        ? theme.app.colors.borderSubtle
+                        : theme.app.colors.statusError,
+                    borderRadius: theme.app.radius.md,
+                    color: theme.app.colors.textPrimary,
+                    fontSize: theme.app.typography.fontSize.title,
+                    lineHeight: theme.app.typography.lineHeight.title,
+                  },
+                ]}
+                value={value}
+              />
+              {errorMessage === undefined ? null : (
+                <Text
+                  accessibilityRole="alert"
+                  style={[
+                    styles.supportingText,
+                    {
+                      color: theme.app.colors.statusError,
+                      fontSize: theme.app.typography.fontSize.caption,
+                      lineHeight: theme.app.typography.lineHeight.caption,
+                    },
+                  ]}
+                >
+                  {errorMessage}
+                </Text>
+              )}
+              {guidanceMessage === undefined ? null : (
+                <Text
+                  style={[
+                    styles.supportingText,
+                    {
+                      color: theme.app.colors.textSecondary,
+                      fontSize: theme.app.typography.fontSize.caption,
+                      lineHeight: theme.app.typography.lineHeight.caption,
+                    },
+                  ]}
+                >
+                  {guidanceMessage}
+                </Text>
+              )}
+              <View style={styles.actions}>
+                <PrimaryButton icon="check" label={saveLabel} onPress={onSave} />
+                <SecondaryButton
+                  icon="close"
+                  label="Cancel"
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    onCancel();
+                  }}
+                />
+              </View>
+            </ScrollView>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -127,10 +173,10 @@ const styles = StyleSheet.create({
   actions: {
     gap: 12,
   },
-  backdrop: {
+  keyboardAvoiding: {
     alignItems: 'center',
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
   },
   input: {
     borderWidth: 1,
@@ -138,6 +184,9 @@ const styles = StyleSheet.create({
     minHeight: 58,
     paddingHorizontal: 16,
     paddingVertical: 12,
+  },
+  modalRoot: {
+    flex: 1,
   },
   scrim: {
     backgroundColor: 'rgba(0, 0, 0, 0.36)',
@@ -149,11 +198,11 @@ const styles = StyleSheet.create({
   },
   sheet: {
     borderWidth: 1,
-    gap: 18,
-    margin: 16,
-    maxWidth: 520,
-    padding: 20,
-    width: '100%',
+    overflow: 'hidden',
+  },
+  sheetScrollContent: {
+    gap: 14,
+    padding: 18,
   },
   supportingText: {},
 });

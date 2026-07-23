@@ -20,13 +20,53 @@ Settings:
 - Active start time.
 - Active end time.
 - Reminder interval.
+- Reminder style: Gentle or Active.
+- Vibration on or off.
+- Snooze enabled or disabled.
+- Default snooze duration: 5, 10, 15, 30, or 60 minutes.
+- Sound preference: Gentle mode is silent. Active mode uses the system-default channel sound and lets users change the tone from Android notification settings.
 - Pause reminders today.
 
 Defaults:
 
 - Conservative interval.
 - Reasonable daytime active hours.
+- Gentle reminder style.
+- Silent sound.
+- Snooze enabled.
+- Default snooze duration of 10 minutes.
 - Reminders disabled when user chooses defaults unless product review changes this.
+
+## Reminder Styles
+
+Gentle:
+
+- Recommended default.
+- Silent.
+- Vibration off unless the user enables it.
+- Best for users who want reminders to stay calm and minimal.
+
+Active:
+
+- More noticeable.
+- System-default sound when Active is first selected from the default Gentle state.
+- Vibration enabled only the first time Active is selected; later explicit user choices are preserved.
+- Still respectful, non-urgent, and not alarm-like.
+
+Sound:
+
+- Silent keeps notification delivery quiet.
+- System default uses Android's default notification sound.
+- In Active mode, the notification sound row opens Android notification settings for the active hydration reminder channel where supported.
+- In Gentle mode, the notification sound row is read-only because Gentle reminders do not play a sound.
+- Android notification channels remain user-controlled after creation.
+- Android channel settings may override the app's requested sound or vibration behavior.
+
+Persistent:
+
+- Future-only.
+- Not exposed in the current product.
+- Requires product review before implementation because persistent reminders can easily become intrusive.
 
 ## Notification Copy
 
@@ -39,8 +79,10 @@ Tone:
 
 Examples:
 
-- "Time for some water."
-- "Hydration check-in."
+- "Time for a sip."
+- "A little water can help you feel refreshed."
+- "Small sip, steady habit."
+- "Take a moment to hydrate."
 - "A small sip can keep the habit going."
 
 Avoid:
@@ -67,6 +109,34 @@ Rules:
 - Allow immediate quick-add.
 - If goal is already complete, show complete state and do not pressure logging.
 
+## Notification Actions
+
+Actions:
+
+- Drink now.
+- Snooze.
+- Dismiss.
+
+Drink:
+
+- Logs the default quick-add amount.
+- Uses the existing hydration logging flow.
+- Must be idempotent by occurrence id.
+- Opens the app when Expo requires it.
+
+Snooze:
+
+- Uses the configured default snooze duration.
+- Schedules one one-off snoozed reminder.
+- Replaces any previous pending snooze.
+- Does not modify the base daily schedule.
+
+Dismiss:
+
+- Closes the current notification.
+- Does not log hydration.
+- Does not modify future reminders.
+
 ## Home Reminder State
 
 Home should show:
@@ -84,6 +154,7 @@ Trigger:
 Result:
 
 - Pending reminders for the local day are canceled or suppressed.
+- Pending snoozed reminders are cleared.
 - Home shows paused state.
 - Reminders resume according to settings on the next local day.
 
@@ -100,6 +171,7 @@ Trigger:
 Result:
 
 - Pending reminders are canceled.
+- Pending snoozed reminders are cleared.
 - Notification permission remains unchanged at OS level.
 - Manual tracking remains fully available.
 
@@ -127,6 +199,10 @@ When permission is denied:
 - User changes goal after reminders are scheduled.
 - User pauses reminders, then re-enables manually.
 - Device suppresses scheduled notifications.
+- Doze mode delays notification delivery.
+- Battery optimization delays notification delivery.
+- App is killed before an Expo notification action response reaches JavaScript.
+- Android notification-channel settings are changed by the user.
 - Permission is revoked outside the app.
 
 ## Acceptance Criteria
@@ -135,3 +211,5 @@ When permission is denied:
 - Users can pause reminders for today from Home or Settings.
 - Denied permission does not block app usage.
 - Reminder copy remains calm and non-judgmental.
+- Snooze never changes the base reminder schedule.
+- Drink action never logs the same occurrence twice.

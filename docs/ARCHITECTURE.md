@@ -607,6 +607,13 @@ Canonical rules:
 - `healthConnectDataOrigin` records the origin package when Health Connect provides it.
 - `healthConnectSyncedAt` records the last local sync time for explainability.
 
+Measurement units:
+
+- Hydration entries, goals, quick-add presets, widget snapshots, reminders, Health Connect values, imports, and exports remain canonical milliliters.
+- `settingsMeasurementUnit` controls display only.
+- UI surfaces convert at the display/input boundary, then convert back to milliliters before persistence.
+- Never store mixed-unit hydration records.
+
 Database files:
 
 - `src/platform/database/database-service.native.ts`
@@ -638,16 +645,17 @@ Onboarding:
 
 Reminders:
 
-| Key                                | Type    | Purpose                                                    |
-| ---------------------------------- | ------- | ---------------------------------------------------------- |
-| `reminderEnabled`                  | boolean | Whether reminders are enabled.                             |
-| `reminderIntervalMinutes`          | number  | Interval: 30, 60, 90, 120, or 180.                         |
-| `reminderWakeTime`                 | string  | Active start time, `HH:mm`.                                |
-| `reminderSleepTime`                | string  | Active end time, `HH:mm`.                                  |
-| `reminderTimezone`                 | string  | Last known timezone.                                       |
-| `reminderPausedUntil`              | string  | ISO pause end time.                                        |
-| `reminderScheduledNotificationIds` | string  | JSON array of Expo notification ids.                       |
-| `reminderLastScheduleSignature`    | string  | Last schedule signature to avoid unnecessary rescheduling. |
+| Key                                 | Type    | Purpose                                                              |
+| ----------------------------------- | ------- | -------------------------------------------------------------------- |
+| `reminderEnabled`                   | boolean | Whether reminders are enabled.                                       |
+| `reminderActiveModeDefaultsApplied` | boolean | Whether the one-time Active-mode vibration default has been applied. |
+| `reminderIntervalMinutes`           | number  | Interval: 30, 60, 90, 120, or 180.                                   |
+| `reminderWakeTime`                  | string  | Active start time, `HH:mm`.                                          |
+| `reminderSleepTime`                 | string  | Active end time, `HH:mm`.                                            |
+| `reminderTimezone`                  | string  | Last known timezone.                                                 |
+| `reminderPausedUntil`               | string  | ISO pause end time.                                                  |
+| `reminderScheduledNotificationIds`  | string  | JSON array of Expo notification ids.                                 |
+| `reminderLastScheduleSignature`     | string  | Last schedule signature to avoid unnecessary rescheduling.           |
 
 Settings:
 
@@ -700,9 +708,14 @@ Scheduling flow:
 Reminder preference changes
 -> updateReminderSchedulePreference / enableReminders / pauseReminders
 -> reconcileReminderSchedule
+-> serialize base schedule reconciliation
+-> read canonical reminder preferences and abort stale requests
+-> inspect Expo's scheduled notification queue
+-> cancel stale, legacy, duplicate, or mismatched hydration reminders
 -> build schedule signature
 -> cancel previous scheduled ids if needed
 -> calculateReminderSchedule
+-> reminder notification factory
 -> scheduleLocalNotification
 -> persist scheduled ids
 ```
@@ -712,10 +725,37 @@ Notification tap flow:
 ```txt
 Expo notification response
 -> AppShell listener
--> router.replace("/")
--> reminderPulse param
--> HydrationRing subtle ripple
+-> reminder action service
+-> open Home / Drink / Snooze / Dismiss
 ```
+
+Drink action flow:
+
+```txt
+Reminder action service
+-> occurrence idempotency check
+-> hydration log thunk
+-> SQLite
+-> Redux
+-> widget refresh
+-> Health Connect best-effort sync
+-> reload today's entries
+-> reconcile reminders
+-> dismiss notification
+```
+
+Snooze action flow:
+
+```txt
+Reminder action service
+-> snooze manager
+-> cancel previous pending snooze
+-> schedule hydration-snooze-v1 one-off notification
+-> persist pending snooze id
+-> dismiss notification
+```
+
+Snooze is configured as a non-foreground notification action where Expo can deliver the response to JavaScript. Drink may foreground the app for reliability; Dismiss never foregrounds. A killed-process, fully headless Snooze guarantee would require an approved native Android receiver.
 
 Reminder rules:
 
@@ -727,6 +767,26 @@ Reminder rules:
 - Do not remind after goal completion.
 - Do not remind while paused or disabled.
 - Use calm copy only.
+- Gentle mode is default and silent.
+- Active mode uses system-default sound and default importance.
+- Active mode applies the vibration default once, then preserves explicit user changes.
+- Snooze is one-off and never mutates the base schedule.
+- Snoozed reminders use `hydration-snooze-v1`; base Gentle uses `hydration-gentle-v1`; base Active uses `hydration-active-v1`.
+- Test reminders use `source: test`, a stable `hydration-reminder-test` identifier, and the current effective reminder mode channel.
+- Vibration and Enable Snooze are controlled preferences with one switch handler each. Schedule reconciliation may update schedule-owned fields, but it must not overwrite these UI-owned booleans from stale async results.
+- Notification action data uses versioned metadata and never includes hydration amounts, schedules, goals, Health Connect identifiers, or user identifiers.
+
+## Home Interaction Surfaces
+
+Home remains the fast habit loop, not a settings dashboard.
+
+- Quick Add presets are stored in MMKV as small preference-style configuration.
+- Default presets are 250 ml, 500 ml, and 750 ml.
+- Presets have stable ids, preserve user order, validate 50-5,000 ml, reject duplicates, and keep at least one preset.
+- Preset amounts are persisted in milliliters and displayed in the selected measurement unit.
+- Preset management lives in `/quick-add-presets`.
+- Today's activity on Home is a horizontal recent-entry strip limited to recent items; full history remains on the History screen.
+- Detailed reminder configuration lives in `/settings/reminders`; Home renders only a compact reminder summary with pause/resume and settings shortcuts.
 
 ## Motion System
 

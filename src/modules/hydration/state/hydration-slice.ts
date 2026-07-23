@@ -5,11 +5,11 @@ import { refreshHydrationWidgets } from '@modules/widgets';
 import { trackEventSafely } from '@platform/telemetry';
 
 import {
-  addHydrationEntry,
   deleteHydrationEntry,
   getTodayHydrationEntries,
   updateHydrationEntry,
 } from '../repository/hydration-repository';
+import { persistHydrationLog } from '../services/hydration-log-service';
 import { refreshHomeHydrationFromCanonicalSource } from '../services/home-refresh-service';
 import type { HydrationEntry, HydrationEntrySource } from '../types';
 import { getLocalDateKey } from '../utils/date';
@@ -41,13 +41,7 @@ export const refreshHomeHydration = createAsyncThunk(
 export const logHydration = createAsyncThunk(
   'hydration/log',
   async ({ amount, source }: { amount: number; source: HydrationEntrySource }) => {
-    const entry = await addHydrationEntry({ amount, source });
-
-    void refreshHydrationWidgets('hydration_changed');
-    void queueBestEffortHealthConnectSync();
-    trackEventSafely('hydration_log_action', { source: source === 'widget' ? 'widget' : 'app' });
-
-    return entry;
+    return persistHydrationLog({ amount, source });
   },
 );
 

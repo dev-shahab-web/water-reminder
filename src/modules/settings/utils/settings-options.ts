@@ -27,7 +27,7 @@ export const isTimeValue = (value: string | undefined): value is string => {
 };
 
 export const millilitersToOunces = (amountMl: number): number => {
-  return Math.round(amountMl / 29.5735);
+  return amountMl / 29.5735;
 };
 
 export const ouncesToMilliliters = (amountOz: number): number => {
@@ -36,10 +36,24 @@ export const ouncesToMilliliters = (amountOz: number): number => {
 
 export const formatMeasurementAmount = (amountMl: number, unit: MeasurementUnit): string => {
   if (unit === 'oz') {
-    return `${millilitersToOunces(amountMl)} oz`;
+    return `${formatOunceValue(millilitersToOunces(amountMl))} oz`;
   }
 
   return `${amountMl} ml`;
+};
+
+export const getMeasurementValue = (amountMl: number, unit: MeasurementUnit): number => {
+  if (unit === 'oz') {
+    return Number(formatOunceValue(millilitersToOunces(amountMl)));
+  }
+
+  return amountMl;
+};
+
+export const getMeasurementUnitLabel = (unit: MeasurementUnit): string => unit;
+
+const formatOunceValue = (amountOz: number): string => {
+  return amountOz.toFixed(2).replace(/\.?0+$/, '');
 };
 
 export const getThemeLabel = (preference: ThemePreference): string => {

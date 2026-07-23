@@ -1,30 +1,123 @@
 import { getStorage } from '@platform/storage';
 
-import type { ReminderIntervalMinutes, ReminderPreferences } from '../types';
+import type {
+  ReminderActivationState,
+  ReminderIntervalMinutes,
+  ReminderMode,
+  ReminderPreferences,
+  ReminderSnoozeMinutes,
+  ReminderSoundPreference,
+  ReminderSoundType,
+} from '../types';
 import { getCurrentTimezone } from '../utils/time';
 
+export const reminderPreferenceSchemaVersion = 4;
+
 export const reminderStorageKeys = {
+  activationState: 'reminderActivationState',
+  activeModeDefaultsApplied: 'reminderActiveModeDefaultsApplied',
+  defaultSnoozeMinutes: 'reminderDefaultSnoozeMinutes',
   enabled: 'reminderEnabled',
   intervalMinutes: 'reminderIntervalMinutes',
   lastScheduleSignature: 'reminderLastScheduleSignature',
+  mode: 'reminderMode',
   pausedUntilIso: 'reminderPausedUntil',
+  pendingSnoozeNotificationId: 'reminderPendingSnoozeNotificationId',
+  pendingSnoozeTargetIso: 'reminderPendingSnoozeTargetIso',
+  preferenceSchemaVersion: 'reminderPreferenceSchemaVersion',
   scheduledNotificationIds: 'reminderScheduledNotificationIds',
   sleepTime: 'reminderSleepTime',
+  snoozeEnabled: 'reminderSnoozeEnabled',
+  soundCustomName: 'reminderCustomSoundName',
+  soundType: 'reminderSoundType',
   timezone: 'reminderTimezone',
+  vibrationEnabled: 'reminderVibrationEnabled',
   wakeTime: 'reminderWakeTime',
 } as const;
 
 export const defaultReminderPreferences: ReminderPreferences = {
+  activationState: 'not_configured',
+  activeModeDefaultsApplied: false,
+  defaultSnoozeMinutes: 10,
   enabled: false,
   intervalMinutes: 120,
+  mode: 'gentle',
+  preferenceSchemaVersion: reminderPreferenceSchemaVersion,
   scheduledNotificationIds: [],
   sleepTime: '21:00',
+  snoozeEnabled: true,
+  sound: {
+    type: 'silent',
+  },
   timezone: getCurrentTimezone(),
+  vibrationEnabled: false,
   wakeTime: '09:00',
+};
+
+const subscribers = new Set<() => void>();
+
+const notifySubscribers = () => {
+  subscribers.forEach((subscriber) => {
+    subscriber();
+  });
+};
+
+export const subscribeToReminderPreferences = (subscriber: () => void): (() => void) => {
+  subscribers.add(subscriber);
+
+  return () => {
+    subscribers.delete(subscriber);
+  };
 };
 
 const isIntervalOption = (value: number | undefined): value is ReminderIntervalMinutes => {
   return value === 30 || value === 60 || value === 90 || value === 120 || value === 180;
+};
+
+const isActivationState = (value: string | undefined): value is ReminderActivationState => {
+  return value === 'not_configured' || value === 'enabled' || value === 'disabled_by_user';
+};
+
+const isReminderMode = (value: string | undefined): value is ReminderMode => {
+  return value === 'gentle' || value === 'active';
+};
+
+const isSnoozeOption = (value: number | undefined): value is ReminderSnoozeMinutes => {
+  return value === 5 || value === 10 || value === 15 || value === 30 || value === 60;
+};
+
+const isSoundType = (value: string | undefined): value is ReminderSoundType => {
+  return value === 'silent' || value === 'system_default' || value === 'device_picker';
+};
+
+const readSoundPreference = ({
+  mode,
+  preferenceSchemaVersion,
+  soundType,
+}: {
+  mode: ReminderMode;
+  preferenceSchemaVersion?: number;
+  soundType?: string;
+}): ReminderSoundPreference => {
+  if (soundType === 'custom') {
+    return { type: 'device_picker' };
+  }
+
+  if (!isSoundType(soundType)) {
+    return mode === 'active' ? { type: 'system_default' } : defaultReminderPreferences.sound;
+  }
+
+  if (
+    preferenceSchemaVersion !== reminderPreferenceSchemaVersion &&
+    mode === 'gentle' &&
+    soundType === 'system_default'
+  ) {
+    return defaultReminderPreferences.sound;
+  }
+
+  return {
+    type: soundType,
+  };
 };
 
 const parseScheduledIds = (value: string | undefined): string[] => {
@@ -45,35 +138,89 @@ const parseScheduledIds = (value: string | undefined): string[] => {
 
 export const getReminderPreferences = (): ReminderPreferences => {
   const storage = getStorage();
+  const defaultSnoozeMinutes = storage.getNumber(reminderStorageKeys.defaultSnoozeMinutes);
+  const activationState = storage.getString(reminderStorageKeys.activationState);
   const intervalMinutes = storage.getNumber(reminderStorageKeys.intervalMinutes);
+  const mode = storage.getString(reminderStorageKeys.mode);
   const pausedUntilIso = storage.getString(reminderStorageKeys.pausedUntilIso);
+  const pendingSnoozeNotificationId = storage.getString(
+    reminderStorageKeys.pendingSnoozeNotificationId,
+  );
+  const pendingSnoozeTargetIso = storage.getString(reminderStorageKeys.pendingSnoozeTargetIso);
+  const preferenceSchemaVersion = storage.getNumber(reminderStorageKeys.preferenceSchemaVersion);
+  const soundType = storage.getString(reminderStorageKeys.soundType);
+  const parsedMode = isReminderMode(mode) ? mode : defaultReminderPreferences.mode;
+  const activeModeDefaultsApplied =
+    storage.getBoolean(reminderStorageKeys.activeModeDefaultsApplied) ??
+    (preferenceSchemaVersion === undefined ||
+    preferenceSchemaVersion >= reminderPreferenceSchemaVersion
+      ? defaultReminderPreferences.activeModeDefaultsApplied
+      : parsedMode === 'active');
 
-  return {
+  const preferences: ReminderPreferences = {
+    activationState: isActivationState(activationState)
+      ? activationState
+      : storage.getBoolean(reminderStorageKeys.enabled) === true
+        ? 'enabled'
+        : defaultReminderPreferences.activationState,
+    activeModeDefaultsApplied,
+    defaultSnoozeMinutes: isSnoozeOption(defaultSnoozeMinutes)
+      ? defaultSnoozeMinutes
+      : defaultReminderPreferences.defaultSnoozeMinutes,
     enabled: storage.getBoolean(reminderStorageKeys.enabled) ?? defaultReminderPreferences.enabled,
     intervalMinutes: isIntervalOption(intervalMinutes)
       ? intervalMinutes
       : defaultReminderPreferences.intervalMinutes,
+    mode: parsedMode,
     pausedUntilIso,
+    pendingSnoozeNotificationId,
+    pendingSnoozeTargetIso,
+    preferenceSchemaVersion: reminderPreferenceSchemaVersion,
     scheduledNotificationIds: parseScheduledIds(
       storage.getString(reminderStorageKeys.scheduledNotificationIds),
     ),
     sleepTime:
       storage.getString(reminderStorageKeys.sleepTime) ?? defaultReminderPreferences.sleepTime,
+    snoozeEnabled:
+      storage.getBoolean(reminderStorageKeys.snoozeEnabled) ??
+      defaultReminderPreferences.snoozeEnabled,
+    sound: readSoundPreference({
+      mode: parsedMode,
+      preferenceSchemaVersion,
+      soundType,
+    }),
     timezone:
       storage.getString(reminderStorageKeys.timezone) ?? defaultReminderPreferences.timezone,
+    vibrationEnabled:
+      storage.getBoolean(reminderStorageKeys.vibrationEnabled) ??
+      defaultReminderPreferences.vibrationEnabled,
     wakeTime:
       storage.getString(reminderStorageKeys.wakeTime) ?? defaultReminderPreferences.wakeTime,
   };
+
+  if (preferenceSchemaVersion !== reminderPreferenceSchemaVersion) {
+    return setReminderPreferences(preferences);
+  }
+
+  return preferences;
 };
 
 export const setReminderPreferences = (preferences: ReminderPreferences): ReminderPreferences => {
   const storage = getStorage();
 
+  storage.set(reminderStorageKeys.defaultSnoozeMinutes, preferences.defaultSnoozeMinutes);
+  storage.set(reminderStorageKeys.activationState, preferences.activationState);
+  storage.set(reminderStorageKeys.activeModeDefaultsApplied, preferences.activeModeDefaultsApplied);
   storage.set(reminderStorageKeys.enabled, preferences.enabled);
   storage.set(reminderStorageKeys.intervalMinutes, preferences.intervalMinutes);
+  storage.set(reminderStorageKeys.mode, preferences.mode);
+  storage.set(reminderStorageKeys.preferenceSchemaVersion, reminderPreferenceSchemaVersion);
   storage.set(reminderStorageKeys.wakeTime, preferences.wakeTime);
   storage.set(reminderStorageKeys.sleepTime, preferences.sleepTime);
+  storage.set(reminderStorageKeys.snoozeEnabled, preferences.snoozeEnabled);
+  storage.set(reminderStorageKeys.soundType, preferences.sound.type);
   storage.set(reminderStorageKeys.timezone, preferences.timezone);
+  storage.set(reminderStorageKeys.vibrationEnabled, preferences.vibrationEnabled);
   storage.set(
     reminderStorageKeys.scheduledNotificationIds,
     JSON.stringify(preferences.scheduledNotificationIds),
@@ -84,6 +231,24 @@ export const setReminderPreferences = (preferences: ReminderPreferences): Remind
   } else {
     storage.set(reminderStorageKeys.pausedUntilIso, preferences.pausedUntilIso);
   }
+
+  if (preferences.pendingSnoozeNotificationId === undefined) {
+    storage.remove(reminderStorageKeys.pendingSnoozeNotificationId);
+  } else {
+    storage.set(
+      reminderStorageKeys.pendingSnoozeNotificationId,
+      preferences.pendingSnoozeNotificationId,
+    );
+  }
+
+  if (preferences.pendingSnoozeTargetIso === undefined) {
+    storage.remove(reminderStorageKeys.pendingSnoozeTargetIso);
+  } else {
+    storage.set(reminderStorageKeys.pendingSnoozeTargetIso, preferences.pendingSnoozeTargetIso);
+  }
+
+  storage.remove(reminderStorageKeys.soundCustomName);
+  notifySubscribers();
 
   return preferences;
 };

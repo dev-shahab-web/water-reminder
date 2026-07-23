@@ -1,13 +1,15 @@
 import type { ReminderPreferences, ReminderScheduleInput, ReminderScheduleItem } from '../types';
+import { buildReminderNotificationContent } from '../services/reminder-notification-factory';
+import type { ReminderCopyKey } from './reminder-copy';
 import { addMinutes, getEndOfLocalDay, setLocalTime } from './time';
 
 const maxScheduledReminders = 12;
 
-const reminderCopies = [
-  'Time for a sip.',
-  'Stay refreshed.',
-  'Nice rhythm today.',
-  'A small sip can keep the habit going.',
+const reminderCopyKeys = [
+  'time_for_sip',
+  'stay_refreshed',
+  'nice_rhythm_today',
+  'small_sip_keep_habit',
 ] as const;
 
 export const getSmartIntervalMinutes = ({
@@ -28,16 +30,20 @@ export const getSmartIntervalMinutes = ({
   return intervalMinutes;
 };
 
-const getReminderCopy = (progress: number, index: number): string => {
+const getReminderCopyKey = (progress: number, index: number): ReminderCopyKey => {
   if (progress >= 0.8) {
-    return index % 2 === 0 ? 'Almost there.' : 'Stay refreshed.';
+    return index % 2 === 0 ? 'almost_there' : 'stay_refreshed';
   }
 
   if (progress >= 0.4) {
-    return index % 2 === 0 ? 'Nice rhythm today.' : 'Stay refreshed.';
+    return index % 2 === 0 ? 'nice_rhythm_today' : 'stay_refreshed';
   }
 
-  return reminderCopies[index % reminderCopies.length];
+  return reminderCopyKeys[index % reminderCopyKeys.length];
+};
+
+const getReminderOccurrenceId = (date: Date, index: number): string => {
+  return `hydration-reminder-${date.getTime()}-${index}`;
 };
 
 const isPaused = (preferences: ReminderPreferences, now: Date): boolean => {
@@ -103,10 +109,21 @@ export const calculateReminderSchedule = ({
     nextDate <= scheduleEnd && reminders.length < maxScheduledReminders;
     nextDate = addMinutes(nextDate, intervalMinutes)
   ) {
+    const occurrenceId = getReminderOccurrenceId(nextDate, reminders.length);
+    const notificationContent = buildReminderNotificationContent({
+      copyKey: getReminderCopyKey(progress, reminders.length),
+      mode: preferences.mode,
+      occurrenceId,
+      snoozeEnabled: preferences.snoozeEnabled,
+      sound: preferences.sound,
+      source: 'scheduled',
+      vibrationEnabled: preferences.vibrationEnabled,
+    });
+
     reminders.push({
-      body: getReminderCopy(progress, reminders.length),
+      ...notificationContent,
       date: nextDate,
-      title: 'Water Reminder',
+      identifier: occurrenceId,
     });
   }
 
@@ -126,6 +143,11 @@ export const buildReminderScheduleSignature = ({
     preferences.wakeTime,
     preferences.sleepTime,
     preferences.intervalMinutes,
+    preferences.mode,
+    preferences.vibrationEnabled,
+    preferences.snoozeEnabled,
+    preferences.defaultSnoozeMinutes,
+    preferences.sound.type,
     preferences.pausedUntilIso ?? 'none',
     preferences.timezone,
     progressBucket,

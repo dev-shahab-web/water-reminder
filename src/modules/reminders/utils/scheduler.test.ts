@@ -1,14 +1,33 @@
 import { describe, expect, it } from '@jest/globals';
 
+import {
+  HYDRATION_ACTIVE_CHANNEL_ID,
+  HYDRATION_GENTLE_CHANNEL_ID,
+} from '@platform/notifications/notification-channels';
+import {
+  REMINDER_NOTIFICATION_CATEGORY,
+  isReminderNotificationData,
+} from '@platform/notifications/notification-actions';
+
 import type { ReminderPreferences } from '../types';
 import { calculateReminderSchedule, getSmartIntervalMinutes } from './scheduler';
 
 const preferences: ReminderPreferences = {
+  activationState: 'enabled',
+  activeModeDefaultsApplied: false,
+  defaultSnoozeMinutes: 10,
   enabled: true,
   intervalMinutes: 60,
+  mode: 'gentle',
+  preferenceSchemaVersion: 1,
   scheduledNotificationIds: [],
   sleepTime: '17:00',
+  snoozeEnabled: true,
+  sound: {
+    type: 'silent',
+  },
   timezone: 'UTC',
+  vibrationEnabled: false,
   wakeTime: '09:00',
 };
 
@@ -59,5 +78,44 @@ describe('reminder scheduler', () => {
     expect(reminders[0]?.date.toISOString()).toBe('2026-07-10T09:00:00.000Z');
     expect(reminders.every((reminder) => reminder.date.getUTCHours() >= 9)).toBe(true);
     expect(reminders.every((reminder) => reminder.date.getUTCHours() <= 17)).toBe(true);
+  });
+
+  it('preserves Gentle reminder copy while adding channel, action, and metadata contracts', () => {
+    const reminders = calculateReminderSchedule({
+      goalAmount: 2000,
+      now: new Date('2026-07-10T08:30:00.000Z'),
+      preferences,
+      totalAmount: 250,
+    });
+
+    expect(reminders[0]).toMatchObject({
+      androidChannelId: HYDRATION_GENTLE_CHANNEL_ID,
+      body: 'Time for a sip.',
+      categoryIdentifier: REMINDER_NOTIFICATION_CATEGORY,
+      identifier: 'hydration-reminder-1783674000000-0',
+      sound: false,
+      title: 'Water Reminder',
+    });
+    expect(isReminderNotificationData(reminders[0]?.data)).toBe(true);
+  });
+
+  it('uses active notification content when preferences are active', () => {
+    const reminders = calculateReminderSchedule({
+      goalAmount: 2000,
+      now: new Date('2026-07-10T08:30:00.000Z'),
+      preferences: {
+        ...preferences,
+        mode: 'active',
+        sound: { type: 'system_default' },
+        vibrationEnabled: true,
+      },
+      totalAmount: 250,
+    });
+
+    expect(reminders[0]).toMatchObject({
+      androidChannelId: HYDRATION_ACTIVE_CHANNEL_ID,
+      sound: 'default',
+      vibrate: [0, 240, 160, 240],
+    });
   });
 });

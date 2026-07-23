@@ -28,3 +28,11 @@ export type HydrationSummary = {
   remainingAmount: number;
   totalAmount: number;
 };
+
+export type QuickAddPreset = {
+  amountMl: number;
+  createdAt: string;
+  id: string;
+  position: number;
+  updatedAt: string;
+};
