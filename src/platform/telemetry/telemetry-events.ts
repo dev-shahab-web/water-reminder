@@ -50,6 +50,7 @@ export const telemetryScreens = [
   'home',
   'onboarding',
   'history',
+  'quick-add-presets',
   'statistics',
   'settings',
   'health_connect',
