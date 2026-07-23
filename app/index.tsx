@@ -335,17 +335,17 @@ export default function HomeScreen() {
             onPress={openCustomAmount}
             style={styles.quickAddActionButton}
           />
+          <SecondaryButton
+            accessibilityLabel="Open hydration history"
+            icon="history"
+            label="Check History"
+            onPress={() => {
+              trackEventSafely('history_opened', { source: 'app' });
+              router.push('/history' as never);
+            }}
+            style={styles.historyActionButton}
+          />
         </View>
-        <SecondaryButton
-          accessibilityLabel="Open hydration history"
-          icon="history"
-          label="History"
-          onPress={() => {
-            trackEventSafely('history_opened', { source: 'app' });
-            router.push('/history' as never);
-          }}
-          style={styles.quickAddActionButton}
-        />
       </View>
 
       <CompactReminderCard
@@ -704,13 +704,20 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   quickAddActionButton: {
-    flexBasis: 180,
-    flexGrow: 0.5,
+    // flexBasis: 0,
+    // flexGrow: 5,
+    flexShrink: 1,
+  },
+  historyActionButton: {
+    // flexBasis: 0,
+    // flexGrow: 5,
+    flexShrink: 1,
   },
   quickAddActions: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     gap: 10,
+    // width: '100%',
   },
   quickAddList: {
     paddingRight: 4,

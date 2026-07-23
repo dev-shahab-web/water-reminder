@@ -2,14 +2,14 @@ import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
-import { MaterialCommunityIcon } from '@shared/components';
-import { AnimatedPressableScale } from '@shared/motion';
-import type { AppTheme } from '@shared/theme';
 import type { MeasurementUnit } from '@modules/settings';
 import {
   getMeasurementUnitLabel,
   getMeasurementValue,
 } from '@modules/settings/utils/settings-options';
+import { MaterialCommunityIcon } from '@shared/components';
+import { AnimatedPressableScale } from '@shared/motion';
+import type { AppTheme } from '@shared/theme';
 
 export type QuickAddCardVariant = { amountMl: number; type: 'preset' } | { type: 'add' };
 
@@ -60,7 +60,7 @@ export const QuickAddButton = memo(function QuickAddButton({
         <MaterialCommunityIcon
           color={theme.app.colors.hydrationProgress}
           name={isAddCard ? 'plus' : 'water'}
-          size={isAddCard ? 22 : 18}
+          size={isAddCard ? 26 : 18}
         />
         {variant.type === 'preset' ? (
           <>
@@ -95,8 +95,8 @@ export const QuickAddButton = memo(function QuickAddButton({
               styles.addLabel,
               {
                 color: theme.app.colors.textSecondary,
-                fontSize: theme.app.typography.fontSize.caption,
-                lineHeight: theme.app.typography.lineHeight.caption,
+                fontSize: theme.app.typography.fontSize.body,
+                lineHeight: theme.app.typography.lineHeight.body,
               },
             ]}
           >
@@ -120,10 +120,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: 'center',
     marginRight: 10,
-    height: 68,
+    height: 80,
     minWidth: 88,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 14,
     shadowOffset: {
       height: 3,
       width: 0,
