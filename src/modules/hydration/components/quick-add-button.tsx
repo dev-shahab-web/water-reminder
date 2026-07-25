@@ -119,9 +119,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     justifyContent: 'center',
-    marginRight: 10,
     height: 80,
-    minWidth: 88,
+    flexShrink: 0,
     paddingHorizontal: 12,
     paddingVertical: 14,
     shadowOffset: {

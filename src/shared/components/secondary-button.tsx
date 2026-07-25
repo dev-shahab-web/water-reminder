@@ -1,4 +1,4 @@
-import { StyleSheet, Text, type PressableProps } from 'react-native';
+import { StyleSheet, Text, type PressableProps, type TextProps } from 'react-native';
 import { Icon, useTheme } from 'react-native-paper';
 
 import { AnimatedPressableScale } from '@shared/motion';
@@ -7,12 +7,16 @@ import type { AppTheme } from '@shared/theme';
 type SecondaryButtonProps = PressableProps & {
   icon?: string;
   label: string;
+  labelMaxFontSizeMultiplier?: TextProps['maxFontSizeMultiplier'];
+  labelNumberOfLines?: TextProps['numberOfLines'];
 };
 
 export function SecondaryButton({
   disabled = false,
   icon,
   label,
+  labelMaxFontSizeMultiplier,
+  labelNumberOfLines,
   style,
   ...props
 }: SecondaryButtonProps) {
@@ -38,6 +42,8 @@ export function SecondaryButton({
     >
       {icon === undefined ? null : <Icon color={contentColor} size={20} source={icon} />}
       <Text
+        maxFontSizeMultiplier={labelMaxFontSizeMultiplier}
+        numberOfLines={labelNumberOfLines}
         style={[
           styles.label,
           {
@@ -61,11 +67,14 @@ const styles = StyleSheet.create({
     gap: 8,
     justifyContent: 'center',
     minHeight: 52,
+    minWidth: 0,
     paddingHorizontal: 20,
     paddingVertical: 14,
   },
   label: {
+    flexShrink: 1,
     fontWeight: '700',
+    minWidth: 0,
     textAlign: 'center',
   },
 });

@@ -52,6 +52,8 @@ export function SegmentedSetting<T extends string>({
             ]}
           >
             <Text
+              maxFontSizeMultiplier={1.25}
+              numberOfLines={1}
               style={[
                 styles.label,
                 {
@@ -78,15 +80,21 @@ const styles = StyleSheet.create({
   option: {
     alignItems: 'center',
     borderWidth: 1,
+    flexBasis: 0,
     flexGrow: 1,
+    flexShrink: 1,
     justifyContent: 'center',
     minHeight: 44,
+    minWidth: 0,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   row: {
+    alignSelf: 'stretch',
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    minWidth: 0,
+    width: '100%',
   },
 });

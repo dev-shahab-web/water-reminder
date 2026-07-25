@@ -8,6 +8,8 @@ import {
   Text,
   View,
   type AppStateStatus,
+  type LayoutChangeEvent,
+  useWindowDimensions,
 } from 'react-native';
 import { useTheme } from 'react-native-paper';
 import Animated, {
@@ -50,6 +52,7 @@ import type { AppTheme } from '@shared/theme';
 
 export default function HomeScreen() {
   const theme = useTheme<AppTheme>();
+  const { fontScale } = useWindowDimensions();
   const params = useLocalSearchParams<{ reminderPulse?: string }>();
   const { state } = useOnboardingState();
   const isFocused = useIsFocused();
@@ -57,6 +60,7 @@ export default function HomeScreen() {
   const settings = useSettingsSnapshot();
   const reduceMotion = systemReduceMotion || settings.reduceMotion;
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
+  const [actionRowWidth, setActionRowWidth] = useState(0);
   const { presets } = useQuickAddPresets();
   const {
     amountError,
@@ -92,6 +96,12 @@ export default function HomeScreen() {
     setStatisticsRefreshKey((currentKey) => currentKey + 1);
   }, [refreshHome]);
 
+  const handleActionRowLayout = useCallback((event: LayoutChangeEvent) => {
+    const nextWidth = Math.floor(event.nativeEvent.layout.width);
+
+    setActionRowWidth((currentWidth) => (currentWidth === nextWidth ? currentWidth : nextWidth));
+  }, []);
+
   useEffect(() => {
     const subscription = AppState.addEventListener('change', setAppState);
 
@@ -124,6 +134,14 @@ export default function HomeScreen() {
   const undoExiting = reduceMotion
     ? undefined
     : FadeOutUp.duration(140).easing(Easing.out(Easing.cubic));
+  const quickAddActionGap = theme.app.spacing[3];
+  const isQuickAddActionRowHorizontal = actionRowWidth >= 320 && fontScale <= 1.15;
+  const quickAddActionButtonWidth = isQuickAddActionRowHorizontal
+    ? Math.floor((actionRowWidth - quickAddActionGap) / 2)
+    : undefined;
+  const quickAddActionWrapperStyle = isQuickAddActionRowHorizontal
+    ? { width: quickAddActionButtonWidth }
+    : styles.quickAddActionWrapperStacked;
 
   return (
     <AppScreen
@@ -304,6 +322,7 @@ export default function HomeScreen() {
           contentContainerStyle={styles.quickAddList}
           data={presets}
           horizontal
+          ItemSeparatorComponent={QuickAddSeparator}
           keyExtractor={(preset) => preset.id}
           ListFooterComponent={
             <QuickAddButton
@@ -314,6 +333,7 @@ export default function HomeScreen() {
               variant={{ type: 'add' }}
             />
           }
+          ListFooterComponentStyle={styles.quickAddFooter}
           renderItem={({ item }) => (
             <QuickAddButton
               disabled={isSaving}
@@ -326,25 +346,42 @@ export default function HomeScreen() {
           )}
           showsHorizontalScrollIndicator={false}
         />
-        <View style={styles.quickAddActions}>
-          <PrimaryButton
-            accessibilityLabel="Add a custom water amount"
-            disabled={isSaving}
-            icon="plus"
-            label="Custom amount"
-            onPress={openCustomAmount}
-            style={styles.quickAddActionButton}
-          />
-          <SecondaryButton
-            accessibilityLabel="Open hydration history"
-            icon="history"
-            label="Check History"
-            onPress={() => {
-              trackEventSafely('history_opened', { source: 'app' });
-              router.push('/history' as never);
-            }}
-            style={styles.historyActionButton}
-          />
+        <View
+          onLayout={handleActionRowLayout}
+          style={[
+            styles.quickAddActions,
+            isQuickAddActionRowHorizontal
+              ? styles.quickAddActionsHorizontal
+              : styles.quickAddActionsStacked,
+            { gap: quickAddActionGap },
+          ]}
+        >
+          <View style={quickAddActionWrapperStyle}>
+            <PrimaryButton
+              accessibilityLabel="Add a custom water amount"
+              disabled={isSaving}
+              icon="plus"
+              label="Custom amount"
+              labelMaxFontSizeMultiplier={1.25}
+              labelNumberOfLines={1}
+              onPress={openCustomAmount}
+              style={styles.quickAddActionButton}
+            />
+          </View>
+          <View style={quickAddActionWrapperStyle}>
+            <SecondaryButton
+              accessibilityLabel="Open hydration history"
+              icon="history"
+              label="Check History"
+              labelMaxFontSizeMultiplier={1.25}
+              labelNumberOfLines={1}
+              onPress={() => {
+                trackEventSafely('history_opened', { source: 'app' });
+                router.push('/history' as never);
+              }}
+              style={styles.historyActionButton}
+            />
+          </View>
         </View>
       </View>
 
@@ -623,6 +660,10 @@ function Metric({ label, value }: MetricProps) {
   );
 }
 
+function QuickAddSeparator() {
+  return <View style={styles.quickAddSeparator} />;
+}
+
 const styles = StyleSheet.create({
   appName: {
     fontWeight: '800',
@@ -704,23 +745,38 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   quickAddActionButton: {
-    // flexBasis: 0,
-    // flexGrow: 5,
-    flexShrink: 1,
+    flexShrink: 0,
+    minWidth: 0,
+    width: '100%',
   },
   historyActionButton: {
-    // flexBasis: 0,
-    // flexGrow: 5,
-    flexShrink: 1,
+    flexShrink: 0,
+    minWidth: 0,
+    width: '100%',
   },
   quickAddActions: {
+    width: '100%',
+  },
+  quickAddActionsHorizontal: {
+    alignItems: 'stretch',
     flexDirection: 'row',
-    flexWrap: 'nowrap',
-    gap: 10,
-    // width: '100%',
+  },
+  quickAddActionsStacked: {
+    alignItems: 'stretch',
+    flexDirection: 'column',
+  },
+  quickAddActionWrapperStacked: {
+    alignSelf: 'stretch',
+    width: '100%',
+  },
+  quickAddFooter: {
+    marginLeft: 12,
   },
   quickAddList: {
-    paddingRight: 4,
+    paddingRight: 20,
+  },
+  quickAddSeparator: {
+    width: 12,
   },
   progressFill: {
     height: '100%',

@@ -1,5 +1,14 @@
-import { memo, type ReactNode } from 'react';
-import { Platform, StyleSheet, Switch, Text, View } from 'react-native';
+import { memo, type ReactNode, useCallback, useState } from 'react';
+import {
+  Platform,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+  type LayoutChangeEvent,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { useTheme } from 'react-native-paper';
 
 import {
@@ -35,6 +44,7 @@ const modeOptions: { description: string; label: string; value: ReminderMode }[]
 const snoozeOptions: ReminderSnoozeMinutes[] = [5, 10, 15, 30, 60];
 const wakeOptions = ['07:00', '08:00', '09:00', '10:00'] as const;
 const sleepOptions = ['20:00', '21:00', '22:00', '23:00'] as const;
+const activeHourOptions = [...wakeOptions, ...sleepOptions] as const;
 const pauseOptions: { label: string; value: ReminderPauseOption }[] = [
   { label: '30 min', value: '30min' },
   { label: '1 hour', value: '1hour' },
@@ -154,22 +164,29 @@ export const ReminderCard = memo(function ReminderCard({
       {enabled ? (
         <>
           <ControlGroup label="Active hours">
-            <SegmentedOptions
+            <SegmentedOptionsGrid
               currentValue={wakeTime}
               labelPrefix="Wake time"
               onChange={onWakeTimeChange}
-              options={wakeOptions}
-            />
-            <SegmentedOptions
-              currentValue={sleepTime}
-              labelPrefix="Sleep time"
-              onChange={onSleepTimeChange}
-              options={sleepOptions}
+              onSecondaryChange={onSleepTimeChange}
+              options={activeHourOptions}
+              optionTypeByValue={{
+                '07:00': 'wake',
+                '08:00': 'wake',
+                '09:00': 'wake',
+                '10:00': 'wake',
+                '20:00': 'sleep',
+                '21:00': 'sleep',
+                '22:00': 'sleep',
+                '23:00': 'sleep',
+              }}
+              secondaryCurrentValue={sleepTime}
+              columns={4}
             />
           </ControlGroup>
 
           <ControlGroup label="Reminder rhythm">
-            <SegmentedOptions
+            <SegmentedOptionsGrid
               currentValue={String(intervalMinutes)}
               labelPrefix="Reminder interval"
               onChange={(value) => {
@@ -177,6 +194,7 @@ export const ReminderCard = memo(function ReminderCard({
               }}
               options={intervalOptions.map(String)}
               suffix="min"
+              columns={5}
             />
           </ControlGroup>
 
@@ -195,7 +213,7 @@ export const ReminderCard = memo(function ReminderCard({
               value={snoozeEnabled}
             />
             {snoozeEnabled ? (
-              <SegmentedOptions
+              <SegmentedOptionsGrid
                 currentValue={String(defaultSnoozeMinutes)}
                 labelPrefix="Default snooze"
                 onChange={(value) => {
@@ -203,6 +221,7 @@ export const ReminderCard = memo(function ReminderCard({
                 }}
                 options={snoozeOptions.map(String)}
                 suffix="min"
+                columns={5}
               />
             ) : null}
             <SoundPreferenceRow mode={mode} onPress={onNotificationSoundPress} />
@@ -280,6 +299,7 @@ function ModeOptions({
           onPress={() => {
             onChange(option.value);
           }}
+          style={styles.optionButtonFull}
         />
       ))}
     </View>
@@ -493,33 +513,68 @@ function ReminderOffState() {
 }
 
 type SegmentedOptionsProps = {
+  columns: number;
   currentValue: string;
   labelPrefix: string;
   onChange: (value: string) => void;
+  onSecondaryChange?: (value: string) => void;
   options: readonly string[];
+  optionTypeByValue?: Record<string, 'sleep' | 'wake'>;
+  secondaryCurrentValue?: string;
   suffix?: string;
 };
 
-function SegmentedOptions({
+function SegmentedOptionsGrid({
+  columns,
   currentValue,
   labelPrefix,
   onChange,
+  onSecondaryChange,
   options,
+  optionTypeByValue,
+  secondaryCurrentValue,
   suffix,
 }: SegmentedOptionsProps) {
+  const [rowWidth, setRowWidth] = useState(0);
+  const handleLayout = useCallback((event: LayoutChangeEvent) => {
+    const nextWidth = Math.floor(event.nativeEvent.layout.width);
+
+    setRowWidth((currentWidth) => (currentWidth === nextWidth ? currentWidth : nextWidth));
+  }, []);
+  const gap = 8;
+  const optionWidth =
+    rowWidth > 0 ? Math.floor((rowWidth - gap * (columns - 1)) / columns) : undefined;
+
   return (
-    <View style={styles.optionRow}>
-      {options.map((option) => (
-        <OptionButton
-          key={option}
-          label={suffix === undefined ? option : `${option} ${suffix}`}
-          selected={option === currentValue}
-          accessibilityLabel={`${labelPrefix} ${option}${suffix === undefined ? '' : ` ${suffix}`}`}
-          onPress={() => {
-            onChange(option);
-          }}
-        />
-      ))}
+    <View onLayout={handleLayout} style={[styles.optionGrid, { gap }]}>
+      {options.map((option) => {
+        const optionType = optionTypeByValue?.[option];
+        const isSecondaryOption = optionType === 'sleep';
+        const optionLabelPrefix = isSecondaryOption ? 'Sleep time' : labelPrefix;
+        const selected = isSecondaryOption
+          ? option === secondaryCurrentValue
+          : option === currentValue;
+
+        return (
+          <OptionButton
+            key={option}
+            label={suffix === undefined ? option : `${option} ${suffix}`}
+            selected={selected}
+            accessibilityLabel={`${optionLabelPrefix} ${option}${
+              suffix === undefined ? '' : ` ${suffix}`
+            }`}
+            onPress={() => {
+              if (isSecondaryOption && onSecondaryChange !== undefined) {
+                onSecondaryChange(option);
+                return;
+              }
+
+              onChange(option);
+            }}
+            style={optionWidth === undefined ? styles.optionButtonFallback : { width: optionWidth }}
+          />
+        );
+      })}
     </View>
   );
 }
@@ -530,6 +585,7 @@ type OptionButtonProps = {
   label: string;
   onPress: () => void;
   selected: boolean;
+  style?: StyleProp<ViewStyle>;
 };
 
 function OptionButton({
@@ -538,6 +594,7 @@ function OptionButton({
   label,
   onPress,
   selected,
+  style,
 }: OptionButtonProps) {
   const theme = useTheme<AppTheme>();
 
@@ -558,9 +615,12 @@ function OptionButton({
           borderRadius: theme.app.radius.md,
           opacity: pressed ? 0.74 : 1,
         },
+        style,
       ]}
     >
       <Text
+        maxFontSizeMultiplier={1.25}
+        numberOfLines={1}
         style={[
           styles.optionText,
           {
@@ -657,10 +717,20 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   optionButton: {
+    alignItems: 'center',
     borderWidth: 1,
+    flexShrink: 0,
     minHeight: 44,
-    paddingHorizontal: 10,
+    minWidth: 0,
+    paddingHorizontal: 6,
     paddingVertical: 9,
+  },
+  optionButtonFallback: {
+    flexBasis: 0,
+    flexGrow: 1,
+    minWidth: 0,
+  },
+  optionButtonFull: {
     width: '100%',
   },
   optionDescription: {
@@ -671,8 +741,14 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
+  optionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    width: '100%',
+  },
   optionText: {
     fontWeight: '700',
+    textAlign: 'center',
   },
   pauseButton: {
     flexBasis: 96,
