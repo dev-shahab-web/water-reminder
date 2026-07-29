@@ -3,7 +3,6 @@ import { describe, expect, it } from '@jest/globals';
 import {
   HYDRATION_ACTIVE_CHANNEL_ID,
   HYDRATION_GENTLE_CHANNEL_ID,
-  HYDRATION_SNOOZE_CHANNEL_ID,
 } from '@platform/notifications/notification-channels';
 import {
   REMINDER_NOTIFICATION_CATEGORY,
@@ -57,23 +56,23 @@ describe('reminder notification factory', () => {
     expect(content.vibrate).toEqual([0, 240, 160, 240]);
   });
 
-  it('uses the quiet snooze channel for silent snoozed reminders', () => {
+  it('keeps Gentle snoozed reminders quiet on the Gentle channel', () => {
     const content = buildReminderNotificationContent({
       copyKey: 'take_moment_hydrate',
-      mode: 'active',
+      mode: 'gentle',
       snoozeEnabled: true,
-      sound: { type: 'silent' },
+      sound: { type: 'system_default' },
       source: 'snoozed',
       vibrationEnabled: true,
     });
 
-    expect(content.androidChannelId).toBe(HYDRATION_SNOOZE_CHANNEL_ID);
+    expect(content.androidChannelId).toBe(HYDRATION_GENTLE_CHANNEL_ID);
     expect(content.sound).toBe(false);
     expect(content.vibrate).toBeUndefined();
     expect(content.data.source).toBe('snoozed');
   });
 
-  it('keeps snoozed audible reminders on the quiet snooze channel', () => {
+  it('keeps Active snoozed reminders on the Active channel with selected sound and vibration', () => {
     const content = buildReminderNotificationContent({
       copyKey: 'take_moment_hydrate',
       mode: 'active',
@@ -83,9 +82,9 @@ describe('reminder notification factory', () => {
       vibrationEnabled: true,
     });
 
-    expect(content.androidChannelId).toBe(HYDRATION_SNOOZE_CHANNEL_ID);
-    expect(content.sound).toBe(false);
-    expect(content.vibrate).toBeUndefined();
+    expect(content.androidChannelId).toBe(HYDRATION_ACTIVE_CHANNEL_ID);
+    expect(content.sound).toBe('default');
+    expect(content.vibrate).toEqual([0, 240, 160, 240]);
   });
 
   it('marks test reminders without changing the effective mode channel', () => {

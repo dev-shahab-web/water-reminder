@@ -10,7 +10,6 @@ import { isReminderNotificationData } from '@platform/notifications/notification
 import {
   HYDRATION_ACTIVE_CHANNEL_ID,
   HYDRATION_GENTLE_CHANNEL_ID,
-  HYDRATION_SNOOZE_CHANNEL_ID,
   type HydrationReminderChannelId,
 } from '@platform/notifications/notification-channels';
 import { refreshHydrationWidgets } from '@modules/widgets';
@@ -47,6 +46,18 @@ type ScheduledHydrationReconciliationSummary = {
 };
 
 let scheduleOperationQueue: Promise<void> = Promise.resolve();
+
+const firstActivationReminderDefaults = {
+  activeModeDefaultsApplied: true,
+  intervalMinutes: 60,
+  mode: 'active',
+  sleepTime: '00:00',
+  sound: {
+    type: 'system_default',
+  },
+  vibrationEnabled: true,
+  wakeTime: '09:00',
+} as const satisfies Partial<ReminderPreferences>;
 
 export const loadReminderPreferences = (): ReminderPreferences => {
   const preferences = getReminderPreferences();
@@ -185,6 +196,7 @@ export const reconcileScheduledHydrationNotifications = async (
 ): Promise<ScheduledHydrationReconciliationSummary> => {
   const scheduledNotifications = await getScheduledLocalNotifications();
   const expectedBaseChannelId = getExpectedBaseChannelId(preferences);
+  const expectedSnoozeChannelId = getExpectedSnoozeChannelId(preferences);
   const persistedBaseIds = new Set(preferences.scheduledNotificationIds);
   const expectedSnoozeId = preferences.pendingSnoozeNotificationId;
   const seenBaseOccurrenceIds = new Set<string>();
@@ -195,6 +207,7 @@ export const reconcileScheduledHydrationNotifications = async (
   for (const notification of scheduledNotifications) {
     const action = classifyScheduledHydrationNotification({
       expectedBaseChannelId,
+      expectedSnoozeChannelId,
       expectedSnoozeId,
       notification,
       persistedBaseIds,
@@ -254,11 +267,9 @@ export const enableReminders = async (
     };
   }
 
+  const activatedPreferences = buildPermissionGrantedReminderPreferences(preferences);
   const nextPreferences = setReminderPreferences({
-    ...preferences,
-    activationState: 'enabled',
-    enabled: true,
-    pausedUntilIso: undefined,
+    ...activatedPreferences,
   });
 
   void refreshHydrationWidgets('reminder_changed');
@@ -272,16 +283,28 @@ export const enableReminders = async (
 export const activateRemindersWithGrantedPermission = (
   preferences: ReminderPreferences,
 ): ReminderPreferences => {
-  const nextPreferences = setReminderPreferences({
-    ...preferences,
-    activationState: 'enabled',
-    enabled: true,
-    pausedUntilIso: undefined,
-  });
+  const nextPreferences = setReminderPreferences(
+    buildPermissionGrantedReminderPreferences(preferences),
+  );
 
   void refreshHydrationWidgets('reminder_changed');
 
   return nextPreferences;
+};
+
+const buildPermissionGrantedReminderPreferences = (
+  preferences: ReminderPreferences,
+): ReminderPreferences => {
+  const shouldApplyFirstActivationDefaults =
+    preferences.activationState === 'not_configured' && !preferences.activeModeDefaultsApplied;
+
+  return {
+    ...preferences,
+    ...(shouldApplyFirstActivationDefaults ? firstActivationReminderDefaults : {}),
+    activationState: 'enabled',
+    enabled: true,
+    pausedUntilIso: undefined,
+  };
 };
 
 export const disableReminders = async (
@@ -437,6 +460,7 @@ export const resumeReminders = (preferences: ReminderPreferences): ReminderPrefe
 
 const classifyScheduledHydrationNotification = ({
   expectedBaseChannelId,
+  expectedSnoozeChannelId,
   expectedSnoozeId,
   notification,
   persistedBaseIds,
@@ -444,6 +468,7 @@ const classifyScheduledHydrationNotification = ({
   seenSnoozeOccurrenceIds,
 }: {
   expectedBaseChannelId: HydrationReminderChannelId;
+  expectedSnoozeChannelId: HydrationReminderChannelId;
   expectedSnoozeId?: string;
   notification: ScheduledLocalNotification;
   persistedBaseIds: ReadonlySet<string>;
@@ -468,7 +493,7 @@ const classifyScheduledHydrationNotification = ({
 
     if (
       notification.identifier !== expectedSnoozeId ||
-      isKnownChannelMismatch(notification.androidChannelId, HYDRATION_SNOOZE_CHANNEL_ID) ||
+      isKnownChannelMismatch(notification.androidChannelId, expectedSnoozeChannelId) ||
       seenSnoozeOccurrenceIds.has(occurrenceId)
     ) {
       return 'cancel';
@@ -505,6 +530,12 @@ const getExpectedBaseChannelId = (preferences: ReminderPreferences): HydrationRe
   }
 
   return HYDRATION_GENTLE_CHANNEL_ID;
+};
+
+const getExpectedSnoozeChannelId = (
+  preferences: ReminderPreferences,
+): HydrationReminderChannelId => {
+  return getExpectedBaseChannelId(preferences);
 };
 
 const runSerializedScheduleOperation = async <Result>(

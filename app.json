@@ -2,7 +2,7 @@
   "expo": {
     "name": "Water Reminder",
     "slug": "water-reminder",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/branding/app/icon.png",
     "scheme": "waterreminder",
@@ -12,7 +12,7 @@
     },
     "android": {
       "package": "com.shahab.waterreminder",
-      "versionCode": 2,
+      "versionCode": 3,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.health.READ_HYDRATION",

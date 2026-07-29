@@ -17,6 +17,20 @@ export const getEndOfLocalDay = (date = new Date()): Date => {
   return end;
 };
 
+export const getStartOfLocalDay = (date = new Date()): Date => {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+
+  return start;
+};
+
+export const addLocalDays = (date: Date, days: number): Date => {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+
+  return nextDate;
+};
+
 export const addMinutes = (date: Date, minutes: number): Date => {
   return new Date(date.getTime() + minutes * 60 * 1000);
 };

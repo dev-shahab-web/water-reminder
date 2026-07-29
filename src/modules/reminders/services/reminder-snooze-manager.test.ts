@@ -1,9 +1,12 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { HYDRATION_SNOOZE_CHANNEL_ID } from '@platform/notifications/notification-channels';
+import {
+  HYDRATION_ACTIVE_CHANNEL_ID,
+  HYDRATION_GENTLE_CHANNEL_ID,
+} from '@platform/notifications/notification-channels';
 
 import { defaultReminderPreferences } from '../repository/reminder-preferences-storage';
-import type { ReminderPreferences } from '../types';
+import type { ReminderPreferences, ReminderSnoozeMinutes } from '../types';
 import { clearPendingSnooze, snoozeReminder } from './reminder-snooze-manager';
 
 const mockStorageValues = new Map<string, boolean | number | string>();
@@ -67,6 +70,14 @@ const scheduledReminderIdAt = (iso: string, index = 0): string => {
   return `hydration-reminder-${new Date(iso).getTime()}-${index}`;
 };
 
+const snoozeDurationCases: readonly [ReminderSnoozeMinutes, string][] = [
+  [5, '2026-07-21T10:05:00.000Z'],
+  [10, '2026-07-21T10:10:00.000Z'],
+  [15, '2026-07-21T10:15:00.000Z'],
+  [30, '2026-07-21T10:30:00.000Z'],
+  [60, '2026-07-21T11:00:00.000Z'],
+];
+
 describe('reminder snooze manager', () => {
   beforeEach(() => {
     mockStorageValues.clear();
@@ -84,7 +95,7 @@ describe('reminder snooze manager', () => {
     expect(mockCancelLocalNotifications).not.toHaveBeenCalled();
     expect(mockScheduleLocalNotification).toHaveBeenCalledTimes(1);
     expect(mockScheduleLocalNotification.mock.calls[0]?.[0]).toMatchObject({
-      androidChannelId: HYDRATION_SNOOZE_CHANNEL_ID,
+      androidChannelId: HYDRATION_GENTLE_CHANNEL_ID,
       date: new Date('2026-07-21T10:10:00.000Z'),
       identifier: 'hydration-reminder-snooze-1784628600000',
       sound: false,
@@ -206,7 +217,7 @@ describe('reminder snooze manager', () => {
 
     expect(mockScheduleLocalNotification).toHaveBeenCalledTimes(1);
     expect(mockScheduleLocalNotification.mock.calls[0]?.[0]).toMatchObject({
-      androidChannelId: HYDRATION_SNOOZE_CHANNEL_ID,
+      androidChannelId: HYDRATION_GENTLE_CHANNEL_ID,
       data: {
         occurrenceId: 'hydration-reminder-snooze-1784628300000',
         schemaVersion: 1,
@@ -221,6 +232,67 @@ describe('reminder snooze manager', () => {
       'hydration-reminder-snooze-1784628300000',
     );
     expect(nextPreferences.pendingSnoozeTargetIso).toBe('2026-07-21T10:05:00.000Z');
+  });
+
+  it.each(snoozeDurationCases)(
+    'follows the selected %i minute snooze duration exactly',
+    async (durationMinutes, targetIso) => {
+      const nextPreferences = await snoozeReminder({
+        durationMinutes,
+        now: new Date('2026-07-21T10:00:00.000Z'),
+        preferences: {
+          ...preferences,
+          scheduledNotificationIds: [],
+        },
+      });
+
+      expect(mockScheduleLocalNotification).toHaveBeenCalledTimes(1);
+      expect(mockScheduleLocalNotification.mock.calls[0]?.[0]).toMatchObject({
+        date: new Date(targetIso),
+        identifier: `hydration-reminder-snooze-${new Date(targetIso).getTime()}`,
+      });
+      expect(nextPreferences.pendingSnoozeTargetIso).toBe(targetIso);
+    },
+  );
+
+  it('uses the Active reminder channel, sound, and vibration for Active snoozed reminders', async () => {
+    await snoozeReminder({
+      now: new Date('2026-07-21T10:00:00.000Z'),
+      preferences: {
+        ...preferences,
+        mode: 'active',
+        scheduledNotificationIds: [],
+        sound: { type: 'system_default' },
+        vibrationEnabled: true,
+      },
+    });
+
+    expect(mockScheduleLocalNotification).toHaveBeenCalledTimes(1);
+    expect(mockScheduleLocalNotification.mock.calls[0]?.[0]).toMatchObject({
+      androidChannelId: HYDRATION_ACTIVE_CHANNEL_ID,
+      sound: 'default',
+      vibrate: [0, 240, 160, 240],
+    });
+  });
+
+  it('keeps Gentle snoozed reminders on the Gentle quiet channel', async () => {
+    await snoozeReminder({
+      now: new Date('2026-07-21T10:00:00.000Z'),
+      preferences: {
+        ...preferences,
+        mode: 'gentle',
+        scheduledNotificationIds: [],
+        sound: { type: 'system_default' },
+        vibrationEnabled: true,
+      },
+    });
+
+    expect(mockScheduleLocalNotification).toHaveBeenCalledTimes(1);
+    expect(mockScheduleLocalNotification.mock.calls[0]?.[0]).toMatchObject({
+      androidChannelId: HYDRATION_GENTLE_CHANNEL_ID,
+      sound: false,
+    });
+    expect(mockScheduleLocalNotification.mock.calls[0]?.[0]).not.toHaveProperty('vibrate');
   });
 
   it('cleans stale pending snooze ids safely', async () => {

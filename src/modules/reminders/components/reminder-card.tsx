@@ -43,7 +43,7 @@ const modeOptions: { description: string; label: string; value: ReminderMode }[]
 ];
 const snoozeOptions: ReminderSnoozeMinutes[] = [5, 10, 15, 30, 60];
 const wakeOptions = ['07:00', '08:00', '09:00', '10:00'] as const;
-const sleepOptions = ['20:00', '21:00', '22:00', '23:00'] as const;
+const sleepOptions = ['20:00', '21:00', '22:00', '23:00', '00:00'] as const;
 const activeHourOptions = [...wakeOptions, ...sleepOptions] as const;
 const pauseOptions: { label: string; value: ReminderPauseOption }[] = [
   { label: '30 min', value: '30min' },
@@ -179,6 +179,7 @@ export const ReminderCard = memo(function ReminderCard({
                 '21:00': 'sleep',
                 '22:00': 'sleep',
                 '23:00': 'sleep',
+                '00:00': 'sleep',
               }}
               secondaryCurrentValue={sleepTime}
               columns={4}

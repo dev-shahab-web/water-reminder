@@ -66,6 +66,8 @@ Example tone:
 - If reminders are paused, cancel pending notifications until the pause expires.
 - If a reminder is snoozed, schedule one one-off snoozed reminder and preserve the base schedule.
 - If snooze is repeated, replace the previous pending snooze.
+- Snoozed reminders should inherit the selected reminder mode: Gentle stays quiet, Active uses the active notification channel with sound and vibration when enabled.
+- On the first successful permission grant, reminders default to Active, every 60 minutes, from 09:00 to 00:00.
 
 ## Notification Actions
 

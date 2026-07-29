@@ -714,7 +714,7 @@ Reminder preference changes
 -> cancel stale, legacy, duplicate, or mismatched hydration reminders
 -> build schedule signature
 -> cancel previous scheduled ids if needed
--> calculateReminderSchedule
+-> calculateReminderSchedule for a rolling seven-day local horizon
 -> reminder notification factory
 -> scheduleLocalNotification
 -> persist scheduled ids
@@ -750,7 +750,7 @@ Snooze action flow:
 Reminder action service
 -> snooze manager
 -> cancel previous pending snooze
--> schedule hydration-snooze-v1 one-off notification
+-> schedule one-off notification on the current Gentle or Active channel
 -> persist pending snooze id
 -> dismiss notification
 ```
@@ -764,17 +764,20 @@ Reminder rules:
 - No cloud.
 - No account.
 - Do not schedule outside active hours.
-- Do not remind after goal completion.
+- Do not remind again today after today's goal completion, while keeping future days scheduled.
 - Do not remind while paused or disabled.
 - Use calm copy only.
-- Gentle mode is default and silent.
+- Before notification permission is granted, reminders remain not configured. On first successful permission grant, reminders default to Active.
+- First activation uses a 09:00 to 00:00 active window, a 60-minute interval, system-default sound, and vibration.
+- Gentle mode remains the quiet option.
 - Active mode uses system-default sound and default importance.
 - Active mode applies the vibration default once, then preserves explicit user changes.
 - Snooze is one-off and never mutates the base schedule.
-- Snoozed reminders use `hydration-snooze-v1`; base Gentle uses `hydration-gentle-v1`; base Active uses `hydration-active-v1`.
+- Snoozed reminders use the current effective mode channel: Gentle uses `hydration-gentle-v1`; Active uses `hydration-active-v1`.
 - Test reminders use `source: test`, a stable `hydration-reminder-test` identifier, and the current effective reminder mode channel.
 - Vibration and Enable Snooze are controlled preferences with one switch handler each. Schedule reconciliation may update schedule-owned fields, but it must not overwrite these UI-owned booleans from stale async results.
 - Notification action data uses versioned metadata and never includes hydration amounts, schedules, goals, Health Connect identifiers, or user identifiers.
+- Base reminders are scheduled ahead for seven local days so the next day does not depend on opening the app first. Future days use configured active hours and a fresh daily total assumption.
 
 ## Home Interaction Surfaces
 

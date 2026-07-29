@@ -41,7 +41,7 @@ Android channels:
 
 - `hydration-gentle-v1`: quiet, silent, low-disruption reminders.
 - `hydration-active-v1`: system-default notification sound, vibration, default importance.
-- `hydration-snooze-v1`: quiet one-off snoozed reminders.
+- `hydration-snooze-v1`: legacy quiet snooze channel kept for existing installs. New snoozed reminders use the current effective Gentle or Active channel.
 
 Android users may override channel behavior in system settings. The app preference represents what Water Reminder requests for future notification content; the Android channel state represents what the OS/user currently allows. The app must not claim it can force sound, vibration, or visibility after a user changes OS-level channel preferences.
 
@@ -64,9 +64,13 @@ Schedule ownership:
 
 - Base Gentle reminders use `hydration-gentle-v1` only.
 - Base Active reminders use `hydration-active-v1` only.
-- Snoozed reminders use `hydration-snooze-v1` only and never mutate the base schedule.
+- Snoozed reminders use the current effective mode channel and never mutate the base schedule.
+- Gentle snoozes remain quiet through `hydration-gentle-v1`.
+- Active snoozes remain noticeable through `hydration-active-v1`, including system-default sound and vibration when enabled.
 - Test reminders use the current effective mode channel and are never persisted as base scheduled IDs.
 - No new real reminder should use Android's legacy `default` channel.
+- Base reminders are scheduled as a rolling local schedule, currently seven days ahead, so reminders can continue on future days even if the app is not opened every morning.
+- Today's hydration total affects today's reminder eligibility and smart frequency. Future days assume a fresh daily total of zero because the app has no backend or always-on hydration calculation.
 
 Schedule reconciliation:
 
@@ -79,6 +83,7 @@ Schedule reconciliation:
 - If Expo's scheduled-notification inspection result omits a channel id, valid structured reminder metadata is preserved instead of being treated as a channel mismatch.
 - Unrelated app notifications are preserved.
 - Reconciliation is idempotent and may force a rebuild when persisted IDs are missing from Expo's scheduled queue.
+- Reconciliation replaces the full rolling base schedule when reminder preferences, timezone, goal, or today's progress bucket changes.
 
 Controlled preference updates:
 
@@ -95,6 +100,13 @@ Activation state:
 - `disabled_by_user`: the user explicitly chose not to use reminders or turned them off.
 
 Android notification permission alone does not mean reminders are enabled. The app enables reminders only through the user-facing enable flow or a one-time migration from a previously stored onboarding intent of `enabled`. This prevents launch-time permission checks from re-enabling reminders after a user deliberately turns them off.
+
+First successful activation defaults:
+
+- When a not-configured user grants notification permission, Water Reminder enables Active reminders by default.
+- The first activation schedule is 09:00 to 00:00, every 60 minutes.
+- First activation uses system-default notification sound and vibration.
+- These defaults are applied once only. Re-enabling reminders after a user explicitly turned them off preserves the user's existing reminder choices.
 
 Notification category:
 
@@ -171,7 +183,7 @@ Expo notification response
 -> cancel previous pending snooze
 -> compute one-off snooze target timestamp
 -> suppress snooze if target is within 10 minutes of a normal reminder
--> schedule one one-off snoozed reminder
+-> schedule one one-off snoozed reminder on the current mode channel
 -> persist pending snooze id and target timestamp
 -> audit Expo scheduled notification queue
 -> dismiss handled notification

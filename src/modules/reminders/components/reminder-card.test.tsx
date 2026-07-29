@@ -53,13 +53,17 @@ const setPlatform = (os: typeof Platform.OS): void => {
 const renderReminderCard = ({
   mode = 'gentle',
   onNotificationSoundPress = jest.fn(),
+  onSleepTimeChange = jest.fn(),
   onSnoozeEnabledChange = jest.fn(),
   onVibrationChange = jest.fn(),
+  sleepTime = '22:00',
 }: {
   mode?: 'active' | 'gentle';
   onNotificationSoundPress?: () => void;
+  onSleepTimeChange?: (time: string) => void;
   onSnoozeEnabledChange?: (enabled: boolean) => void;
   onVibrationChange?: (enabled: boolean) => void;
+  sleepTime?: string;
 } = {}) => {
   return render(
     <PaperProvider theme={appLightTheme}>
@@ -74,13 +78,13 @@ const renderReminderCard = ({
         onNotificationSoundPress={onNotificationSoundPress}
         onPause={jest.fn()}
         onResume={jest.fn()}
-        onSleepTimeChange={jest.fn()}
+        onSleepTimeChange={onSleepTimeChange}
         onSnoozeEnabledChange={onSnoozeEnabledChange}
         onToggleEnabled={jest.fn()}
         onVibrationChange={onVibrationChange}
         onWakeTimeChange={jest.fn()}
         preview="Next reminder around 10:00 AM."
-        sleepTime="22:00"
+        sleepTime={sleepTime}
         snoozeEnabled
         status="active"
         summary="8:00 AM to 10:00 PM, every 90 min"
@@ -162,5 +166,24 @@ describe('ReminderCard preference switches', () => {
 
     expect(onSnoozeEnabledChange).toHaveBeenCalledTimes(1);
     expect(onSnoozeEnabledChange).toHaveBeenCalledWith(false);
+  });
+});
+
+describe('ReminderCard active hours', () => {
+  beforeEach(() => {
+    setPlatform('android');
+  });
+
+  it('offers midnight as a sleep-time option for the default 09:00 to 00:00 schedule', () => {
+    const onSleepTimeChange = jest.fn();
+    const screen = renderReminderCard({
+      onSleepTimeChange,
+      sleepTime: '00:00',
+    });
+
+    fireEvent.press(screen.getByLabelText('Sleep time 00:00'));
+
+    expect(screen.getByText('00:00')).toBeTruthy();
+    expect(onSleepTimeChange).toHaveBeenCalledWith('00:00');
   });
 });

@@ -1,9 +1,16 @@
 import type { ReminderPreferences, ReminderScheduleInput, ReminderScheduleItem } from '../types';
 import { buildReminderNotificationContent } from '../services/reminder-notification-factory';
 import type { ReminderCopyKey } from './reminder-copy';
-import { addMinutes, getEndOfLocalDay, setLocalTime } from './time';
+import {
+  addLocalDays,
+  addMinutes,
+  getEndOfLocalDay,
+  getStartOfLocalDay,
+  setLocalTime,
+} from './time';
 
-const maxScheduledReminders = 12;
+export const reminderScheduleHorizonDays = 7;
+const maxScheduledReminders = 64;
 
 const reminderCopyKeys = [
   'time_for_sip',
@@ -46,13 +53,6 @@ const getReminderOccurrenceId = (date: Date, index: number): string => {
   return `hydration-reminder-${date.getTime()}-${index}`;
 };
 
-const isPaused = (preferences: ReminderPreferences, now: Date): boolean => {
-  return (
-    preferences.pausedUntilIso !== undefined &&
-    new Date(preferences.pausedUntilIso).getTime() > now.getTime()
-  );
-};
-
 const getActiveWindow = (
   preferences: ReminderPreferences,
   now: Date,
@@ -82,12 +82,53 @@ export const calculateReminderSchedule = ({
   preferences,
   totalAmount,
 }: ReminderScheduleInput): ReminderScheduleItem[] => {
-  if (!preferences.enabled || isPaused(preferences, now) || totalAmount >= goalAmount) {
+  if (!preferences.enabled) {
+    return [];
+  }
+
+  const reminders: ReminderScheduleItem[] = [];
+  const todayStart = getStartOfLocalDay(now);
+
+  for (
+    let dayOffset = 0;
+    dayOffset < reminderScheduleHorizonDays && reminders.length < maxScheduledReminders;
+    dayOffset += 1
+  ) {
+    const dayStart = addLocalDays(todayStart, dayOffset);
+    const scheduleNow = dayOffset === 0 ? now : dayStart;
+    const dayTotalAmount = dayOffset === 0 ? totalAmount : 0;
+
+    reminders.push(
+      ...calculateDailyReminderSchedule({
+        goalAmount,
+        maxCount: maxScheduledReminders - reminders.length,
+        now: scheduleNow,
+        occurrenceOffset: reminders.length,
+        preferences,
+        totalAmount: dayTotalAmount,
+      }),
+    );
+  }
+
+  return reminders;
+};
+
+const calculateDailyReminderSchedule = ({
+  goalAmount,
+  maxCount,
+  now,
+  occurrenceOffset,
+  preferences,
+  totalAmount,
+}: ReminderScheduleInput & {
+  maxCount: number;
+  occurrenceOffset: number;
+}): ReminderScheduleItem[] => {
+  if (isPausedForWholeDay(preferences, now) || totalAmount >= goalAmount) {
     return [];
   }
 
   const progress = goalAmount <= 0 ? 1 : totalAmount / goalAmount;
-
   if (progress >= 1) {
     return [];
   }
@@ -97,8 +138,15 @@ export const calculateReminderSchedule = ({
     progress,
   });
   const activeWindow = getActiveWindow(preferences, now);
+  const pausedUntil = getPausedUntil(preferences);
+  const eligibleNow =
+    pausedUntil !== undefined && pausedUntil > now && pausedUntil < activeWindow.end
+      ? pausedUntil
+      : now;
   const firstCandidate =
-    now < activeWindow.start ? activeWindow.start : addMinutes(now, intervalMinutes);
+    eligibleNow < activeWindow.start
+      ? activeWindow.start
+      : addMinutes(eligibleNow, intervalMinutes);
   const scheduleEnd = new Date(
     Math.min(activeWindow.end.getTime(), getEndOfLocalDay(firstCandidate).getTime()),
   );
@@ -106,10 +154,10 @@ export const calculateReminderSchedule = ({
 
   for (
     let nextDate = firstCandidate;
-    nextDate <= scheduleEnd && reminders.length < maxScheduledReminders;
+    nextDate <= scheduleEnd && reminders.length < maxCount;
     nextDate = addMinutes(nextDate, intervalMinutes)
   ) {
-    const occurrenceId = getReminderOccurrenceId(nextDate, reminders.length);
+    const occurrenceId = getReminderOccurrenceId(nextDate, occurrenceOffset + reminders.length);
     const notificationContent = buildReminderNotificationContent({
       copyKey: getReminderCopyKey(progress, reminders.length),
       mode: preferences.mode,
@@ -128,6 +176,22 @@ export const calculateReminderSchedule = ({
   }
 
   return reminders;
+};
+
+const getPausedUntil = (preferences: ReminderPreferences): Date | undefined => {
+  if (preferences.pausedUntilIso === undefined) {
+    return undefined;
+  }
+
+  const pausedUntil = new Date(preferences.pausedUntilIso);
+
+  return Number.isNaN(pausedUntil.getTime()) ? undefined : pausedUntil;
+};
+
+const isPausedForWholeDay = (preferences: ReminderPreferences, day: Date): boolean => {
+  const pausedUntil = getPausedUntil(preferences);
+
+  return pausedUntil !== undefined && pausedUntil >= getEndOfLocalDay(day);
 };
 
 export const buildReminderScheduleSignature = ({
@@ -150,6 +214,7 @@ export const buildReminderScheduleSignature = ({
     preferences.sound.type,
     preferences.pausedUntilIso ?? 'none',
     preferences.timezone,
+    reminderScheduleHorizonDays,
     progressBucket,
     goalAmount,
   ].join('|');

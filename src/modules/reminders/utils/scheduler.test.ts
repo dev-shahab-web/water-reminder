@@ -32,7 +32,7 @@ const preferences: ReminderPreferences = {
 };
 
 describe('reminder scheduler', () => {
-  it('does not schedule when disabled, paused, or complete', () => {
+  it('does not schedule when disabled', () => {
     const now = new Date('2026-07-10T10:00:00.000Z');
 
     expect(
@@ -43,22 +43,42 @@ describe('reminder scheduler', () => {
         totalAmount: 0,
       }),
     ).toEqual([]);
-    expect(
-      calculateReminderSchedule({
-        goalAmount: 2000,
-        now,
-        preferences: { ...preferences, pausedUntilIso: '2026-07-10T12:00:00.000Z' },
-        totalAmount: 0,
-      }),
-    ).toEqual([]);
-    expect(
-      calculateReminderSchedule({
-        goalAmount: 2000,
-        now,
-        preferences,
-        totalAmount: 2000,
-      }),
-    ).toEqual([]);
+  });
+
+  it('resumes scheduling after a short pause without requiring the app to reopen', () => {
+    const reminders = calculateReminderSchedule({
+      goalAmount: 2000,
+      now: new Date('2026-07-10T10:00:00.000Z'),
+      preferences: { ...preferences, pausedUntilIso: '2026-07-10T12:00:00.000Z' },
+      totalAmount: 0,
+    });
+
+    expect(reminders[0]?.date.toISOString()).toBe('2026-07-10T13:00:00.000Z');
+  });
+
+  it('skips today after goal completion but keeps future days scheduled', () => {
+    const reminders = calculateReminderSchedule({
+      goalAmount: 2000,
+      now: new Date('2026-07-10T10:00:00.000Z'),
+      preferences,
+      totalAmount: 2000,
+    });
+
+    expect(reminders[0]?.date.toISOString()).toBe('2026-07-11T09:00:00.000Z');
+    expect(reminders.some((reminder) => reminder.date.toISOString().startsWith('2026-07-10'))).toBe(
+      false,
+    );
+  });
+
+  it('keeps tomorrow scheduled when reminders are paused for today', () => {
+    const reminders = calculateReminderSchedule({
+      goalAmount: 2000,
+      now: new Date('2026-07-10T10:00:00.000Z'),
+      preferences: { ...preferences, pausedUntilIso: '2026-07-10T23:59:59.999Z' },
+      totalAmount: 0,
+    });
+
+    expect(reminders[0]?.date.toISOString()).toBe('2026-07-11T09:00:00.000Z');
   });
 
   it('reduces frequency as progress approaches the goal', () => {
@@ -78,6 +98,27 @@ describe('reminder scheduler', () => {
     expect(reminders[0]?.date.toISOString()).toBe('2026-07-10T09:00:00.000Z');
     expect(reminders.every((reminder) => reminder.date.getUTCHours() >= 9)).toBe(true);
     expect(reminders.every((reminder) => reminder.date.getUTCHours() <= 17)).toBe(true);
+  });
+
+  it('supports the default 09:00 to midnight active window', () => {
+    const reminders = calculateReminderSchedule({
+      goalAmount: 2000,
+      now: new Date('2026-07-10T08:30:00.000Z'),
+      preferences: {
+        ...preferences,
+        intervalMinutes: 60,
+        sleepTime: '00:00',
+        wakeTime: '09:00',
+      },
+      totalAmount: 250,
+    });
+    const firstDayReminders = reminders.filter((reminder) =>
+      reminder.date.toISOString().startsWith('2026-07-10'),
+    );
+
+    expect(firstDayReminders[0]?.date.toISOString()).toBe('2026-07-10T09:00:00.000Z');
+    expect(firstDayReminders.at(-1)?.date.toISOString()).toBe('2026-07-10T23:00:00.000Z');
+    expect(firstDayReminders).toHaveLength(15);
   });
 
   it('preserves Gentle reminder copy while adding channel, action, and metadata contracts', () => {

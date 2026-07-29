@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import {
   HYDRATION_ACTIVE_CHANNEL_ID,
   HYDRATION_GENTLE_CHANNEL_ID,
-  HYDRATION_SNOOZE_CHANNEL_ID,
 } from '@platform/notifications/notification-channels';
 
 import {
@@ -116,7 +115,16 @@ describe('reminder engine experience preferences', () => {
       granted: true,
       preferences: {
         activationState: 'enabled',
+        activeModeDefaultsApplied: true,
         enabled: true,
+        intervalMinutes: 60,
+        mode: 'active',
+        sleepTime: '00:00',
+        sound: {
+          type: 'system_default',
+        },
+        vibrationEnabled: true,
+        wakeTime: '09:00',
       },
     });
     expect(mockInitializeNotificationInfrastructure).toHaveBeenCalledTimes(1);
@@ -126,10 +134,52 @@ describe('reminder engine experience preferences', () => {
   it('activates existing onboarding reminder intent without requesting permission again', () => {
     expect(activateRemindersWithGrantedPermission(defaultReminderPreferences)).toMatchObject({
       activationState: 'enabled',
+      activeModeDefaultsApplied: true,
       enabled: true,
+      intervalMinutes: 60,
+      mode: 'active',
       pausedUntilIso: undefined,
+      sleepTime: '00:00',
+      sound: {
+        type: 'system_default',
+      },
+      vibrationEnabled: true,
+      wakeTime: '09:00',
     });
     expect(mockRequestNotificationPermissions).not.toHaveBeenCalled();
+  });
+
+  it('does not overwrite existing reminder choices when re-enabling after user disablement', async () => {
+    const reenabledPreferences = await enableReminders({
+      ...defaultReminderPreferences,
+      activationState: 'disabled_by_user',
+      activeModeDefaultsApplied: true,
+      enabled: false,
+      intervalMinutes: 120,
+      mode: 'gentle',
+      sleepTime: '21:00',
+      sound: {
+        type: 'silent',
+      },
+      vibrationEnabled: false,
+      wakeTime: '08:00',
+    });
+
+    expect(reenabledPreferences).toMatchObject({
+      granted: true,
+      preferences: {
+        activationState: 'enabled',
+        enabled: true,
+        intervalMinutes: 120,
+        mode: 'gentle',
+        sleepTime: '21:00',
+        sound: {
+          type: 'silent',
+        },
+        vibrationEnabled: false,
+        wakeTime: '08:00',
+      },
+    });
   });
 
   it('keeps reminders blocked and internally disabled when permission is denied', async () => {
@@ -385,9 +435,9 @@ describe('reminder engine experience preferences', () => {
     expect(mockCancelLocalNotifications.mock.calls.flat()).not.toContain('unrelated-notification');
   });
 
-  it('keeps a valid pending snooze on the snooze channel during reconciliation', async () => {
+  it('keeps a valid Gentle pending snooze on the Gentle channel during reconciliation', async () => {
     mockScheduledNotifications.push({
-      androidChannelId: HYDRATION_SNOOZE_CHANNEL_ID,
+      androidChannelId: HYDRATION_GENTLE_CHANNEL_ID,
       data: {
         occurrenceId: 'pending-snooze',
         schemaVersion: 1,
@@ -401,6 +451,31 @@ describe('reminder engine experience preferences', () => {
       goalAmount: 2000,
       preferences: {
         ...preferences,
+        pendingSnoozeNotificationId: 'pending-snooze',
+      },
+      totalAmount: 250,
+    });
+
+    expect(mockCancelLocalNotifications.mock.calls.flat()).not.toContain('pending-snooze');
+  });
+
+  it('keeps a valid Active pending snooze on the Active channel during reconciliation', async () => {
+    mockScheduledNotifications.push({
+      androidChannelId: HYDRATION_ACTIVE_CHANNEL_ID,
+      data: {
+        occurrenceId: 'pending-snooze',
+        schemaVersion: 1,
+        source: 'snoozed',
+        type: 'hydration_reminder',
+      },
+      identifier: 'pending-snooze',
+    });
+
+    await reconcileReminderSchedule({
+      goalAmount: 2000,
+      preferences: {
+        ...preferences,
+        mode: 'active',
         pendingSnoozeNotificationId: 'pending-snooze',
       },
       totalAmount: 250,

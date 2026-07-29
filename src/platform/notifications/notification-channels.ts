@@ -51,7 +51,8 @@ export const hydrationReminderChannelDefinitions: readonly NotificationChannelDe
   },
   {
     configuration: {
-      description: 'One-off snoozed hydration reminders. Kept quiet to avoid surprise.',
+      description:
+        'Legacy quiet snooze channel kept for existing installs. New snoozes follow the selected reminder mode.',
       enableVibrate: false,
       importance: androidImportance.LOW,
       name: 'Snoozed hydration reminders',
