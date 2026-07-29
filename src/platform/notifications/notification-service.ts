@@ -47,6 +47,11 @@ export type ScheduledLocalNotification = {
   identifier: string;
 };
 
+export type PresentedLocalNotification = {
+  data: Record<string, unknown>;
+  identifier: string;
+};
+
 export const requestNotificationPermissions = async (): Promise<NotificationRegistrationStatus> => {
   const existingPermissions = await Notifications.getPermissionsAsync();
 
@@ -233,6 +238,20 @@ export const getScheduledLocalNotifications = async (): Promise<ScheduledLocalNo
     });
   } catch (error) {
     logger.warn('Unable to inspect scheduled notifications.', { error });
+    return [];
+  }
+};
+
+export const getPresentedLocalNotifications = async (): Promise<PresentedLocalNotification[]> => {
+  try {
+    const notifications = await Notifications.getPresentedNotificationsAsync();
+
+    return notifications.map((notification) => ({
+      data: notification.request.content.data ?? {},
+      identifier: notification.request.identifier,
+    }));
+  } catch (error) {
+    logger.warn('Unable to inspect presented notifications.', { error });
     return [];
   }
 };

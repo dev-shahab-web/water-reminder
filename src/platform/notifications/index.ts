@@ -4,6 +4,7 @@ export {
   dismissPresentedNotification,
   ensureNotificationCategories,
   getNotificationRegistrationStatus,
+  getPresentedLocalNotifications,
   getScheduledLocalNotifications,
   initializeNotificationInfrastructure,
   initializeNotifications,
@@ -14,6 +15,7 @@ export {
   type LocalNotificationRequest,
   type NotificationRegistrationStatus,
   type NotificationResponsePayload,
+  type PresentedLocalNotification,
   type ScheduledLocalNotification,
 } from './notification-service';
 export {

@@ -182,7 +182,8 @@ Expo notification response
 -> snooze manager
 -> cancel previous pending snooze
 -> compute one-off snooze target timestamp
--> suppress snooze if target is within 10 minutes of a normal reminder
+-> inspect currently presented notifications
+-> skip creating another notification only if another hydration reminder is already visible
 -> schedule one one-off snoozed reminder on the current mode channel
 -> persist pending snooze id and target timestamp
 -> audit Expo scheduled notification queue
@@ -194,7 +195,10 @@ Snooze/base schedule policy:
 - Snooze never mutates the base reminder schedule.
 - At most one pending snoozed reminder may exist.
 - A new snooze replaces the previous pending snooze.
-- If the snooze target is within 10 minutes before or after a scheduled normal reminder, the snooze is suppressed and the normal reminder is preserved.
+- Snooze timing is honored even when the target is near a scheduled normal reminder.
+- If another hydration reminder is already visible in the notification tray, the snooze action skips creating an additional pending notification.
+- The notification being acted on is ignored for the visible-notification check because it will be dismissed after the action is handled.
+- Snoozed reminders keep the same Drink now, Snooze, and Dismiss actions as normal reminders so users can snooze repeatedly.
 - Hydration logging clears a pending snooze only after local persistence succeeds.
 - Pause, disable, goal completion, and schedule-setting changes clear pending snooze state without canceling unrelated normal notification IDs.
 - Snooze diagnostics log action receipt, handler entry, preference loading, target calculation, schedule request, returned notification id, persistence, scheduled queue audit, and delivery receipt when Expo reports delivery. Diagnostics must not log hydration history, amounts, goals, Health Connect identifiers, or reminder schedules beyond the one snooze target needed to debug delivery.

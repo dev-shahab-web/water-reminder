@@ -4,6 +4,7 @@ import {
   HYDRATION_ACTIVE_CHANNEL_ID,
   HYDRATION_GENTLE_CHANNEL_ID,
 } from '@platform/notifications/notification-channels';
+import { REMINDER_NOTIFICATION_CATEGORY } from '@platform/notifications/notification-actions';
 
 import { defaultReminderPreferences } from '../repository/reminder-preferences-storage';
 import type { ReminderPreferences, ReminderSnoozeMinutes } from '../types';
@@ -14,6 +15,7 @@ const mockCancelLocalNotifications = jest.fn(async (_identifiers: readonly strin
 const mockScheduleLocalNotification = jest.fn(async (request: { identifier?: string }) =>
   request.identifier === undefined ? 'snooze-id' : request.identifier,
 );
+const mockPresentedNotifications: { data: Record<string, unknown>; identifier: string }[] = [];
 const mockGetScheduledLocalNotifications = jest.fn(async () => [
   {
     data: {
@@ -55,6 +57,7 @@ jest.mock('@platform/storage', () => ({
 jest.mock('@platform/notifications', () => ({
   cancelLocalNotifications: (identifiers: readonly string[]) =>
     mockCancelLocalNotifications(identifiers),
+  getPresentedLocalNotifications: () => Promise.resolve(mockPresentedNotifications),
   getScheduledLocalNotifications: () => mockGetScheduledLocalNotifications(),
   scheduleLocalNotification: (request: { identifier?: string }) =>
     mockScheduleLocalNotification(request),
@@ -64,10 +67,6 @@ const preferences: ReminderPreferences = {
   ...defaultReminderPreferences,
   enabled: true,
   scheduledNotificationIds: ['base-1', 'base-2'],
-};
-
-const scheduledReminderIdAt = (iso: string, index = 0): string => {
-  return `hydration-reminder-${new Date(iso).getTime()}-${index}`;
 };
 
 const snoozeDurationCases: readonly [ReminderSnoozeMinutes, string][] = [
@@ -81,6 +80,7 @@ const snoozeDurationCases: readonly [ReminderSnoozeMinutes, string][] = [
 describe('reminder snooze manager', () => {
   beforeEach(() => {
     mockStorageValues.clear();
+    mockPresentedNotifications.length = 0;
     mockCancelLocalNotifications.mockClear();
     mockGetScheduledLocalNotifications.mockClear();
     mockScheduleLocalNotification.mockClear();
@@ -96,6 +96,7 @@ describe('reminder snooze manager', () => {
     expect(mockScheduleLocalNotification).toHaveBeenCalledTimes(1);
     expect(mockScheduleLocalNotification.mock.calls[0]?.[0]).toMatchObject({
       androidChannelId: HYDRATION_GENTLE_CHANNEL_ID,
+      categoryIdentifier: REMINDER_NOTIFICATION_CATEGORY,
       date: new Date('2026-07-21T10:10:00.000Z'),
       identifier: 'hydration-reminder-snooze-1784628600000',
       sound: false,
@@ -125,56 +126,70 @@ describe('reminder snooze manager', () => {
     expect(nextPreferences.pendingSnoozeTargetIso).toBe('2026-07-21T10:10:00.000Z');
   });
 
-  it('suppresses a snooze that lands exactly on the next normal reminder', async () => {
+  it('honors the snooze duration even when it lands exactly on the next normal reminder', async () => {
     const nextPreferences = await snoozeReminder({
       durationMinutes: 30,
       now: new Date('2026-07-21T07:30:00.000Z'),
       preferences: {
         ...preferences,
-        scheduledNotificationIds: [scheduledReminderIdAt('2026-07-21T08:00:00.000Z')],
-      },
-    });
-
-    expect(mockScheduleLocalNotification).not.toHaveBeenCalled();
-    expect(nextPreferences.pendingSnoozeNotificationId).toBeUndefined();
-    expect(nextPreferences.pendingSnoozeTargetIso).toBeUndefined();
-    expect(nextPreferences.scheduledNotificationIds).toEqual([
-      scheduledReminderIdAt('2026-07-21T08:00:00.000Z'),
-    ]);
-  });
-
-  it('suppresses a snooze within ten minutes of the next normal reminder', async () => {
-    const nextPreferences = await snoozeReminder({
-      durationMinutes: 15,
-      now: new Date('2026-07-21T07:30:00.000Z'),
-      preferences: {
-        ...preferences,
-        scheduledNotificationIds: [scheduledReminderIdAt('2026-07-21T07:54:00.000Z')],
-      },
-    });
-
-    expect(mockScheduleLocalNotification).not.toHaveBeenCalled();
-    expect(nextPreferences.pendingSnoozeNotificationId).toBeUndefined();
-  });
-
-  it('schedules outside the ten-minute merge window without changing the base schedule', async () => {
-    const nextPreferences = await snoozeReminder({
-      durationMinutes: 15,
-      now: new Date('2026-07-21T07:30:00.000Z'),
-      preferences: {
-        ...preferences,
-        scheduledNotificationIds: [scheduledReminderIdAt('2026-07-21T08:00:00.000Z')],
+        scheduledNotificationIds: ['hydration-reminder-1784620800000-0'],
       },
     });
 
     expect(mockScheduleLocalNotification).toHaveBeenCalledTimes(1);
     expect(mockScheduleLocalNotification.mock.calls[0]?.[0]).toMatchObject({
-      date: new Date('2026-07-21T07:45:00.000Z'),
-      identifier: 'hydration-reminder-snooze-1784619900000',
+      date: new Date('2026-07-21T08:00:00.000Z'),
+      identifier: 'hydration-reminder-snooze-1784620800000',
     });
+    expect(nextPreferences.pendingSnoozeTargetIso).toBe('2026-07-21T08:00:00.000Z');
     expect(nextPreferences.scheduledNotificationIds).toEqual([
-      scheduledReminderIdAt('2026-07-21T08:00:00.000Z'),
+      'hydration-reminder-1784620800000-0',
     ]);
+  });
+
+  it('skips scheduling when another hydration notification is already visible', async () => {
+    mockPresentedNotifications.push({
+      data: {
+        schemaVersion: 1,
+        source: 'scheduled',
+        type: 'hydration_reminder',
+      },
+      identifier: 'visible-reminder',
+    });
+
+    const nextPreferences = await snoozeReminder({
+      durationMinutes: 15,
+      now: new Date('2026-07-21T07:30:00.000Z'),
+      preferences,
+    });
+
+    expect(mockScheduleLocalNotification).not.toHaveBeenCalled();
+    expect(nextPreferences.pendingSnoozeNotificationId).toBeUndefined();
+    expect(nextPreferences.pendingSnoozeTargetIso).toBeUndefined();
+  });
+
+  it('ignores the handled visible notification when deciding whether to schedule snooze', async () => {
+    mockPresentedNotifications.push({
+      data: {
+        schemaVersion: 1,
+        source: 'scheduled',
+        type: 'hydration_reminder',
+      },
+      identifier: 'handled-reminder',
+    });
+
+    const nextPreferences = await snoozeReminder({
+      handledNotificationIdentifier: 'handled-reminder',
+      now: new Date('2026-07-21T10:00:00.000Z'),
+      preferences,
+    });
+
+    expect(mockScheduleLocalNotification).toHaveBeenCalledTimes(1);
+    expect(mockScheduleLocalNotification.mock.calls[0]?.[0]).toMatchObject({
+      date: new Date('2026-07-21T10:10:00.000Z'),
+      identifier: 'hydration-reminder-snooze-1784628600000',
+    });
+    expect(nextPreferences.pendingSnoozeTargetIso).toBe('2026-07-21T10:10:00.000Z');
   });
 
   it('does not schedule snooze when snooze is disabled', async () => {
@@ -218,6 +233,7 @@ describe('reminder snooze manager', () => {
     expect(mockScheduleLocalNotification).toHaveBeenCalledTimes(1);
     expect(mockScheduleLocalNotification.mock.calls[0]?.[0]).toMatchObject({
       androidChannelId: HYDRATION_GENTLE_CHANNEL_ID,
+      categoryIdentifier: REMINDER_NOTIFICATION_CATEGORY,
       data: {
         occurrenceId: 'hydration-reminder-snooze-1784628300000',
         schemaVersion: 1,
@@ -263,6 +279,27 @@ describe('reminder snooze manager', () => {
         mode: 'active',
         scheduledNotificationIds: [],
         sound: { type: 'system_default' },
+        vibrationEnabled: true,
+      },
+    });
+
+    expect(mockScheduleLocalNotification).toHaveBeenCalledTimes(1);
+    expect(mockScheduleLocalNotification.mock.calls[0]?.[0]).toMatchObject({
+      androidChannelId: HYDRATION_ACTIVE_CHANNEL_ID,
+      categoryIdentifier: REMINDER_NOTIFICATION_CATEGORY,
+      sound: 'default',
+      vibrate: [0, 240, 160, 240],
+    });
+  });
+
+  it('uses the default tone for Active snoozes even if stored sound is stale silent', async () => {
+    await snoozeReminder({
+      now: new Date('2026-07-21T10:00:00.000Z'),
+      preferences: {
+        ...preferences,
+        mode: 'active',
+        scheduledNotificationIds: [],
+        sound: { type: 'silent' },
         vibrationEnabled: true,
       },
     });

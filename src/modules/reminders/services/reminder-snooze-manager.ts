@@ -1,8 +1,10 @@
 import {
   cancelLocalNotifications,
+  getPresentedLocalNotifications,
   getScheduledLocalNotifications,
   scheduleLocalNotification,
 } from '@platform/notifications';
+import { isReminderNotificationData } from '@platform/notifications/notification-actions';
 import { logger } from '@core/logger';
 
 import type { ReminderPreferences, ReminderSnoozeMinutes } from '../types';
@@ -14,8 +16,6 @@ import { buildReminderNotificationContent } from './reminder-notification-factor
 import { addMinutes } from '../utils/time';
 
 const snoozeCopyKey = 'time_for_sip';
-const snoozeCollisionWindowMs = 10 * 60 * 1000;
-const scheduledReminderIdPattern = /^hydration-reminder-(\d+)-\d+$/;
 let snoozeOperationQueue: Promise<void> = Promise.resolve();
 
 export const isReminderSnoozeMinutes = (value: number): value is ReminderSnoozeMinutes => {
@@ -24,10 +24,12 @@ export const isReminderSnoozeMinutes = (value: number): value is ReminderSnoozeM
 
 export const snoozeReminder = async ({
   durationMinutes,
+  handledNotificationIdentifier,
   now = new Date(),
   preferences,
 }: {
   durationMinutes?: ReminderSnoozeMinutes;
+  handledNotificationIdentifier?: string;
   now?: Date;
   preferences: ReminderPreferences;
 }): Promise<ReminderPreferences> => {
@@ -36,6 +38,7 @@ export const snoozeReminder = async ({
 
     return snoozeReminderWithoutLock({
       durationMinutes,
+      handledNotificationIdentifier,
       now,
       preferences: latestPreferences,
     });
@@ -44,10 +47,12 @@ export const snoozeReminder = async ({
 
 const snoozeReminderWithoutLock = async ({
   durationMinutes,
+  handledNotificationIdentifier,
   now,
   preferences,
 }: {
   durationMinutes?: ReminderSnoozeMinutes;
+  handledNotificationIdentifier?: string;
   now: Date;
   preferences: ReminderPreferences;
 }): Promise<ReminderPreferences> => {
@@ -83,9 +88,14 @@ const snoozeReminderWithoutLock = async ({
     targetIso: pendingSnoozeTargetIso,
   });
 
-  if (isSnoozeWithinNormalReminderMergeWindow({ preferences, targetDate: date })) {
+  const presentedHydrationNotification = await getVisibleHydrationNotificationToPreserve(
+    handledNotificationIdentifier,
+  );
+
+  if (presentedHydrationNotification !== undefined) {
     logger.info('Reminder snooze skipped.', {
-      reason: 'base_schedule_collision',
+      presentedNotificationIdentifier: presentedHydrationNotification.identifier,
+      reason: 'hydration_notification_already_presented',
       targetIso: pendingSnoozeTargetIso,
     });
     return setReminderPreferences({
@@ -100,7 +110,7 @@ const snoozeReminderWithoutLock = async ({
     copyKey: snoozeCopyKey,
     mode: preferences.mode,
     occurrenceId,
-    snoozeEnabled: false,
+    snoozeEnabled: preferences.snoozeEnabled,
     sound: preferences.sound,
     source: 'snoozed',
     vibrationEnabled: preferences.vibrationEnabled,
@@ -189,25 +199,17 @@ const cancelPendingSnoozeNotification = async (preferences: ReminderPreferences)
   await cancelLocalNotifications([preferences.pendingSnoozeNotificationId]);
 };
 
-const isSnoozeWithinNormalReminderMergeWindow = ({
-  preferences,
-  targetDate,
-}: {
-  preferences: ReminderPreferences;
-  targetDate: Date;
-}): boolean => {
-  const targetTime = targetDate.getTime();
+const getVisibleHydrationNotificationToPreserve = async (
+  handledNotificationIdentifier: string | undefined,
+) => {
+  const presentedNotifications = await getPresentedLocalNotifications();
 
-  return preferences.scheduledNotificationIds.some((identifier) => {
-    const match = scheduledReminderIdPattern.exec(identifier);
-
-    if (match?.[1] === undefined) {
+  return presentedNotifications.find((notification) => {
+    if (notification.identifier === handledNotificationIdentifier) {
       return false;
     }
 
-    const normalReminderTime = Number.parseInt(match[1], 10);
-
-    return Math.abs(normalReminderTime - targetTime) <= snoozeCollisionWindowMs;
+    return isReminderNotificationData(notification.data);
   });
 };
 

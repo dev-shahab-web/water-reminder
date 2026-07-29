@@ -129,6 +129,8 @@ Snooze:
 - Uses the configured default snooze duration.
 - Schedules one one-off snoozed reminder.
 - Replaces any previous pending snooze.
+- Keeps Drink now, Snooze, and Dismiss actions available on the snoozed reminder.
+- Can be used repeatedly; each snooze creates the next one-off reminder after the selected delay.
 - Does not modify the base daily schedule.
 
 Dismiss:

@@ -9,6 +9,7 @@ import {
 } from './notification-actions';
 import {
   ensureNotificationCategories,
+  getPresentedLocalNotifications,
   initializeNotificationInfrastructure,
   resetNotificationCategoryInitializationForTests,
 } from './notification-service';
@@ -30,6 +31,20 @@ const mockSetNotificationHandler = jest.fn((_handler: unknown) => undefined);
 const mockAddNotificationReceivedListener = jest.fn((_listener: unknown) => ({
   remove: jest.fn(),
 }));
+const mockGetPresentedNotificationsAsync = jest.fn(async () => [
+  {
+    request: {
+      content: {
+        data: {
+          schemaVersion: 1,
+          source: 'scheduled',
+          type: 'hydration_reminder',
+        },
+      },
+      identifier: 'visible-reminder',
+    },
+  },
+]);
 
 const setPlatform = (os: typeof Platform.OS): void => {
   Object.defineProperty(Platform, 'OS', {
@@ -50,6 +65,7 @@ jest.mock('expo-notifications', () => ({
   setNotificationHandler: (handler: unknown) => mockSetNotificationHandler(handler),
   addNotificationReceivedListener: (listener: unknown) =>
     mockAddNotificationReceivedListener(listener),
+  getPresentedNotificationsAsync: () => mockGetPresentedNotificationsAsync(),
 }));
 
 describe('notification service infrastructure', () => {
@@ -58,6 +74,7 @@ describe('notification service infrastructure', () => {
     mockSetNotificationChannelAsync.mockClear();
     mockSetNotificationHandler.mockClear();
     mockAddNotificationReceivedListener.mockClear();
+    mockGetPresentedNotificationsAsync.mockClear();
     resetNotificationCategoryInitializationForTests();
     resetNotificationChannelInitializationForTests();
     setNotificationChannelCreatorForTests(async ({ configuration, id }) => {
@@ -124,5 +141,24 @@ describe('notification service infrastructure', () => {
     mockSetNotificationCategoryAsync.mockRejectedValueOnce(new Error('category unavailable'));
 
     await expect(ensureNotificationCategories()).resolves.toBeUndefined();
+  });
+
+  it('maps presented notifications through the platform abstraction', async () => {
+    await expect(getPresentedLocalNotifications()).resolves.toEqual([
+      {
+        data: {
+          schemaVersion: 1,
+          source: 'scheduled',
+          type: 'hydration_reminder',
+        },
+        identifier: 'visible-reminder',
+      },
+    ]);
+  });
+
+  it('handles presented notification inspection failures without throwing', async () => {
+    mockGetPresentedNotificationsAsync.mockRejectedValueOnce(new Error('presented unavailable'));
+
+    await expect(getPresentedLocalNotifications()).resolves.toEqual([]);
   });
 });

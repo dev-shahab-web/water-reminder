@@ -49,6 +49,7 @@ export const handleReminderNotificationResponse = async ({
       source: response.data.source,
     });
     await snoozeReminder({
+      handledNotificationIdentifier: response.notificationIdentifier,
       preferences: loadReminderPreferences(),
     });
     await dismissPresentedNotification(response.notificationIdentifier);
