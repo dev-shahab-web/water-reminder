@@ -17,8 +17,6 @@ export function StatCard({ label, value }: StatCardProps) {
       style={[
         styles.card,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.app.colors.borderSubtle,
           borderRadius: theme.app.radius.md,
         },
       ]}

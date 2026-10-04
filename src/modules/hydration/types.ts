@@ -29,6 +29,13 @@ export type HydrationSummary = {
   totalAmount: number;
 };
 
+export type HydrationLogFeedback = {
+  id: string;
+  amount: number;
+  previousTotal: number;
+  nextTotal: number;
+};
+
 export type QuickAddPreset = {
   amountMl: number;
   createdAt: string;

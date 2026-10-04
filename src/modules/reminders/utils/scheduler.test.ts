@@ -131,11 +131,11 @@ describe('reminder scheduler', () => {
 
     expect(reminders[0]).toMatchObject({
       androidChannelId: HYDRATION_GENTLE_CHANNEL_ID,
-      body: 'Time for a sip.',
+      body: 'Time for a sip. Your 250 mL glass is ready.',
       categoryIdentifier: REMINDER_NOTIFICATION_CATEGORY,
       identifier: 'hydration-reminder-1783674000000-0',
       sound: false,
-      title: 'Water Reminder',
+      title: 'Time to hydrate',
     });
     expect(isReminderNotificationData(reminders[0]?.data)).toBe(true);
   });

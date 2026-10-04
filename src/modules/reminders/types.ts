@@ -43,6 +43,7 @@ export type ReminderPreferences = {
 };
 
 export type ReminderScheduleInput = {
+  glass?: { amountMl: number; amountLabel: string };
   goalAmount: number;
   now: Date;
   preferences: ReminderPreferences;

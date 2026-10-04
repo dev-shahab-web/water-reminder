@@ -37,7 +37,7 @@ describe('widget live sync service', () => {
     mockResetDatabaseConnection.mockResolvedValue();
   });
 
-  it('reopens SQLite and reloads Redux hydration state before refreshing widgets on app active', async () => {
+  it('reloads hydration state without closing in-flight SQLite queries on app active', async () => {
     const dispatch = jest.fn(() => ({
       unwrap: jest.fn<() => Promise<void>>().mockResolvedValue(),
     }));
@@ -64,7 +64,8 @@ describe('widget live sync service', () => {
 
     expect(dispatch).toHaveBeenCalledWith({ type: 'hydration/loadToday' });
     expect(mockRefreshHydrationWidgets).toHaveBeenCalledWith('app_active');
-    expect(callOrder).toEqual(['reset', 'load', 'refresh']);
+    expect(callOrder).toEqual(['load', 'refresh']);
+    expect(mockResetDatabaseConnection).not.toHaveBeenCalled();
   });
 
   it('uses the widget event refresh reason after native widget actions', async () => {

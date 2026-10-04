@@ -16,6 +16,7 @@ const mockScheduleLocalNotification = jest.fn(async (request: { identifier?: str
   request.identifier === undefined ? 'snooze-id' : request.identifier,
 );
 const mockPresentedNotifications: { data: Record<string, unknown>; identifier: string }[] = [];
+const mockDismissPresentedNotification = jest.fn(async (_identifier: string) => undefined);
 const mockGetScheduledLocalNotifications = jest.fn(async () => [
   {
     data: {
@@ -58,6 +59,8 @@ jest.mock('@platform/notifications', () => ({
   cancelLocalNotifications: (identifiers: readonly string[]) =>
     mockCancelLocalNotifications(identifiers),
   getPresentedLocalNotifications: () => Promise.resolve(mockPresentedNotifications),
+  dismissPresentedNotification: (identifier: string) =>
+    mockDismissPresentedNotification(identifier),
   getScheduledLocalNotifications: () => mockGetScheduledLocalNotifications(),
   scheduleLocalNotification: (request: { identifier?: string }) =>
     mockScheduleLocalNotification(request),
@@ -81,18 +84,19 @@ describe('reminder snooze manager', () => {
   beforeEach(() => {
     mockStorageValues.clear();
     mockPresentedNotifications.length = 0;
+    mockDismissPresentedNotification.mockClear();
     mockCancelLocalNotifications.mockClear();
     mockGetScheduledLocalNotifications.mockClear();
     mockScheduleLocalNotification.mockClear();
   });
 
-  it('schedules one one-off snooze without modifying the base schedule', async () => {
+  it('schedules one one-off snooze and removes base reminders with unknown delivery times', async () => {
     const nextPreferences = await snoozeReminder({
       now: new Date('2026-07-21T10:00:00.000Z'),
       preferences,
     });
 
-    expect(mockCancelLocalNotifications).not.toHaveBeenCalled();
+    expect(mockCancelLocalNotifications).toHaveBeenCalledWith(['base-1', 'base-2']);
     expect(mockScheduleLocalNotification).toHaveBeenCalledTimes(1);
     expect(mockScheduleLocalNotification.mock.calls[0]?.[0]).toMatchObject({
       androidChannelId: HYDRATION_GENTLE_CHANNEL_ID,
@@ -101,7 +105,7 @@ describe('reminder snooze manager', () => {
       identifier: 'hydration-reminder-snooze-1784628600000',
       sound: false,
     });
-    expect(nextPreferences.scheduledNotificationIds).toEqual(['base-1', 'base-2']);
+    expect(nextPreferences.scheduledNotificationIds).toEqual([]);
     expect(nextPreferences.pendingSnoozeNotificationId).toBe(
       'hydration-reminder-snooze-1784628600000',
     );
@@ -142,12 +146,13 @@ describe('reminder snooze manager', () => {
       identifier: 'hydration-reminder-snooze-1784620800000',
     });
     expect(nextPreferences.pendingSnoozeTargetIso).toBe('2026-07-21T08:00:00.000Z');
-    expect(nextPreferences.scheduledNotificationIds).toEqual([
+    expect(nextPreferences.scheduledNotificationIds).toEqual([]);
+    expect(mockCancelLocalNotifications).toHaveBeenCalledWith([
       'hydration-reminder-1784620800000-0',
     ]);
   });
 
-  it('skips scheduling when another hydration notification is already visible', async () => {
+  it('snoozes and dismisses another visible hydration notification', async () => {
     mockPresentedNotifications.push({
       data: {
         schemaVersion: 1,
@@ -163,9 +168,9 @@ describe('reminder snooze manager', () => {
       preferences,
     });
 
-    expect(mockScheduleLocalNotification).not.toHaveBeenCalled();
-    expect(nextPreferences.pendingSnoozeNotificationId).toBeUndefined();
-    expect(nextPreferences.pendingSnoozeTargetIso).toBeUndefined();
+    expect(mockScheduleLocalNotification).toHaveBeenCalledTimes(1);
+    expect(nextPreferences.pendingSnoozeTargetIso).toBe('2026-07-21T07:45:00.000Z');
+    expect(mockDismissPresentedNotification).toHaveBeenCalledWith('visible-reminder');
   });
 
   it('ignores the handled visible notification when deciding whether to schedule snooze', async () => {

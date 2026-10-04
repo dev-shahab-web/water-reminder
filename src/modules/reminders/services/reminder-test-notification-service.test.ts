@@ -9,6 +9,9 @@ import {
 } from './reminder-test-notification-service';
 
 const mockCancelLocalNotifications = jest.fn(async (_identifiers: readonly string[]) => undefined);
+jest.mock('./reminder-glass', () => ({
+  getReminderGlass: () => ({ amountMl: 500, amountLabel: '500 mL' }),
+}));
 const mockScheduleLocalNotification = jest.fn(async (request: { identifier?: string }) =>
   request.identifier === undefined ? 'test-reminder-id' : request.identifier,
 );
@@ -67,18 +70,20 @@ describe('reminder test notification service', () => {
     expect(mockScheduleLocalNotification).toHaveBeenCalledWith(
       expect.objectContaining({
         androidChannelId: HYDRATION_ACTIVE_CHANNEL_ID,
-        body: 'Time for a sip.',
+        body: 'Time for a sip. Your 500 mL glass is ready.',
         categoryIdentifier: 'water_reminder.hydration_reminder.v1',
         date: new Date('2026-07-21T10:00:02.000Z'),
         identifier: TEST_REMINDER_NOTIFICATION_ID,
         sound: 'default',
-        title: 'Water Reminder',
+        title: 'Time to hydrate',
         vibrate: [0, 240, 160, 240],
       }),
     );
     expect(mockScheduleLocalNotification.mock.calls[0]?.[0]).toMatchObject({
       data: {
-        occurrenceId: TEST_REMINDER_NOTIFICATION_ID,
+        amountMl: 500,
+        amountLabel: '500 mL',
+        occurrenceId: `${TEST_REMINDER_NOTIFICATION_ID}-${new Date('2026-07-21T10:00:02.000Z').getTime()}`,
         schemaVersion: 1,
         source: 'test',
         type: 'hydration_reminder',

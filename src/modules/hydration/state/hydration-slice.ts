@@ -11,7 +11,7 @@ import {
 } from '../repository/hydration-repository';
 import { persistHydrationLog } from '../services/hydration-log-service';
 import { refreshHomeHydrationFromCanonicalSource } from '../services/home-refresh-service';
-import type { HydrationEntry, HydrationEntrySource } from '../types';
+import type { HydrationEntry, HydrationEntrySource, HydrationLogFeedback } from '../types';
 import { getLocalDateKey } from '../utils/date';
 
 type HydrationStatus = 'idle' | 'loading' | 'ready' | 'saving' | 'error';
@@ -20,6 +20,7 @@ type HydrationState = {
   entries: HydrationEntry[];
   errorMessage?: string;
   lastChangedEntry?: HydrationEntry;
+  lastLogFeedback?: HydrationLogFeedback;
   status: HydrationStatus;
 };
 
@@ -124,6 +125,13 @@ export const hydrationSlice = createSlice({
         state.errorMessage = undefined;
       })
       .addCase(logHydration.fulfilled, (state, action: PayloadAction<HydrationEntry>) => {
+        const previousTotal = state.entries.reduce((total, entry) => total + entry.amount, 0);
+        state.lastLogFeedback = {
+          id: action.payload.id,
+          amount: action.payload.amount,
+          previousTotal,
+          nextTotal: previousTotal + action.payload.amount,
+        };
         state.entries.unshift(action.payload);
         state.lastChangedEntry = action.payload;
         state.status = 'ready';

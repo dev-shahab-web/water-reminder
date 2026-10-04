@@ -9,6 +9,7 @@ import {
   REMINDER_ACTION_DRINK,
   REMINDER_ACTION_SNOOZE,
   REMINDER_NOTIFICATION_CATEGORY,
+  REMINDER_NOTIFICATION_CATEGORY_WITHOUT_SNOOZE,
   isReminderNotificationData,
   reminderNotificationActionLabels,
 } from './notification-actions';
@@ -115,32 +116,31 @@ export const ensureNotificationCategories = async (): Promise<void> => {
     return categorySetupPromise;
   }
 
-  categorySetupPromise = Notifications.setNotificationCategoryAsync(
-    REMINDER_NOTIFICATION_CATEGORY,
-    [
-      {
-        buttonTitle: reminderNotificationActionLabels[REMINDER_ACTION_DRINK],
-        identifier: REMINDER_ACTION_DRINK,
-        options: {
-          opensAppToForeground: true,
-        },
-      },
-      {
-        buttonTitle: reminderNotificationActionLabels[REMINDER_ACTION_SNOOZE],
-        identifier: REMINDER_ACTION_SNOOZE,
-        options: {
-          opensAppToForeground: false,
-        },
-      },
-      {
-        buttonTitle: reminderNotificationActionLabels[REMINDER_ACTION_DISMISS],
-        identifier: REMINDER_ACTION_DISMISS,
-        options: {
-          opensAppToForeground: false,
-        },
-      },
-    ],
-  )
+  const actions = [
+    {
+      buttonTitle: reminderNotificationActionLabels[REMINDER_ACTION_DRINK],
+      identifier: REMINDER_ACTION_DRINK,
+      options: { opensAppToForeground: true },
+    },
+    {
+      buttonTitle: reminderNotificationActionLabels[REMINDER_ACTION_SNOOZE],
+      identifier: REMINDER_ACTION_SNOOZE,
+      // Foreground delivery also handles actions after the JS process exits.
+      options: { opensAppToForeground: true },
+    },
+    {
+      buttonTitle: reminderNotificationActionLabels[REMINDER_ACTION_DISMISS],
+      identifier: REMINDER_ACTION_DISMISS,
+      options: { opensAppToForeground: false },
+    },
+  ];
+  categorySetupPromise = Promise.all([
+    Notifications.setNotificationCategoryAsync(
+      REMINDER_NOTIFICATION_CATEGORY_WITHOUT_SNOOZE,
+      actions.filter((action) => action.identifier !== REMINDER_ACTION_SNOOZE),
+    ),
+    Notifications.setNotificationCategoryAsync(REMINDER_NOTIFICATION_CATEGORY, actions),
+  ])
     .then(() => undefined)
     .catch((error: unknown) => {
       categorySetupPromise = null;
@@ -265,10 +265,20 @@ export const dismissPresentedNotification = async (identifier: string): Promise<
 };
 
 export const addNotificationResponseListener = (
-  listener: (response: NotificationResponsePayload) => void,
+  listener: (response: NotificationResponsePayload) => void | Promise<void>,
 ): Notifications.Subscription => {
-  return Notifications.addNotificationResponseReceivedListener((response) => {
+  let active = true;
+  const handled = new Set<string>();
+  const responseKey = (response: Notifications.NotificationResponse): string => {
     const data = response.notification.request.content.data;
+    const occurrenceId = isReminderNotificationData(data) ? data.occurrenceId : undefined;
+    return `${occurrenceId ?? response.notification.request.identifier}:${response.actionIdentifier}`;
+  };
+  const receive = async (response: Notifications.NotificationResponse) => {
+    if (!active) return;
+    const data = response.notification.request.content.data;
+    const key = responseKey(response);
+    if (handled.has(key)) return;
 
     if (data?.source === 'hydration-reminder' || isReminderNotificationData(data)) {
       logger.info('Reminder notification action received.', {
@@ -276,13 +286,42 @@ export const addNotificationResponseListener = (
         notificationIdentifier: response.notification.request.identifier,
         source: isReminderNotificationData(data) ? data.source : 'legacy',
       });
-      listener({
-        actionIdentifier: response.actionIdentifier,
-        data,
-        notificationIdentifier: response.notification.request.identifier,
-      });
+      handled.add(key);
+      try {
+        await listener({
+          actionIdentifier: response.actionIdentifier,
+          data,
+          notificationIdentifier: response.notification.request.identifier,
+        });
+        const last = await Notifications.getLastNotificationResponseAsync();
+        if (last !== null && responseKey(last) === key) {
+          await Notifications.clearLastNotificationResponseAsync();
+        }
+      } catch (error) {
+        handled.delete(key);
+        logger.warn('Unable to handle reminder notification action.', { error });
+      }
     }
+  };
+  const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+    void receive(response);
   });
+  // Cold-start responses may arrive before AppShell mounts. Subscribe first,
+  // then replay the native response; the key above prevents double execution.
+  void Notifications.getLastNotificationResponseAsync()
+    .then((response) => {
+      if (response !== null) return receive(response);
+    })
+    .catch((error: unknown) =>
+      logger.warn('Unable to read initial notification action.', { error }),
+    );
+
+  return {
+    remove: () => {
+      active = false;
+      subscription.remove();
+    },
+  };
 };
 
 export const isDefaultNotificationAction = (actionIdentifier: string): boolean => {

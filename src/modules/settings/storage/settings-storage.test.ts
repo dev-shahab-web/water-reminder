@@ -44,6 +44,7 @@ describe('settings storage', () => {
     expect(getSettingsState()).toEqual({
       measurementUnit: 'ml',
       reduceMotion: false,
+      logSoundEnabled: true,
       shareAnonymousDiagnostics: false,
       startOfDay: '00:00',
       themePreference: 'system',
@@ -61,6 +62,7 @@ describe('settings storage', () => {
     updateSettingsState({
       measurementUnit: 'oz',
       reduceMotion: true,
+      logSoundEnabled: true,
       shareAnonymousDiagnostics: true,
       startOfDay: '06:00',
       themePreference: 'dark',
@@ -74,6 +76,7 @@ describe('settings storage', () => {
     expect(getSettingsState()).toEqual({
       measurementUnit: 'oz',
       reduceMotion: true,
+      logSoundEnabled: true,
       shareAnonymousDiagnostics: true,
       startOfDay: '06:00',
       themePreference: 'dark',
@@ -99,6 +102,7 @@ describe('settings storage', () => {
     expect(getSettingsState()).toEqual({
       measurementUnit: 'ml',
       reduceMotion: false,
+      logSoundEnabled: true,
       shareAnonymousDiagnostics: false,
       startOfDay: '00:00',
       themePreference: 'system',

@@ -1,4 +1,4 @@
-export const reminderNotificationTitle = 'Water Reminder';
+export const reminderNotificationTitle = 'Time to hydrate';
 
 export const reminderCopyCatalog = {
   almost_there: 'Almost there.',

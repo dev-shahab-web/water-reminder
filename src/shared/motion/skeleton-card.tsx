@@ -1,6 +1,7 @@
+import { AnimatedGlassSurface } from './animated-card';
 import { memo, useEffect } from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
-import Animated, {
+import {
   interpolate,
   useAnimatedStyle,
   useReducedMotion,
@@ -36,14 +37,12 @@ export const SkeletonCard = memo(function SkeletonCard({ rows = 3, style }: Skel
   }));
 
   return (
-    <Animated.View
+    <AnimatedGlassSurface
       accessibilityLabel="Loading"
       accessibilityRole="progressbar"
       style={[
         styles.card,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.app.colors.borderSubtle,
           borderRadius: theme.app.radius.lg,
         },
         style,
@@ -63,7 +62,7 @@ export const SkeletonCard = memo(function SkeletonCard({ rows = 3, style }: Skel
           ]}
         />
       ))}
-    </Animated.View>
+    </AnimatedGlassSurface>
   );
 });
 

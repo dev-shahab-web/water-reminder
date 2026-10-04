@@ -1,3 +1,4 @@
+import { GlassSurface } from '@shared/components/glass-surface';
 import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -12,15 +13,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useTheme } from 'react-native-paper';
-import Animated, {
-  Easing,
-  FadeInDown,
-  FadeOutUp,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import { Easing, FadeInDown, FadeOutUp, useReducedMotion } from 'react-native-reanimated';
 
 import { appConfig } from '@core/config';
 import {
@@ -47,7 +40,7 @@ import {
   SecondaryButton,
   SectionHeader,
 } from '@shared/components';
-import { AnimatedCard, motionDuration, shouldUseContinuousMotion } from '@shared/motion';
+import { AnimatedCard, shouldUseContinuousMotion } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 
 export default function HomeScreen() {
@@ -74,6 +67,7 @@ export default function HomeScreen() {
     isRefreshing,
     isSaving,
     lastLoggedEntry,
+    lastLogFeedback,
     logAmount,
     openCustomAmount,
     openEditEntry,
@@ -164,8 +158,6 @@ export default function HomeScreen() {
         style={[
           styles.heroCard,
           {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.app.colors.borderSubtle,
             borderRadius: theme.app.radius.lg,
           },
         ]}
@@ -212,6 +204,7 @@ export default function HomeScreen() {
         </View>
 
         <HydrationRing
+          feedback={lastLogFeedback}
           attentionKey={params.reminderPulse}
           continuousMotionEnabled={shouldUseContinuousMotion({
             appState,
@@ -236,25 +229,16 @@ export default function HomeScreen() {
             value={formatMeasurementAmount(summary.goalAmount, settings.measurementUnit)}
           />
         </View>
-        <CompletionProgressCard
-          goalAmount={summary.goalAmount}
-          measurementUnit={settings.measurementUnit}
-          percent={summary.percent}
-          remainingAmount={summary.remainingAmount}
-          totalAmount={summary.totalAmount}
-        />
       </AnimatedCard>
 
       {lastLoggedEntry === undefined ? null : (
-        <Animated.View
+        <AnimatedCard
           accessibilityRole="alert"
           entering={undoEntering}
           exiting={undoExiting}
           style={[
             styles.undoBanner,
             {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.app.colors.borderSubtle,
               borderRadius: theme.app.radius.md,
             },
           ]}
@@ -277,7 +261,7 @@ export default function HomeScreen() {
             onPress={undoRecentLog}
             style={styles.undoButton}
           />
-        </Animated.View>
+        </AnimatedCard>
       )}
 
       {errorMessage === undefined ? null : (
@@ -318,7 +302,7 @@ export default function HomeScreen() {
           title="Quick add"
         />
         <FlatList
-          accessibilityLabel="Quick add water presets"
+          accessibilityLabel="Quick add glasses"
           contentContainerStyle={styles.quickAddList}
           data={presets}
           horizontal
@@ -459,8 +443,6 @@ function StatisticsPreviewCard({
       style={[
         styles.statisticsPreview,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.app.colors.borderSubtle,
           borderRadius: theme.app.radius.lg,
         },
       ]}
@@ -486,133 +468,6 @@ function StatisticsPreviewCard({
   );
 }
 
-function CompletionProgressCard({
-  goalAmount,
-  measurementUnit,
-  percent,
-  remainingAmount,
-  totalAmount,
-}: {
-  goalAmount: number;
-  measurementUnit: 'ml' | 'oz';
-  percent: number;
-  remainingAmount: number;
-  totalAmount: number;
-}) {
-  const theme = useTheme<AppTheme>();
-  const reduceMotion = useReducedMotion();
-  const clampedPercent = Math.min(Math.max(percent, 0), 1);
-  const displayedPercent = Math.round(percent * 100);
-  const progress = useSharedValue(clampedPercent);
-
-  useEffect(() => {
-    progress.value = withTiming(clampedPercent, {
-      duration: reduceMotion ? 0 : motionDuration.standard,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [clampedPercent, progress, reduceMotion]);
-
-  const fillStyle = useAnimatedStyle(() => ({
-    width: `${Math.min(Math.max(progress.value, 0), 1) * 100}%`,
-  }));
-
-  return (
-    <View
-      accessibilityLabel={`Hydration progress, ${displayedPercent} percent complete`}
-      accessibilityRole="progressbar"
-      accessibilityValue={{
-        max: 100,
-        min: 0,
-        now: Math.min(Math.max(displayedPercent, 0), 100),
-        text: `Hydration progress, ${displayedPercent} percent complete`,
-      }}
-      style={[
-        styles.completionCard,
-        {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.app.colors.borderSubtle,
-          borderRadius: theme.app.radius.md,
-        },
-      ]}
-    >
-      <View style={styles.completionHeader}>
-        <Text
-          style={[
-            styles.completionLabel,
-            {
-              color: theme.app.colors.textSecondary,
-              fontSize: theme.app.typography.fontSize.caption,
-              lineHeight: theme.app.typography.lineHeight.caption,
-            },
-          ]}
-        >
-          Completion
-        </Text>
-        <Text
-          style={[
-            styles.completionPercent,
-            {
-              color: theme.app.colors.textPrimary,
-              fontSize: theme.app.typography.fontSize.body,
-              lineHeight: theme.app.typography.lineHeight.body,
-            },
-          ]}
-        >
-          {displayedPercent}%
-        </Text>
-      </View>
-      <View
-        style={[
-          styles.progressTrack,
-          {
-            backgroundColor: theme.app.colors.surfaceSubtle,
-            borderRadius: theme.app.radius.full,
-          },
-        ]}
-      >
-        <Animated.View
-          style={[
-            styles.progressFill,
-            {
-              backgroundColor: theme.app.colors.hydrationProgress,
-              borderRadius: theme.app.radius.full,
-            },
-            fillStyle,
-          ]}
-        />
-      </View>
-      <View style={styles.completionSupportRow}>
-        <Text
-          style={[
-            styles.completionSupport,
-            {
-              color: theme.app.colors.textSecondary,
-              fontSize: theme.app.typography.fontSize.caption,
-              lineHeight: theme.app.typography.lineHeight.caption,
-            },
-          ]}
-        >
-          {formatMeasurementAmount(totalAmount, measurementUnit)} completed
-        </Text>
-        <Text
-          style={[
-            styles.completionSupport,
-            {
-              color: theme.app.colors.textSecondary,
-              fontSize: theme.app.typography.fontSize.caption,
-              lineHeight: theme.app.typography.lineHeight.caption,
-            },
-          ]}
-        >
-          {totalAmount > goalAmount
-            ? `${formatMeasurementAmount(totalAmount - goalAmount, measurementUnit)} over`
-            : `${formatMeasurementAmount(remainingAmount, measurementUnit)} left`}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
 type MetricProps = {
   label: string;
   value: string;
@@ -622,12 +477,10 @@ function Metric({ label, value }: MetricProps) {
   const theme = useTheme<AppTheme>();
 
   return (
-    <View
+    <GlassSurface
       style={[
         styles.metric,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.app.colors.borderSubtle,
           borderRadius: theme.app.radius.md,
         },
       ]}
@@ -656,7 +509,7 @@ function Metric({ label, value }: MetricProps) {
       >
         {value}
       </Text>
-    </View>
+    </GlassSurface>
   );
 }
 
@@ -683,45 +536,12 @@ const styles = StyleSheet.create({
   },
   heroCard: {
     borderWidth: 1,
-    elevation: 2,
     gap: 18,
     padding: 18,
-    shadowColor: '#007A8A',
-    shadowOffset: { height: 12, width: 0 },
-    shadowOpacity: 0.08,
-    shadowRadius: 28,
   },
   loadingScreen: {
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  completionCard: {
-    borderWidth: 1,
-    gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  completionHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 12,
-    justifyContent: 'space-between',
-  },
-  completionLabel: {
-    fontWeight: '800',
-    textTransform: 'uppercase',
-  },
-  completionPercent: {
-    fontWeight: '800',
-  },
-  completionSupport: {
-    fontWeight: '700',
-  },
-  completionSupportRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    justifyContent: 'space-between',
   },
   metric: {
     borderWidth: 1,
@@ -773,18 +593,11 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   quickAddList: {
+    paddingVertical: 6,
     paddingRight: 20,
   },
   quickAddSeparator: {
     width: 12,
-  },
-  progressFill: {
-    height: '100%',
-  },
-  progressTrack: {
-    height: 8,
-    overflow: 'hidden',
-    width: '100%',
   },
   screen: {
     alignSelf: 'center',

@@ -86,10 +86,10 @@ describe('notification service infrastructure', () => {
   it('registers the reminder category with stable Drink, Snooze, and Dismiss actions', async () => {
     await ensureNotificationCategories();
 
-    expect(mockSetNotificationCategoryAsync).toHaveBeenCalledTimes(1);
+    expect(mockSetNotificationCategoryAsync).toHaveBeenCalledTimes(2);
     expect(mockSetNotificationCategoryAsync).toHaveBeenCalledWith(REMINDER_NOTIFICATION_CATEGORY, [
       {
-        buttonTitle: 'Drink now',
+        buttonTitle: 'Log water',
         identifier: REMINDER_ACTION_DRINK,
         options: {
           opensAppToForeground: true,
@@ -99,7 +99,7 @@ describe('notification service infrastructure', () => {
         buttonTitle: 'Snooze',
         identifier: REMINDER_ACTION_SNOOZE,
         options: {
-          opensAppToForeground: false,
+          opensAppToForeground: true,
         },
       },
       {
@@ -110,14 +110,27 @@ describe('notification service infrastructure', () => {
         },
       },
     ]);
-    expect(mockSetNotificationCategoryAsync.mock.calls[0]?.[1]).toHaveLength(3);
+    const categories = new Map(mockSetNotificationCategoryAsync.mock.calls);
+    expect(categories.get(REMINDER_NOTIFICATION_CATEGORY)).toHaveLength(3);
+    expect(categories.get('water_reminder.hydration_reminder.no_snooze.v1')).toEqual([
+      {
+        buttonTitle: 'Log water',
+        identifier: REMINDER_ACTION_DRINK,
+        options: { opensAppToForeground: true },
+      },
+      {
+        buttonTitle: 'Dismiss',
+        identifier: REMINDER_ACTION_DISMISS,
+        options: { opensAppToForeground: false },
+      },
+    ]);
   });
 
   it('registers notification categories idempotently', async () => {
     await ensureNotificationCategories();
     await ensureNotificationCategories();
 
-    expect(mockSetNotificationCategoryAsync).toHaveBeenCalledTimes(1);
+    expect(mockSetNotificationCategoryAsync).toHaveBeenCalledTimes(2);
   });
 
   it('does not register notification categories on web', async () => {
@@ -133,7 +146,7 @@ describe('notification service infrastructure', () => {
 
     expect(mockSetNotificationHandler).toHaveBeenCalledTimes(1);
     expect(mockSetNotificationChannelAsync).toHaveBeenCalledTimes(3);
-    expect(mockSetNotificationCategoryAsync).toHaveBeenCalledTimes(1);
+    expect(mockSetNotificationCategoryAsync).toHaveBeenCalledTimes(2);
     expect(mockAddNotificationReceivedListener).toHaveBeenCalledTimes(1);
   });
 

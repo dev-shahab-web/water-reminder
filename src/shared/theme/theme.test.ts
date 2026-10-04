@@ -27,8 +27,8 @@ describe('Water Reminder experience foundation', () => {
     expect(appDarkTheme.app.colors.hydrationProgress).toBeDefined();
   });
 
-  it('replaces starter blue with the water identity palette', () => {
+  it('pairs the water identity accent with a cool glass backdrop', () => {
     expect(lightColors.primary).toBe('#007A8A');
-    expect(lightColors.background).toBe('#F7FBF8');
+    expect(lightColors.background).toBe('#EDF3F6');
   });
 });

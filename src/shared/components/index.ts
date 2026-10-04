@@ -2,6 +2,7 @@ export { AppScreen } from './app-screen';
 export { BrandMark } from './brand-mark';
 export { ChoiceCard } from './choice-card';
 export { GoalCard } from './goal-card';
+export { GlassSurface, GlassPressable } from './glass-surface';
 export { IconButton } from './icon-button';
 export { PaperMaterialCommunityIcon as MaterialCommunityIcon } from './material-community-icon';
 export { OnboardingPage } from './onboarding-page';

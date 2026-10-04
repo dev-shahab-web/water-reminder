@@ -109,8 +109,6 @@ export const ReminderCard = memo(function ReminderCard({
       style={[
         styles.card,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.app.colors.borderSubtle,
           borderRadius: theme.app.radius.lg,
         },
       ]}
@@ -442,6 +440,7 @@ function SoundPreferenceRow({
   return (
     <AnimatedPressableScale
       accessibilityHint={supportingText}
+      glass="inset"
       accessibilityLabel={`Notification sound. ${value}`}
       accessibilityRole="button"
       onPress={() => {
@@ -451,8 +450,6 @@ function SoundPreferenceRow({
       style={({ pressed }) => [
         styles.soundRow,
         {
-          backgroundColor: theme.app.colors.surfaceSubtle,
-          borderColor: theme.app.colors.borderSubtle,
           borderRadius: theme.app.radius.md,
           opacity: pressed ? 0.78 : 1,
         },
@@ -602,6 +599,8 @@ function OptionButton({
   return (
     <AnimatedPressableScale
       accessibilityLabel={accessibilityLabel}
+      glass="inset"
+      selected={selected}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
@@ -609,10 +608,6 @@ function OptionButton({
       style={({ pressed }) => [
         styles.optionButton,
         {
-          backgroundColor: selected
-            ? theme.colors.primaryContainer
-            : theme.app.colors.surfaceSubtle,
-          borderColor: selected ? theme.colors.primary : theme.app.colors.borderSubtle,
           borderRadius: theme.app.radius.md,
           opacity: pressed ? 0.74 : 1,
         },

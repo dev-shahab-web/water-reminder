@@ -1,12 +1,5 @@
-import { type ReactNode, memo, useCallback, useState } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type LayoutChangeEvent,
-  useWindowDimensions,
-} from 'react-native';
+import { type ReactNode, memo } from 'react';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { Icon, useTheme } from 'react-native-paper';
 
 import type { AppTheme } from '@shared/theme';
@@ -14,6 +7,7 @@ import type { AppTheme } from '@shared/theme';
 type SettingsRowProps = {
   accessibilityLabel?: string;
   children?: ReactNode;
+  controlLayout?: 'inline' | 'stacked';
   destructive?: boolean;
   icon?: string;
   label: string;
@@ -25,6 +19,7 @@ type SettingsRowProps = {
 export const SettingsRow = memo(function SettingsRow({
   accessibilityLabel,
   children,
+  controlLayout = 'inline',
   destructive = false,
   icon,
   label,
@@ -34,20 +29,15 @@ export const SettingsRow = memo(function SettingsRow({
 }: SettingsRowProps) {
   const theme = useTheme<AppTheme>();
   const { fontScale } = useWindowDimensions();
-  const [rowWidth, setRowWidth] = useState(0);
   const iconColor = destructive ? theme.app.colors.statusError : theme.app.colors.textSecondary;
   const hasInlineControls = children !== undefined;
-  const shouldStackControls = hasInlineControls && (rowWidth < 320 || fontScale > 1.15);
-
-  const handleLayout = useCallback((event: LayoutChangeEvent) => {
-    const nextWidth = Math.floor(event.nativeEvent.layout.width);
-
-    setRowWidth((currentWidth) => (currentWidth === nextWidth ? currentWidth : nextWidth));
-  }, []);
+  const shouldStackControls = hasInlineControls && (controlLayout === 'stacked' || fontScale > 1.3);
 
   const content = (
     <>
-      <View style={styles.heading}>
+      <View
+        style={[styles.heading, shouldStackControls ? styles.headingStacked : styles.headingInline]}
+      >
         {icon === undefined ? null : (
           <View
             style={[
@@ -123,18 +113,13 @@ export const SettingsRow = memo(function SettingsRow({
   const rowStyle = [styles.row, shouldStackControls ? styles.rowStacked : styles.rowInline];
 
   if (onPress === undefined) {
-    return (
-      <View onLayout={handleLayout} style={rowStyle}>
-        {content}
-      </View>
-    );
+    return <View style={rowStyle}>{content}</View>;
   }
 
   return (
     <Pressable
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityRole="button"
-      onLayout={handleLayout}
       onPress={onPress}
       style={({ pressed }) => [rowStyle, { opacity: pressed ? 0.72 : 1 }]}
     >
@@ -149,8 +134,7 @@ const styles = StyleSheet.create({
   },
   controlInline: {
     alignItems: 'flex-end',
-    flexShrink: 1,
-    maxWidth: '62%',
+    flexShrink: 0,
   },
   controlStacked: {
     alignSelf: 'stretch',
@@ -163,15 +147,22 @@ const styles = StyleSheet.create({
   },
   heading: {
     alignItems: 'center',
-    flex: 1,
     flexDirection: 'row',
     gap: 12,
     minWidth: 0,
+  },
+  headingInline: {
+    flex: 1,
+  },
+  headingStacked: {
+    alignSelf: 'stretch',
+    flexShrink: 0,
   },
   iconShell: {
     alignItems: 'center',
     borderWidth: 1,
     height: 40,
+    flexShrink: 0,
     justifyContent: 'center',
     width: 40,
   },
@@ -200,7 +191,8 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   valueWrapper: {
-    flexShrink: 0,
+    flexShrink: 1,
+    maxWidth: '40%',
     minWidth: 0,
   },
 });

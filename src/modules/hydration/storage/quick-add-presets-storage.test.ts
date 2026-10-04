@@ -4,6 +4,7 @@ import {
   addQuickAddPreset,
   getQuickAddPresets,
   moveQuickAddPreset,
+  makeDefaultQuickAddPreset,
   removeQuickAddPreset,
   resetQuickAddPresetsCacheForTests,
   updateQuickAddPreset,
@@ -43,6 +44,14 @@ describe('quick add presets storage', () => {
 
   it('migrates to the default quick add presets when storage is empty', () => {
     expect(getQuickAddPresets().map((preset) => preset.amountMl)).toEqual([250, 500, 750]);
+  });
+
+  it('persists the notification default first while keeping the other glasses', () => {
+    makeDefaultQuickAddPreset('quick-add-default-750');
+    resetQuickAddPresetsCacheForTests();
+    expect(getQuickAddPresets().map((preset) => preset.amountMl)).toEqual([750, 250, 500]);
+    removeQuickAddPreset('quick-add-default-750');
+    expect(getQuickAddPresets()[0]?.amountMl).toBe(250);
   });
 
   it('adds, edits, removes, and reorders presets with stable ids', () => {

@@ -23,6 +23,7 @@ import {
   getGoalAmountInUnit,
   saveMeasurementUnit,
   saveReduceMotion,
+  saveLogSoundEnabled,
   saveShareAnonymousDiagnostics,
   saveStartOfDay,
   saveThemePreference,
@@ -92,6 +93,10 @@ export const useSettings = () => {
 
   const updateReduceMotion = useCallback((reduceMotion: boolean) => {
     saveReduceMotion(reduceMotion);
+  }, []);
+
+  const updateLogSoundEnabled = useCallback((enabled: boolean) => {
+    saveLogSoundEnabled(enabled);
   }, []);
 
   const updateShareAnonymousDiagnostics = useCallback(
@@ -170,6 +175,10 @@ export const useSettings = () => {
           ? 'Test reminder scheduled.'
           : 'Test reminder could not be scheduled right now.',
       );
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error ? error.message : 'Test reminder could not be scheduled.',
+      );
     } finally {
       setIsBusy(false);
     }
@@ -198,6 +207,7 @@ export const useSettings = () => {
     updateGoalAmount,
     updateMeasurementUnit,
     updateReduceMotion,
+    updateLogSoundEnabled,
     updateShareAnonymousDiagnostics,
     updateStartOfDay,
     updateThemePreference,

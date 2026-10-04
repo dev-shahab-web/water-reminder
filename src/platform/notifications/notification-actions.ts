@@ -3,6 +3,8 @@ export const REMINDER_ACTION_DRINK = 'water_reminder.reminder.drink';
 export const REMINDER_ACTION_SNOOZE = 'water_reminder.reminder.snooze';
 export const REMINDER_ACTION_DISMISS = 'water_reminder.reminder.dismiss';
 export const REMINDER_NOTIFICATION_CATEGORY = 'water_reminder.hydration_reminder.v1';
+export const REMINDER_NOTIFICATION_CATEGORY_WITHOUT_SNOOZE =
+  'water_reminder.hydration_reminder.no_snooze.v1';
 
 export const reminderActionIdentifiers = [
   REMINDER_ACTION_DRINK,
@@ -13,6 +15,11 @@ export const reminderActionIdentifiers = [
 export type ReminderNotificationActionIdentifier = (typeof reminderActionIdentifiers)[number];
 
 export type ReminderNotificationData = {
+  amountMl?: number;
+  amountLabel?: string;
+  presentationVersion?: 1;
+  snoozeMinutes?: number;
+  snoozeEnabled?: boolean;
   occurrenceId?: string;
   schemaVersion: 1;
   source: 'scheduled' | 'snoozed' | 'test';
@@ -64,6 +71,6 @@ export const reminderNotificationActionLabels: Record<
   string
 > = {
   [REMINDER_ACTION_DISMISS]: 'Dismiss',
-  [REMINDER_ACTION_DRINK]: 'Drink now',
+  [REMINDER_ACTION_DRINK]: 'Log water',
   [REMINDER_ACTION_SNOOZE]: 'Snooze',
 };

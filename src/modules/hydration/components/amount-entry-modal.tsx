@@ -1,3 +1,4 @@
+import { GlassSurface } from '@shared/components/glass-surface';
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -78,12 +79,11 @@ export function AmountEntryModal({
             },
           ]}
         >
-          <View
+          <GlassSurface
+            tone="elevated"
             style={[
               styles.sheet,
               {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.app.colors.borderSubtle,
                 borderRadius: theme.app.radius.lg,
                 maxHeight: dialogMaxHeight,
                 width: dialogWidth,
@@ -162,7 +162,7 @@ export function AmountEntryModal({
                 />
               </View>
             </ScrollView>
-          </View>
+          </GlassSurface>
         </KeyboardAvoidingView>
       </View>
     </Modal>

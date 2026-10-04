@@ -306,13 +306,14 @@ describe('reminder engine experience preferences', () => {
   });
 
   it('clears pending snooze when goal completion makes reminders ineligible', async () => {
+    const storedPreferences = setReminderPreferences({
+      ...preferences,
+      pendingSnoozeNotificationId: 'pending-snooze',
+      pendingSnoozeTargetIso: '2026-07-21T10:10:00.000Z',
+    });
     await reconcileReminderSchedule({
       goalAmount: 2000,
-      preferences: {
-        ...preferences,
-        pendingSnoozeNotificationId: 'pending-snooze',
-        pendingSnoozeTargetIso: '2026-07-21T10:10:00.000Z',
-      },
+      preferences: storedPreferences,
       totalAmount: 2000,
     });
 

@@ -1,6 +1,7 @@
+import { GlassSurface } from '@shared/components/glass-surface';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
 import {
@@ -107,12 +108,10 @@ export default function ReminderPermissionScreen() {
         title="Get gentle reminders during the hours you choose."
       />
 
-      <View
+      <GlassSurface
         style={[
           styles.summary,
           {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.app.colors.borderSubtle,
             borderRadius: theme.app.radius.lg,
           },
         ]}
@@ -141,7 +140,7 @@ export default function ReminderPermissionScreen() {
         >
           {hydrationGoal} ml per day
         </Text>
-      </View>
+      </GlassSurface>
 
       <Text
         style={[

@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
 import { ReminderCard } from '@modules/reminders';
+import { NotificationPreview } from '@modules/reminders/components/notification-preview';
 import { AppScreen, IconButton, SecondaryButton } from '@shared/components';
 import type { AppTheme } from '@shared/theme';
 
@@ -10,7 +11,7 @@ import { useSettings } from '../hooks/use-settings';
 
 export function ReminderSettingsScreen() {
   const theme = useTheme<AppTheme>();
-  const { isBusy, reminders, sendTestNotification } = useSettings();
+  const { isBusy, reminders, sendTestNotification, statusMessage } = useSettings();
 
   return (
     <AppScreen scrollable style={styles.screen}>
@@ -53,6 +54,17 @@ export function ReminderSettingsScreen() {
         </View>
       </View>
 
+      <NotificationPreview
+        snoozeEnabled={reminders.preferences.snoozeEnabled}
+        snoozeMinutes={reminders.preferences.defaultSnoozeMinutes}
+      />
+      <SecondaryButton
+        accessibilityLabel="Choose your notification glass"
+        icon="cup-water"
+        label="Choose notification glass"
+        onPress={() => router.push('/quick-add-presets')}
+      />
+
       <ReminderCard
         defaultSnoozeMinutes={reminders.preferences.defaultSnoozeMinutes}
         enabled={reminders.preferences.enabled}
@@ -94,6 +106,11 @@ export function ReminderSettingsScreen() {
           void sendTestNotification();
         }}
       />
+      {statusMessage ? (
+        <Text accessibilityLiveRegion="polite" style={{ color: theme.app.colors.textSecondary }}>
+          {statusMessage}
+        </Text>
+      ) : null}
     </AppScreen>
   );
 }

@@ -5,7 +5,6 @@ import {
   playDeleteConfirmationHaptic,
   playErrorHaptic,
   playGoalCompleteHaptic,
-  playWaterLogHaptic,
 } from '@platform/haptics';
 import { trackEventSafely } from '@platform/telemetry';
 import { useAppDispatch, useAppSelector } from '@state/store/hooks';
@@ -38,7 +37,9 @@ export const useHomeHydration = (
   measurementUnit: MeasurementUnit,
 ) => {
   const dispatch = useAppDispatch();
-  const { entries, errorMessage, status } = useAppSelector((rootState) => rootState.hydration);
+  const { entries, errorMessage, status, lastLogFeedback } = useAppSelector(
+    (rootState) => rootState.hydration,
+  );
   const [amountModal, setAmountModal] = useState<AmountModalState | undefined>();
   const [amountInput, setAmountInput] = useState('');
   const [amountError, setAmountError] = useState<string | undefined>();
@@ -82,18 +83,6 @@ export const useHomeHydration = (
     return amountMl;
   }, [amountInput, measurementUnit]);
 
-  const playLogFeedback = useCallback(
-    async ({ nextTotal, previousTotal }: { nextTotal: number; previousTotal: number }) => {
-      if (previousTotal < summary.goalAmount && nextTotal >= summary.goalAmount) {
-        await playGoalCompleteHaptic();
-        return;
-      }
-
-      await playWaterLogHaptic();
-    },
-    [summary.goalAmount],
-  );
-
   const logAmount = useCallback(
     async (amount: number, source: HydrationEntrySource): Promise<boolean> => {
       const previousTotal = summary.totalAmount;
@@ -117,14 +106,13 @@ export const useHomeHydration = (
           source,
         });
 
-        await playLogFeedback({ nextTotal, previousTotal });
         return true;
       } catch {
         await playErrorHaptic();
         return false;
       }
     },
-    [dispatch, entries.length, playLogFeedback, summary.goalAmount, summary.totalAmount],
+    [dispatch, entries.length, summary.goalAmount, summary.totalAmount],
   );
 
   const saveAmount = useCallback(async () => {
@@ -299,6 +287,7 @@ export const useHomeHydration = (
     isRefreshing,
     isSaving: status === 'saving',
     lastLoggedEntry,
+    lastLogFeedback,
     logAmount,
     openCustomAmount,
     openEditEntry,

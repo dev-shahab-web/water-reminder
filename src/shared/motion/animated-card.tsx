@@ -1,14 +1,16 @@
-import { type ReactNode, memo } from 'react';
-import { type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
+import { type ReactNode, type ComponentProps, memo } from 'react';
 import Animated, { Easing, FadeInDown, useReducedMotion } from 'react-native-reanimated';
 
+import { GlassSurface, type GlassSurfaceProps } from '../components/glass-surface';
 import { motionDuration } from './motion-tokens';
 
-type AnimatedCardProps = ViewProps & {
-  children: ReactNode;
-  delay?: number;
-  style?: StyleProp<ViewStyle>;
-};
+export const AnimatedGlassSurface = Animated.createAnimatedComponent(GlassSurface);
+
+type AnimatedCardProps = GlassSurfaceProps &
+  Pick<ComponentProps<typeof Animated.View>, 'entering' | 'exiting' | 'layout'> & {
+    children: ReactNode;
+    delay?: number;
+  };
 
 export const AnimatedCard = memo(function AnimatedCard({
   children,
@@ -22,8 +24,8 @@ export const AnimatedCard = memo(function AnimatedCard({
     : FadeInDown.duration(motionDuration.standard).delay(delay).easing(Easing.out(Easing.cubic));
 
   return (
-    <Animated.View entering={entering} style={style} {...props}>
+    <AnimatedGlassSurface entering={entering} style={style} {...props}>
       {children}
-    </Animated.View>
+    </AnimatedGlassSurface>
   );
 });

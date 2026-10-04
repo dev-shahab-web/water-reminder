@@ -1,31 +1,68 @@
-import { memo, useEffect, useRef } from 'react';
-import { StyleSheet, Text, UIManager, View } from 'react-native';
+import { memo, useEffect, useId, useRef } from 'react';
+import { StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import Animated, {
   Easing,
-  type SharedValue,
   cancelAnimation,
   interpolate,
-  interpolateColor,
+  useAnimatedProps,
   useAnimatedStyle,
+  useFrameCallback,
   useSharedValue,
-  withRepeat,
+  withSpring,
   withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { useTheme } from 'react-native-paper';
-import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
+import Svg, {
+  Circle,
+  ClipPath,
+  Defs,
+  Ellipse,
+  G,
+  LinearGradient,
+  Path,
+  RadialGradient,
+  Stop,
+} from 'react-native-svg';
 
-import { AnimatedCounter, motionDuration } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 import type { MeasurementUnit } from '@modules/settings';
-import {
-  formatMeasurementAmount,
-  getMeasurementUnitLabel,
-  getMeasurementValue,
-} from '@modules/settings/utils/settings-options';
+import { formatMeasurementAmount } from '@modules/settings/utils/settings-options';
+import type { HydrationLogFeedback } from '../types';
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const AnimatedEllipse = Animated.createAnimatedComponent(Ellipse);
+const AnimatedInput = Animated.createAnimatedComponent(TextInput);
+const SIZE = 260;
+const TAU = Math.PI * 2;
+const CIRCUMFERENCE = TAU * 123;
+const DROPS = Array.from({ length: 8 }, (_, i) => i);
+const BUBBLES = [0, 1, 2, 3, 4];
+
+// Two travelling harmonics deform the actual surface on the UI thread. Both
+// phases join at 2pi, so there is no visible jump when a wave cycle repeats.
+function waterPath(fill: number, phase: number, swell: number, rear = false, closed = true) {
+  'worklet';
+  const level = 242 - fill * 224 + (rear ? -3 : 0);
+  const edge = Math.sin(Math.PI * fill);
+  const amplitude = (rear ? 3.4 : 4.6) + swell * 8;
+  const surface = (x: number) =>
+    level +
+    edge *
+      (Math.sin(x / 43 + (rear ? -phase : phase) + (rear ? 1.5 : 0)) * amplitude +
+        Math.sin(x / 23 - phase * 2) * (1.4 + swell * 2));
+  let path = `M 0 ${surface(0).toFixed(2)}`;
+  for (let x = 10; x <= SIZE; x += 10) {
+    path += ` L ${x} ${surface(x).toFixed(2)}`;
+  }
+  return closed ? `${path} L 260 260 L 0 260 Z` : path;
+}
 
 type HydrationRingProps = {
   attentionKey?: string;
   continuousMotionEnabled?: boolean;
+  feedback?: HydrationLogFeedback;
   goalAmount: number;
   message: string;
   measurementUnit: MeasurementUnit;
@@ -34,18 +71,10 @@ type HydrationRingProps = {
   totalAmount: number;
 };
 
-const RING_SIZE = 260;
-const GLASS_SIZE = RING_SIZE - 36;
-const WAVE_BASELINE = 8;
-const WAVE_CANVAS_WIDTH = GLASS_SIZE * 2.4;
-const WAVE_CANVAS_HEIGHT = GLASS_SIZE + WAVE_BASELINE;
-const SEGMENT_COUNT = 48;
-const SEGMENT_INDEXES = Array.from({ length: SEGMENT_COUNT }, (_, index) => index);
-const HAS_NATIVE_SVG = hasNativeSvgSupport();
-
 export const HydrationRing = memo(function HydrationRing({
   attentionKey,
   continuousMotionEnabled = true,
+  feedback,
   goalAmount,
   message,
   measurementUnit,
@@ -54,652 +83,380 @@ export const HydrationRing = memo(function HydrationRing({
   totalAmount,
 }: HydrationRingProps) {
   const theme = useTheme<AppTheme>();
-  const progress = useSharedValue(Math.min(totalAmount / goalAmount, 1));
-  const ripple = useSharedValue(0);
-  const wavePrimary = useSharedValue(0);
-  const waveSecondary = useSharedValue(0);
-  const previousAmount = useRef(totalAmount);
-  const previousAttentionKey = useRef(attentionKey);
+  const { width } = useWindowDimensions();
+  const size = Math.min(280, Math.max(208, width - 112));
+  const id = useId().replace(/:/g, '');
+  const capped = goalAmount > 0 ? Math.max(0, Math.min(totalAmount / goalAmount, 1)) : 0;
+  const complete = goalAmount > 0 && totalAmount >= goalAmount;
+  const percent = goalAmount > 0 ? Math.round((totalAmount / goalAmount) * 100) : 0;
+  const animated = continuousMotionEnabled && !reduceMotion;
+  const progress = useSharedValue(capped);
+  const count = useSharedValue(totalAmount);
+  const phase = useSharedValue(0);
+  const swell = useSharedValue(0);
+  const splash = useSharedValue(1);
+  const attention = useSharedValue(1);
+  const previousFeedback = useRef(feedback?.id);
+  const previousAttention = useRef(attentionKey);
+  const previousTotal = useRef(totalAmount);
+  const foreground = theme.dark ? '#ECFFFD' : '#123F48';
+  const secondary = theme.dark ? '#A5D9DB' : '#397080';
+  const waterTop = theme.dark ? '#278BA2' : '#A2E7ED';
+  const waterBottom = theme.dark ? '#06465D' : '#56BCCF';
 
-  const cappedProgress = Math.min(totalAmount / goalAmount, 1);
-  const isComplete = totalAmount >= goalAmount;
-  const isDarkMode = theme.dark;
-  const textShadow = getTextShadow(isDarkMode);
-  const unitTextColor = isDarkMode ? 'rgba(236, 255, 251, 0.72)' : 'rgba(10, 88, 84, 0.7)';
-  const statusTextColor = isComplete
-    ? theme.app.colors.hydrationComplete
-    : isDarkMode
-      ? 'rgba(220, 255, 249, 0.82)'
-      : 'rgba(8, 96, 91, 0.78)';
-  const waterVisuals = isDarkMode
-    ? {
-        baseFill: 'rgba(8, 103, 101, 0.68)',
-        frontWave: '#8DE8DD',
-        frontWaveOpacity: 0.28,
-        gradientBottom: '#044846',
-        gradientMiddle: '#086765',
-        gradientTop: '#128C83',
-        highlight: 'rgba(215, 255, 249, 0.52)',
-        rearHighlight: 'rgba(142, 232, 221, 0.18)',
-        rearWave: '#157E78',
-        rearWaveOpacity: 0.14,
+  const frame = useFrameCallback(({ timeSincePreviousFrame }) => {
+    phase.value = (phase.value + Math.min(timeSincePreviousFrame ?? 16, 40) * 0.00155) % TAU;
+  }, false);
+  useEffect(() => {
+    frame.setActive(animated);
+    return () => frame.setActive(false);
+  }, [animated, frame]);
+
+  useEffect(() => {
+    progress.value = animated
+      ? withSpring(capped, { damping: 19, stiffness: 85, mass: 1.2, overshootClamping: true })
+      : capped;
+    count.value = animated
+      ? withTiming(totalAmount, { duration: 900, easing: Easing.out(Easing.cubic) })
+      : totalAmount;
+    if (feedback?.id !== previousFeedback.current) {
+      previousFeedback.current = feedback?.id;
+      if (feedback && animated) {
+        swell.value = Math.min(1.4, 0.7 + feedback.amount / 1000);
+        swell.value = withTiming(0, { duration: 2100, easing: Easing.out(Easing.quad) });
+        splash.value = 0;
+        splash.value = withTiming(1, { duration: 1700, easing: Easing.linear });
       }
-    : {
-        baseFill: theme.colors.primaryContainer,
-        frontWave: '#5CD5CF',
-        frontWaveOpacity: 0.36,
-        gradientBottom: '#65CFC9',
-        gradientMiddle: '#8FE3DC',
-        gradientTop: '#C9F6F1',
-        highlight: 'rgba(255, 255, 255, 0.58)',
-        rearHighlight: 'rgba(255, 255, 255, 0.22)',
-        rearWave: theme.app.colors.hydrationProgress,
-        rearWaveOpacity: 0.2,
-      };
+    } else if (totalAmount < previousTotal.current) {
+      // Undo/edit lowers the water without celebrating a new drink.
+      cancelAnimation(splash);
+      splash.value = 1;
+    }
+    if (!animated) {
+      cancelAnimation(swell);
+      cancelAnimation(splash);
+      swell.value = 0;
+      splash.value = 1;
+    }
+    previousTotal.current = totalAmount;
+  }, [animated, capped, count, feedback, progress, splash, swell, totalAmount]);
 
   useEffect(() => {
-    if (!continuousMotionEnabled || reduceMotion) {
-      cancelAnimation(wavePrimary);
-      cancelAnimation(waveSecondary);
-      wavePrimary.value = withTiming(0, { duration: 120 });
-      waveSecondary.value = withTiming(0, { duration: 120 });
-      return;
+    if (attentionKey !== undefined && attentionKey !== previousAttention.current && animated) {
+      attention.value = 0;
+      attention.value = withTiming(1, { duration: 900 });
     }
+    previousAttention.current = attentionKey;
+    if (!animated) attention.value = 1;
+  }, [animated, attention, attentionKey]);
 
-    wavePrimary.value = withRepeat(
-      withTiming(-RING_SIZE * 0.32, {
-        duration: 9000,
-        easing: Easing.linear,
-      }),
-      -1,
-      false,
-    );
-    waveSecondary.value = withRepeat(
-      withTiming(RING_SIZE * 0.22, {
-        duration: 12000,
-        easing: Easing.linear,
-      }),
-      -1,
-      true,
-    );
-  }, [continuousMotionEnabled, reduceMotion, wavePrimary, waveSecondary]);
-
-  useEffect(() => {
-    const duration = reduceMotion ? 0 : motionDuration.standard;
-    progress.value = withTiming(cappedProgress, {
-      duration,
-      easing: Easing.out(Easing.cubic),
-    });
-
-    if (totalAmount !== previousAmount.current) {
-      ripple.value = 0;
-      ripple.value = withTiming(1, {
-        duration: reduceMotion ? 0 : 300,
-        easing: Easing.out(Easing.cubic),
-      });
-    }
-
-    if (attentionKey !== undefined && attentionKey !== previousAttentionKey.current) {
-      ripple.value = 0;
-      ripple.value = withTiming(1, {
-        duration: reduceMotion ? 0 : 300,
-        easing: Easing.out(Easing.cubic),
-      });
-    }
-
-    previousAmount.current = totalAmount;
-    previousAttentionKey.current = attentionKey;
-  }, [
-    attentionKey,
-    cappedProgress,
-    goalAmount,
-    isComplete,
-    progress,
-    reduceMotion,
-    ripple,
-    totalAmount,
-  ]);
-
-  const waterStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: (1 - progress.value) * GLASS_SIZE - WAVE_BASELINE }],
+  const rearProps = useAnimatedProps(() => ({
+    d: waterPath(progress.value, phase.value, swell.value, true),
   }));
-
-  const wavePrimaryStyle = useAnimatedStyle(() => ({
-    opacity: 1,
-    transform: [{ translateX: wavePrimary.value * 0.72 }],
+  const frontProps = useAnimatedProps(() => ({
+    d: waterPath(progress.value, phase.value, swell.value),
   }));
-
-  const waveSecondaryStyle = useAnimatedStyle(() => ({
-    opacity: reduceMotion ? 0.72 : 1,
-    transform: [{ translateX: waveSecondary.value * 0.58 }],
+  const edgeProps = useAnimatedProps(() => ({
+    d: waterPath(progress.value, phase.value, swell.value, false, false),
   }));
-
-  const ripplePrimaryStyle = useAnimatedStyle(() => ({
-    opacity: reduceMotion ? 0 : interpolate(ripple.value, [0, 0.6, 1], [0.26, 0.12, 0]),
-    transform: [
-      { translateY: (1 - progress.value) * GLASS_SIZE - GLASS_SIZE / 2 },
-      { scale: 0.34 + ripple.value * 0.72 },
-    ],
+  const arcProps = useAnimatedProps(() => ({
+    strokeDashoffset: CIRCUMFERENCE * (1 - progress.value),
   }));
-
-  const rippleSecondaryStyle = useAnimatedStyle(() => ({
-    opacity: reduceMotion ? 0 : interpolate(ripple.value, [0, 0.18, 0.72, 1], [0, 0.18, 0.08, 0]),
-    transform: [
-      { translateY: (1 - progress.value) * GLASS_SIZE - GLASS_SIZE / 2 },
-      { scale: 0.18 + ripple.value * 0.86 },
-    ],
+  const pourProps = useAnimatedProps(() => ({
+    d: `M 153 19 Q 148 55 153 ${Math.max(24, 242 - progress.value * 224)}`,
+    opacity: interpolate(splash.value, [0, 0.04, 0.22, 0.35, 1], [0, 0.75, 0.6, 0, 0]),
+    strokeWidth: 4 + swell.value * 2,
   }));
-
-  return (
-    <Animated.View
-      accessibilityLabel={`${totalAmount} milliliters logged. ${
-        isComplete ? 'Daily goal complete.' : `${remainingAmount} milliliters remaining.`
-      } Daily goal ${formatMeasurementAmount(goalAmount, measurementUnit)}.`}
-      accessibilityRole="progressbar"
-      accessibilityValue={{
-        max: goalAmount,
-        min: 0,
-        now: Math.min(totalAmount, goalAmount),
-        text: `${Math.round((totalAmount / goalAmount) * 100)} percent of daily goal`,
-      }}
-      style={[
-        styles.container,
-        {
-          height: RING_SIZE,
-          width: RING_SIZE,
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.glass,
-          {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.app.colors.borderSubtle,
-            borderRadius: RING_SIZE / 2,
-          },
-        ]}
-      >
-        <Animated.View
-          style={[
-            styles.water,
-            {
-              opacity: isDarkMode ? 1 : 0.76,
-            },
-            waterStyle,
-          ]}
-        >
-          {HAS_NATIVE_SVG ? (
-            <>
-              <LiquidSvgLayer
-                gradientBottom={waterVisuals.gradientBottom}
-                gradientMiddle={waterVisuals.gradientMiddle}
-                gradientTop={waterVisuals.gradientTop}
-                highlightColor={waterVisuals.highlight}
-              />
-              <Animated.View
-                pointerEvents="none"
-                style={[styles.svgWaveLayer, styles.rearWaveLayer, waveSecondaryStyle]}
-              >
-                <SurfaceWaveSvg
-                  color={waterVisuals.rearWave}
-                  highlightColor={waterVisuals.rearHighlight}
-                  highlightPath={REAR_HIGHLIGHT_PATH}
-                  opacity={waterVisuals.rearWaveOpacity}
-                  path={REAR_WAVE_PATH}
-                />
-              </Animated.View>
-              <Animated.View pointerEvents="none" style={[styles.svgWaveLayer, wavePrimaryStyle]}>
-                <SurfaceWaveSvg
-                  color={waterVisuals.frontWave}
-                  highlightColor={waterVisuals.highlight}
-                  highlightPath={FRONT_HIGHLIGHT_PATH}
-                  opacity={waterVisuals.frontWaveOpacity}
-                  path={FRONT_WAVE_PATH}
-                />
-              </Animated.View>
-            </>
-          ) : (
-            <FallbackLiquidLayer
-              fillColor={waterVisuals.baseFill}
-              highlightColor={waterVisuals.highlight}
-            />
-          )}
-        </Animated.View>
-        <Animated.View
-          style={[
-            styles.ripple,
-            {
-              borderColor: theme.app.colors.hydrationProgress,
-              borderRadius: RING_SIZE / 2,
-            },
-            ripplePrimaryStyle,
-          ]}
-        />
-        <Animated.View
-          style={[
-            styles.ripple,
-            styles.rippleSecondary,
-            {
-              borderColor: theme.app.colors.hydrationProgress,
-              borderRadius: RING_SIZE / 2,
-            },
-            rippleSecondaryStyle,
-          ]}
-        />
-        <View style={styles.centerCopy}>
-          <AnimatedAmount amount={getMeasurementValue(totalAmount, measurementUnit)} />
-          <Text
-            style={[
-              styles.unit,
-              {
-                color: unitTextColor,
-                fontSize: theme.app.typography.fontSize.body,
-                lineHeight: theme.app.typography.lineHeight.body,
-                ...textShadow,
-              },
-            ]}
-          >
-            {getMeasurementUnitLabel(measurementUnit)} today
-          </Text>
-          <Text
-            style={[
-              styles.message,
-              {
-                color: statusTextColor,
-                fontSize: theme.app.typography.fontSize.label,
-                lineHeight: theme.app.typography.lineHeight.label,
-                ...textShadow,
-              },
-            ]}
-          >
-            {message}
-          </Text>
-        </View>
-      </View>
-
-      {SEGMENT_INDEXES.map((index) => (
-        <ProgressSegment
-          key={index}
-          index={index}
-          progress={progress}
-          segmentCount={SEGMENT_COUNT}
-          size={RING_SIZE}
-        />
-      ))}
-    </Animated.View>
-  );
-});
-
-type AnimatedAmountProps = {
-  amount: number | string;
-};
-
-function AnimatedAmount({ amount }: AnimatedAmountProps) {
-  const theme = useTheme<AppTheme>();
-  const textShadow = getTextShadow(theme.dark);
-
-  return (
-    <AnimatedCounter
-      value={amount}
-      style={[
-        styles.amount,
-        {
-          color: theme.app.colors.textPrimary,
-          fontFamily: theme.app.typography.fontFamily.display,
-          fontSize: theme.app.typography.fontSize.display,
-          lineHeight: theme.app.typography.lineHeight.display,
-          ...textShadow,
-        },
-      ]}
-    />
-  );
-}
-
-function LiquidSvgLayer({
-  gradientBottom,
-  gradientMiddle,
-  gradientTop,
-  highlightColor,
-}: {
-  gradientBottom: string;
-  gradientMiddle: string;
-  gradientTop: string;
-  highlightColor: string;
-}) {
-  return (
-    <Svg
-      height={WAVE_CANVAS_HEIGHT}
-      pointerEvents="none"
-      style={styles.svgBaseLayer}
-      viewBox={`0 0 ${GLASS_SIZE} ${WAVE_CANVAS_HEIGHT}`}
-      width={GLASS_SIZE}
-    >
-      <Defs>
-        <LinearGradient id="hydrationWaterGradient" x1="0" x2="0" y1="0" y2="1">
-          <Stop offset="0" stopColor={gradientTop} stopOpacity="0.72" />
-          <Stop offset="0.42" stopColor={gradientMiddle} stopOpacity="0.86" />
-          <Stop offset="1" stopColor={gradientBottom} stopOpacity="0.98" />
-        </LinearGradient>
-      </Defs>
-      <Path d={BASE_WATER_PATH} fill="url(#hydrationWaterGradient)" opacity={0.88} />
-      <Path
-        d={BASE_HIGHLIGHT_PATH}
-        fill="none"
-        opacity={0.22}
-        stroke={highlightColor}
-        strokeLinecap="round"
-        strokeWidth={1.4}
-      />
-    </Svg>
-  );
-}
-
-function SurfaceWaveSvg({
-  color,
-  highlightColor,
-  highlightPath,
-  opacity,
-  path,
-}: {
-  color: string;
-  highlightColor: string;
-  highlightPath: string;
-  opacity: number;
-  path: string;
-}) {
-  return (
-    <Svg
-      height={WAVE_CANVAS_HEIGHT}
-      pointerEvents="none"
-      viewBox={`0 0 ${WAVE_CANVAS_WIDTH} ${WAVE_CANVAS_HEIGHT}`}
-      width={WAVE_CANVAS_WIDTH}
-    >
-      <Path d={path} fill={color} opacity={opacity} />
-      <Path
-        d={highlightPath}
-        fill="none"
-        opacity={0.72}
-        stroke={highlightColor}
-        strokeLinecap="round"
-        strokeWidth={1.15}
-      />
-    </Svg>
-  );
-}
-
-function FallbackLiquidLayer({
-  fillColor,
-  highlightColor,
-}: {
-  fillColor: string;
-  highlightColor: string;
-}) {
-  return (
-    <>
-      <View
-        pointerEvents="none"
-        style={[
-          styles.fallbackLiquidFill,
-          {
-            backgroundColor: fillColor,
-          },
-        ]}
-      />
-      <View
-        pointerEvents="none"
-        style={[
-          styles.fallbackLiquidHighlight,
-          {
-            backgroundColor: highlightColor,
-          },
-        ]}
-      />
-    </>
-  );
-}
-
-type WavePathConfig = {
-  amplitude: number;
-  baseline: number;
-  height?: number;
-  phase: number;
-  wavelength: number;
-  width: number;
-};
-
-function createWaveFillPath(config: Required<WavePathConfig>) {
-  const surfacePath = createWaveStrokePath(config);
-
-  return `${surfacePath} L ${config.width} ${config.height} L 0 ${config.height} Z`;
-}
-
-function createWaveStrokePath({ amplitude, baseline, phase, wavelength, width }: WavePathConfig) {
-  const segmentWidth = 18;
-  const yForX = (x: number) =>
-    baseline + Math.sin((x / wavelength) * Math.PI * 2 + phase) * amplitude;
-
-  let path = `M 0 ${formatPathNumber(yForX(0))}`;
-
-  for (let x = segmentWidth; x < width; x += segmentWidth) {
-    const endX = Math.min(x, width);
-    const controlX = endX - segmentWidth / 2;
-    path += ` Q ${formatPathNumber(controlX)} ${formatPathNumber(
-      yForX(controlX),
-    )} ${formatPathNumber(endX)} ${formatPathNumber(yForX(endX))}`;
-  }
-
-  const controlX = width - segmentWidth / 2;
-  path += ` Q ${formatPathNumber(controlX)} ${formatPathNumber(
-    yForX(controlX),
-  )} ${formatPathNumber(width)} ${formatPathNumber(yForX(width))}`;
-
-  return path;
-}
-
-function formatPathNumber(value: number) {
-  return Number(value.toFixed(2));
-}
-
-function getTextShadow(isDarkMode: boolean) {
-  return {
-    textShadowColor: isDarkMode ? 'rgba(0, 0, 0, 0.32)' : 'rgba(255, 255, 255, 0.48)',
-    textShadowOffset: { height: 1, width: 0 },
-    textShadowRadius: 2,
-  };
-}
-
-function hasNativeSvgSupport() {
-  try {
-    return Boolean(
-      UIManager.getViewManagerConfig('RNSVGPath') &&
-      UIManager.getViewManagerConfig('RNSVGLinearGradient'),
-    );
-  } catch {
-    return false;
-  }
-}
-
-const BASE_WATER_PATH = createWaveFillPath({
-  amplitude: 3.2,
-  baseline: WAVE_BASELINE + 0.5,
-  height: WAVE_CANVAS_HEIGHT,
-  phase: 1.35,
-  wavelength: 150,
-  width: GLASS_SIZE,
-});
-const BASE_HIGHLIGHT_PATH = createWaveStrokePath({
-  amplitude: 3.2,
-  baseline: WAVE_BASELINE + 0.5,
-  phase: 1.35,
-  wavelength: 150,
-  width: GLASS_SIZE,
-});
-const FRONT_WAVE_PATH = createWaveFillPath({
-  amplitude: 4,
-  baseline: WAVE_BASELINE,
-  height: WAVE_CANVAS_HEIGHT,
-  phase: 0.7,
-  wavelength: 132,
-  width: WAVE_CANVAS_WIDTH,
-});
-const REAR_WAVE_PATH = createWaveFillPath({
-  amplitude: 3,
-  baseline: WAVE_BASELINE + 2,
-  height: WAVE_CANVAS_HEIGHT,
-  phase: 2.2,
-  wavelength: 154,
-  width: WAVE_CANVAS_WIDTH,
-});
-const FRONT_HIGHLIGHT_PATH = createWaveStrokePath({
-  amplitude: 4,
-  baseline: WAVE_BASELINE,
-  phase: 0.7,
-  wavelength: 132,
-  width: WAVE_CANVAS_WIDTH,
-});
-const REAR_HIGHLIGHT_PATH = createWaveStrokePath({
-  amplitude: 3,
-  baseline: WAVE_BASELINE + 2,
-  phase: 2.2,
-  wavelength: 154,
-  width: WAVE_CANVAS_WIDTH,
-});
-
-type ProgressSegmentProps = {
-  index: number;
-  progress: SharedValue<number>;
-  segmentCount: number;
-  size: number;
-};
-
-function ProgressSegment({ index, progress, segmentCount, size }: ProgressSegmentProps) {
-  const theme = useTheme<AppTheme>();
-  const angle = (index / segmentCount) * Math.PI * 2 - Math.PI / 2;
-  const radius = size / 2 - 5;
-  const left = size / 2 + Math.cos(angle) * radius - 2;
-  const top = size / 2 + Math.sin(angle) * radius - 7;
-
-  const animatedStyle = useAnimatedStyle(() => {
-    const segmentThreshold = (index + 1) / segmentCount;
-    const isActive = progress.value >= segmentThreshold ? 1 : 0;
-
-    return {
-      backgroundColor: interpolateColor(
-        isActive,
-        [0, 1],
-        [theme.app.colors.borderSubtle, theme.app.colors.hydrationProgress],
-      ),
-    };
+  const rippleProps = useAnimatedProps(() => ({
+    cx: 153,
+    cy: Math.max(25, 242 - progress.value * 224),
+    rx: 8 + splash.value * 92,
+    ry: 2 + splash.value * 13,
+    opacity: interpolate(splash.value, [0, 0.13, 0.3, 1], [0, 0.45, 0.3, 0]),
+  }));
+  const haloStyle = useAnimatedStyle(() => ({
+    opacity: Math.sin(attention.value * Math.PI) * 0.35 + Math.sin(splash.value * Math.PI) * 0.28,
+    transform: [{ scale: 1 + Math.sin(splash.value * Math.PI) * 0.045 }],
+  }));
+  const badgeStyle = useAnimatedStyle(() => ({
+    opacity: reduceMotion ? 0 : interpolate(splash.value, [0, 0.12, 0.72, 1], [0, 1, 1, 0]),
+    transform: [{ translateY: interpolate(splash.value, [0, 1], [8, -10]) }],
+  }));
+  const countProps = useAnimatedProps(() => {
+    const amount = measurementUnit === 'oz' ? count.value / 29.5735 : count.value;
+    const text =
+      measurementUnit === 'oz'
+        ? amount.toFixed(2).replace(/\.?0+$/, '')
+        : String(Math.round(amount));
+    return { text, defaultValue: text };
   });
 
   return (
-    <Animated.View
-      style={[
-        styles.segment,
-        {
-          borderRadius: 999,
-          left,
-          top,
-          transform: [{ rotate: `${angle + Math.PI / 2}rad` }],
-        },
-        animatedStyle,
-      ]}
-    />
+    <View style={styles.container}>
+      <View
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel={`Today's hydration. ${formatMeasurementAmount(totalAmount, measurementUnit)} logged. ${complete ? 'Daily goal complete.' : `${formatMeasurementAmount(remainingAmount, measurementUnit)} remaining.`}`}
+        accessibilityValue={{
+          min: 0,
+          max: Math.max(1, goalAmount),
+          now: Math.min(totalAmount, Math.max(1, goalAmount)),
+          text: `${percent} percent of daily goal`,
+        }}
+        style={{ width: size, height: size }}
+      >
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.halo,
+            { borderColor: complete ? theme.app.colors.hydrationComplete : '#44BCD0' },
+            haloStyle,
+          ]}
+        />
+        <Svg width="100%" height="100%" viewBox="0 0 260 260" accessible={false}>
+          <Defs>
+            <ClipPath id={`${id}-glass`}>
+              <Circle cx="130" cy="130" r="109" />
+            </ClipPath>
+            <LinearGradient id={`${id}-water`} x1="0" x2="0.25" y1="0" y2="1">
+              <Stop offset="0" stopColor={waterTop} />
+              <Stop offset="1" stopColor={waterBottom} />
+            </LinearGradient>
+            <RadialGradient id={`${id}-air`} cx="0.35" cy="0.25" r="0.8">
+              <Stop offset="0" stopColor={theme.dark ? '#143F4A' : '#FFFFFF'} />
+              <Stop offset="1" stopColor={theme.dark ? '#102E3C' : '#EDF8FA'} />
+            </RadialGradient>
+            <LinearGradient id={`${id}-rim`} x1="0" x2="1" y1="0" y2="1">
+              <Stop offset="0" stopColor={theme.dark ? '#458898' : '#FFFFFF'} />
+              <Stop offset="0.5" stopColor={theme.dark ? '#1A5365' : '#D1EBF0'} />
+              <Stop offset="1" stopColor={theme.dark ? '#1D5868' : '#ABCED7'} />
+            </LinearGradient>
+          </Defs>
+          <Circle
+            cx="130"
+            cy="130"
+            r="123"
+            fill="none"
+            stroke={theme.dark ? '#25414A' : '#E0EDF0'}
+            strokeWidth="4"
+          />
+          <AnimatedCircle
+            cx="130"
+            cy="130"
+            r="123"
+            fill="none"
+            stroke={complete ? theme.app.colors.hydrationComplete : '#269AAF'}
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray={`${CIRCUMFERENCE} ${CIRCUMFERENCE}`}
+            rotation="-90"
+            origin="130, 130"
+            animatedProps={arcProps}
+          />
+          <Circle
+            cx="130"
+            cy="130"
+            r="115"
+            fill="none"
+            stroke={`url(#${id}-rim)`}
+            strokeWidth="2"
+          />
+          <Circle cx="130" cy="130" r="109" fill={`url(#${id}-air)`} />
+          <G clipPath={`url(#${id}-glass)`}>
+            <AnimatedPath
+              animatedProps={rearProps}
+              fill={theme.dark ? '#3AB2BA' : '#62CBD7'}
+              opacity={0.38}
+            />
+            <AnimatedPath animatedProps={frontProps} fill={`url(#${id}-water)`} />
+            <AnimatedPath
+              animatedProps={edgeProps}
+              fill="none"
+              stroke={theme.dark ? '#8DE3E5' : '#E8FFFF'}
+              strokeWidth="1.6"
+              opacity={0.8}
+              strokeLinejoin="round"
+            />
+            {BUBBLES.map((index) => (
+              <WaterBubble
+                key={index}
+                index={index}
+                phase={phase}
+                progress={progress}
+                visible={animated}
+              />
+            ))}
+            <AnimatedPath
+              animatedProps={pourProps}
+              fill="none"
+              stroke="#C1F5FA"
+              strokeLinecap="round"
+            />
+            <AnimatedEllipse
+              animatedProps={rippleProps}
+              fill="none"
+              stroke="#D9FCFF"
+              strokeWidth="1.5"
+            />
+            {DROPS.map((index) => (
+              <SplashDroplet key={index} index={index} splash={splash} progress={progress} />
+            ))}
+            <Path
+              d="M49 105 A88 88 0 0 1 104 46"
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="4"
+              strokeLinecap="round"
+              opacity={theme.dark ? 0.08 : 0.55}
+            />
+          </G>
+        </Svg>
+        <View
+          pointerEvents="none"
+          importantForAccessibility="no-hide-descendants"
+          style={styles.centerCopy}
+        >
+          <Text maxFontSizeMultiplier={1.2} style={[styles.eyebrow, { color: secondary }]}>
+            TODAY’S HYDRATION
+          </Text>
+          <AnimatedInput
+            editable={false}
+            caretHidden
+            underlineColorAndroid="transparent"
+            defaultValue={String(totalAmount)}
+            animatedProps={countProps}
+            style={[
+              styles.amount,
+              { color: foreground, fontFamily: theme.app.typography.fontFamily.display },
+            ]}
+            maxFontSizeMultiplier={1.2}
+          />
+          <Text style={[styles.unit, { color: secondary }]}>
+            {measurementUnit === 'ml' ? 'mL' : 'oz'} of{' '}
+            {formatMeasurementAmount(goalAmount, measurementUnit).replace(' ml', ' mL')}
+          </Text>
+          <View
+            style={[
+              styles.percentPill,
+              { backgroundColor: theme.dark ? '#103C4BE6' : '#FFFFFFB8' },
+            ]}
+          >
+            <Text maxFontSizeMultiplier={1.2} style={[styles.percent, { color: foreground }]}>
+              {complete ? '✓ Goal reached' : `${percent}% complete`}
+            </Text>
+          </View>
+        </View>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.addedBadge,
+            { backgroundColor: theme.dark ? '#DDFBFA' : '#164F5A' },
+            badgeStyle,
+          ]}
+        >
+          <Text style={[styles.addedText, { color: theme.dark ? '#164F5A' : '#FFFFFF' }]}>
+            {feedback
+              ? `+ ${formatMeasurementAmount(feedback.amount, measurementUnit).replace(' ml', ' mL')}`
+              : ''}
+          </Text>
+        </Animated.View>
+      </View>
+      <Text
+        accessibilityLiveRegion="polite"
+        style={[styles.message, { color: theme.app.colors.textSecondary }]}
+      >
+        {message}
+      </Text>
+    </View>
   );
+});
+
+function WaterBubble({
+  index,
+  phase,
+  progress,
+  visible,
+}: {
+  index: number;
+  phase: SharedValue<number>;
+  progress: SharedValue<number>;
+  visible: boolean;
+}) {
+  const props = useAnimatedProps(() => {
+    const travel = (phase.value / TAU + index * 0.193) % 1;
+    const cy = 241 - travel * 176;
+    const surface = 242 - progress.value * 224;
+    return {
+      cx: 50 + index * 39 + Math.sin(phase.value + index) * 5,
+      cy,
+      r: 1.4 + (index % 3) * 0.7,
+      opacity: visible && cy > surface + 10 ? Math.sin(travel * Math.PI) * 0.38 : 0,
+    };
+  });
+  return <AnimatedCircle animatedProps={props} fill="none" stroke="#D6FAFF" strokeWidth="1" />;
+}
+
+function SplashDroplet({
+  index,
+  splash,
+  progress,
+}: {
+  index: number;
+  splash: SharedValue<number>;
+  progress: SharedValue<number>;
+}) {
+  const props = useAnimatedProps(() => {
+    const t = Math.max(0, Math.min(1, (splash.value - 0.07 - index * 0.018) / 0.56));
+    return {
+      cx: 153 + (index - 3.5) * 19 * t,
+      cy:
+        Math.max(28, 242 - progress.value * 224) -
+        Math.sin(t * Math.PI) * (20 + (index % 4) * 9) +
+        t * 8,
+      r: (2.2 + (index % 3) * 0.55) * (1 - t * 0.55),
+      opacity: t > 0 && t < 1 ? Math.sin(t * Math.PI) * 0.85 : 0,
+    };
+  });
+  return <AnimatedCircle animatedProps={props} fill="#E5FCFF" />;
 }
 
 const styles = StyleSheet.create({
+  container: { alignItems: 'center', alignSelf: 'center', gap: 12, width: '100%' },
+  halo: { ...StyleSheet.absoluteFill, borderWidth: 8, borderRadius: 999 },
+  centerCopy: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 8,
+  },
+  eyebrow: { fontSize: 9, fontWeight: '800', letterSpacing: 1.4, marginBottom: 4 },
   amount: {
+    fontSize: 44,
     fontWeight: '800',
     textAlign: 'center',
+    padding: 0,
+    height: 57,
+    width: '78%',
+    fontVariant: ['tabular-nums'],
+    includeFontPadding: false,
   },
-  centerCopy: {
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: 28,
-    zIndex: 5,
-  },
-  container: {
-    alignItems: 'center',
-    alignSelf: 'center',
-    justifyContent: 'center',
-  },
-  glass: {
-    alignItems: 'center',
-    borderWidth: 1,
-    elevation: 2,
-    height: RING_SIZE - 36,
-    justifyContent: 'center',
-    overflow: 'hidden',
-    shadowColor: '#007A8A',
-    shadowOffset: { height: 12, width: 0 },
-    shadowOpacity: 0.08,
-    shadowRadius: 24,
-    width: RING_SIZE - 36,
-  },
-  fallbackLiquidFill: {
-    bottom: 0,
-    left: 0,
-    opacity: 0.88,
-    position: 'absolute',
-    right: 0,
-    top: WAVE_BASELINE,
-  },
-  fallbackLiquidHighlight: {
-    height: 2,
-    left: 44,
-    opacity: 0.34,
-    position: 'absolute',
-    right: 44,
-    top: WAVE_BASELINE,
-  },
+  unit: { fontSize: 12, fontWeight: '600', marginTop: 1 },
+  percentPill: { borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12, marginTop: 14 },
+  percent: { fontSize: 11, fontWeight: '800', fontVariant: ['tabular-nums'] },
   message: {
-    fontWeight: '700',
-    marginTop: 8,
+    fontSize: 13,
+    lineHeight: 19,
     textAlign: 'center',
+    minHeight: 19,
+    paddingHorizontal: 8,
   },
-  ripple: {
-    borderWidth: 2,
-    height: 124,
-    left: (GLASS_SIZE - 124) / 2,
+  addedBadge: {
     position: 'absolute',
-    top: (GLASS_SIZE - 124) / 2,
-    width: 124,
-    zIndex: 4,
+    alignSelf: 'center',
+    top: 16,
+    borderRadius: 20,
+    paddingHorizontal: 13,
+    paddingVertical: 7,
   },
-  rippleSecondary: {
-    height: 96,
-    left: (GLASS_SIZE - 96) / 2,
-    top: (GLASS_SIZE - 96) / 2,
-    width: 96,
-  },
-  segment: {
-    height: 14,
-    position: 'absolute',
-    width: 4,
-  },
-  unit: {
-    textAlign: 'center',
-  },
-  water: {
-    bottom: 0,
-    height: '100%',
-    position: 'absolute',
-    width: '100%',
-  },
-  svgBaseLayer: {
-    left: 0,
-    position: 'absolute',
-    top: 0,
-  },
-  svgWaveLayer: {
-    left: -(WAVE_CANVAS_WIDTH - GLASS_SIZE) / 2,
-    position: 'absolute',
-    top: 0,
-    zIndex: 2,
-  },
-  rearWaveLayer: {
-    zIndex: 1,
-  },
+  addedText: { fontSize: 12, fontWeight: '800' },
 });

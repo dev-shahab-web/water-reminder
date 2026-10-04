@@ -1,3 +1,4 @@
+import { GlassSurface } from '@shared/components/glass-surface';
 import { memo, useMemo } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
@@ -47,12 +48,10 @@ export const TodayDrinksStrip = memo(function TodayDrinksStrip({
     return (
       <View style={styles.section}>
         <SectionHeader subtitle="Start with a quick add." title="Today" />
-        <View
+        <GlassSurface
           style={[
             styles.emptyCard,
             {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.app.colors.borderSubtle,
               borderRadius: theme.app.radius.lg,
             },
           ]}
@@ -68,7 +67,7 @@ export const TodayDrinksStrip = memo(function TodayDrinksStrip({
             label={`Add ${formatMeasurementAmount(250, measurementUnit)}`}
             onPress={onAddDefault}
           />
-        </View>
+        </GlassSurface>
       </View>
     );
   }
@@ -124,12 +123,10 @@ function DrinkCard({
   const theme = useTheme<AppTheme>();
 
   return (
-    <View
+    <GlassSurface
       style={[
         styles.card,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.app.colors.borderSubtle,
           borderRadius: theme.app.radius.md,
         },
       ]}
@@ -190,7 +187,7 @@ function DrinkCard({
           style={styles.smallIconButton}
         />
       </View>
-    </View>
+    </GlassSurface>
   );
 }
 
@@ -227,6 +224,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   listContent: {
+    paddingVertical: 6,
     paddingRight: 4,
   },
   section: {

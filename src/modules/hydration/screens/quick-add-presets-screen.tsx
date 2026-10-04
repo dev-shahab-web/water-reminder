@@ -1,3 +1,4 @@
+import { GlassSurface } from '@shared/components/glass-surface';
 import { useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
@@ -6,12 +7,15 @@ import { useTheme } from 'react-native-paper';
 import {
   AppScreen,
   IconButton,
+  MaterialCommunityIcon,
   PrimaryButton,
   SecondaryButton,
   SectionHeader,
 } from '@shared/components';
 import type { AppTheme } from '@shared/theme';
-import { useSettingsSnapshot } from '@modules/settings';
+import { useSettingsSnapshot, type MeasurementUnit } from '@modules/settings';
+import { SegmentedSetting } from '@modules/settings/components/segmented-setting';
+import { AnimatedPressableScale } from '@shared/motion';
 import {
   formatMeasurementAmount,
   getMeasurementValue,
@@ -19,6 +23,7 @@ import {
 } from '@modules/settings/utils/settings-options';
 
 import type { QuickAddPreset } from '../types';
+import { GlassIllustration } from '../components/glass-illustration';
 import {
   maxQuickAddPresetAmountMl,
   maxQuickAddPresetCount,
@@ -26,11 +31,18 @@ import {
   validateQuickAddPresetAmount,
 } from '../utils/quick-add-presets';
 import { useQuickAddPresets } from '../hooks/use-quick-add-presets';
+import {
+  alternateGlassCapacity,
+  formatGlassCapacity,
+  getGlassOptions,
+} from '../utils/glass-options';
 
 export function QuickAddPresetsScreen() {
   const theme = useTheme<AppTheme>();
   const settings = useSettingsSnapshot();
-  const { addPreset, movePreset, presets, removePreset, updatePreset } = useQuickAddPresets();
+  const [capacityUnit, setCapacityUnit] = useState<MeasurementUnit>(settings.measurementUnit);
+  const { addPreset, makeDefaultPreset, movePreset, presets, removePreset, updatePreset } =
+    useQuickAddPresets();
   const [draftAmount, setDraftAmount] = useState('');
   const [editingPreset, setEditingPreset] = useState<QuickAddPreset | undefined>();
   const [errorMessage, setErrorMessage] = useState<string | undefined>();
@@ -44,9 +56,7 @@ export function QuickAddPresetsScreen() {
   const savePreset = () => {
     const parsedAmount = Number.parseFloat(draftAmount);
     const amountMl =
-      settings.measurementUnit === 'oz'
-        ? ouncesToMilliliters(parsedAmount)
-        : Math.round(parsedAmount);
+      capacityUnit === 'oz' ? ouncesToMilliliters(parsedAmount) : Math.round(parsedAmount);
     const validationMessage = validateQuickAddPresetAmount({
       amountMl,
       currentPresetId: editingPreset?.id,
@@ -73,14 +83,14 @@ export function QuickAddPresetsScreen() {
 
   const startEditing = (preset: QuickAddPreset) => {
     setEditingPreset(preset);
-    setDraftAmount(String(getMeasurementValue(preset.amountMl, settings.measurementUnit)));
+    setDraftAmount(String(getMeasurementValue(preset.amountMl, capacityUnit)));
     setErrorMessage(undefined);
   };
 
   const confirmRemovePreset = (preset: QuickAddPreset) => {
     Alert.alert(
       'Remove quick add preset?',
-      `${formatMeasurementAmount(preset.amountMl, settings.measurementUnit)} will leave Quick add.`,
+      `${formatMeasurementAmount(preset.amountMl, capacityUnit)} will leave Quick add.`,
       [
         { style: 'cancel', text: 'Keep it' },
         {
@@ -104,6 +114,32 @@ export function QuickAddPresetsScreen() {
   };
 
   const canAddPreset = editingPreset !== undefined || presets.length < maxQuickAddPresetCount;
+
+  const changeCapacityUnit = (unit: MeasurementUnit) => {
+    if (unit === capacityUnit) return;
+    const amount = Number(draftAmount);
+    if (draftAmount !== '' && Number.isFinite(amount)) {
+      const amountMl = capacityUnit === 'oz' ? ouncesToMilliliters(amount) : amount;
+      setDraftAmount(String(getMeasurementValue(amountMl, unit)));
+    }
+    setCapacityUnit(unit);
+    setErrorMessage(undefined);
+  };
+
+  const toggleGlass = (amountMl: number) => {
+    const selected = presets.find((preset) => preset.amountMl === amountMl);
+    try {
+      if (selected) {
+        removePreset(selected.id);
+        if (editingPreset?.id === selected.id) resetDraft();
+      } else {
+        addPreset(amountMl);
+      }
+      setErrorMessage(undefined);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Glass could not be saved.');
+    }
+  };
 
   return (
     <AppScreen scrollable style={styles.screen}>
@@ -129,7 +165,7 @@ export function QuickAddPresetsScreen() {
               },
             ]}
           >
-            Quick Add Presets
+            My glasses
           </Text>
           <Text
             style={[
@@ -141,17 +177,77 @@ export function QuickAddPresetsScreen() {
               },
             ]}
           >
-            Keep one-tap logging personal without slowing it down.
+            Choose your glass capacities for one-tap water logging.
           </Text>
         </View>
       </View>
 
-      <View
+      <View style={styles.section}>
+        <SectionHeader
+          title="Choose glass sizes"
+          subtitle={`Select up to ${maxQuickAddPresetCount} glasses. Selected sizes appear on Home. Oz uses US fluid ounces.`}
+        />
+        <SegmentedSetting
+          accessibilityLabel="Glass capacity unit"
+          onChange={changeCapacityUnit}
+          options={[
+            { label: 'mL', value: 'ml' },
+            { label: 'oz', value: 'oz' },
+          ]}
+          value={capacityUnit}
+        />
+        <View style={styles.glassGrid}>
+          {getGlassOptions(capacityUnit).map((glass) => {
+            const selected = presets.some((preset) => preset.amountMl === glass.amountMl);
+            const disabled = selected
+              ? presets.length === 1
+              : presets.length >= maxQuickAddPresetCount;
+            return (
+              <View key={glass.amountMl} style={styles.glassCell}>
+                <AnimatedPressableScale
+                  glass="regular"
+                  selected={selected}
+                  accessibilityLabel={`${glass.label} glass, ${alternateGlassCapacity(glass.amountMl, capacityUnit)}`}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: selected, disabled }}
+                  disabled={disabled}
+                  onPress={() => toggleGlass(glass.amountMl)}
+                  style={[
+                    styles.glassOption,
+                    {
+                      borderRadius: theme.app.radius.md,
+                      opacity: disabled && !selected ? 0.5 : 1,
+                    },
+                  ]}
+                >
+                  <View style={styles.selectionMark}>
+                    <MaterialCommunityIcon
+                      name={selected ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'}
+                      color={theme.colors.primary}
+                      size={18}
+                    />
+                  </View>
+                  <GlassIllustration amountMl={glass.amountMl} />
+                  <Text style={[styles.presetAmount, { color: theme.app.colors.textPrimary }]}>
+                    {glass.label}
+                  </Text>
+                  <Text style={{ color: theme.app.colors.textSecondary }}>
+                    ≈ {alternateGlassCapacity(glass.amountMl, capacityUnit)}
+                  </Text>
+                </AnimatedPressableScale>
+              </View>
+            );
+          })}
+        </View>
+        <Text accessibilityLiveRegion="polite" style={{ color: theme.app.colors.textSecondary }}>
+          {presets.length} of {maxQuickAddPresetCount} glasses selected. Keep at least one glass.
+        </Text>
+      </View>
+
+      <GlassSurface
         style={[
           styles.editor,
           {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.app.colors.borderSubtle,
             borderRadius: theme.app.radius.lg,
           },
         ]}
@@ -159,27 +255,27 @@ export function QuickAddPresetsScreen() {
         <SectionHeader
           subtitle={`${formatMeasurementAmount(
             minQuickAddPresetAmountMl,
-            settings.measurementUnit,
+            capacityUnit,
           )}-${formatMeasurementAmount(
             maxQuickAddPresetAmountMl,
-            settings.measurementUnit,
-          )} · up to ${maxQuickAddPresetCount} presets`}
-          title={editingPreset === undefined ? 'Add preset' : 'Edit preset'}
+            capacityUnit,
+          )} · enter the capacity in ${capacityUnit === 'ml' ? 'mL' : 'oz'}`}
+          title={editingPreset === undefined ? 'Custom glass' : 'Edit glass'}
         />
         <View style={styles.inputRow}>
           <TextInput
-            accessibilityLabel="Quick add preset amount"
+            accessibilityLabel={`Glass capacity in ${capacityUnit}`}
             editable={canAddPreset}
-            keyboardType="number-pad"
+            keyboardType={capacityUnit === 'oz' ? 'decimal-pad' : 'number-pad'}
             onChangeText={(value) => {
               setDraftAmount(
-                settings.measurementUnit === 'oz'
+                capacityUnit === 'oz'
                   ? value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1')
                   : value.replace(/\D/g, ''),
               );
               setErrorMessage(undefined);
             }}
-            placeholder="Amount"
+            placeholder={`Capacity (${capacityUnit === 'ml' ? 'mL' : 'oz'})`}
             placeholderTextColor={theme.app.colors.textSecondary}
             style={[
               styles.input,
@@ -226,21 +322,19 @@ export function QuickAddPresetsScreen() {
             onPress={resetDraft}
           />
         )}
-      </View>
+      </GlassSurface>
 
       <View style={styles.section}>
         <SectionHeader
-          subtitle="The order here is the order shown on Home."
-          title="Current presets"
+          subtitle="Your first glass is the default for notifications. The same order appears on Home."
+          title="Selected glasses"
         />
         {presets.map((preset, index) => (
-          <View
+          <GlassSurface
             key={preset.id}
             style={[
               styles.presetRow,
               {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.app.colors.borderSubtle,
                 borderRadius: theme.app.radius.md,
               },
             ]}
@@ -256,7 +350,7 @@ export function QuickAddPresetsScreen() {
                   },
                 ]}
               >
-                {formatMeasurementAmount(preset.amountMl, settings.measurementUnit)}
+                {formatGlassCapacity(preset.amountMl, capacityUnit)}
               </Text>
               <Text
                 style={[
@@ -268,14 +362,27 @@ export function QuickAddPresetsScreen() {
                   },
                 ]}
               >
-                Position {index + 1}
+                ≈ {alternateGlassCapacity(preset.amountMl, capacityUnit)} ·{' '}
+                {index === 0 ? 'Notification default' : `Position ${index + 1}`}
               </Text>
             </View>
             <View style={styles.rowActions}>
               <IconButton
+                accessibilityLabel={
+                  index === 0
+                    ? `${formatGlassCapacity(preset.amountMl, capacityUnit)} is the notification default`
+                    : `Use ${formatGlassCapacity(preset.amountMl, capacityUnit)} for notifications`
+                }
+                disabled={index === 0}
+                icon={index === 0 ? 'star' : 'star-outline'}
+                onPress={() => makeDefaultPreset(preset.id)}
+                size={20}
+                style={styles.rowButton}
+              />
+              <IconButton
                 accessibilityLabel={`Move ${formatMeasurementAmount(
                   preset.amountMl,
-                  settings.measurementUnit,
+                  capacityUnit,
                 )} preset earlier`}
                 disabled={index === 0}
                 icon="chevron-up"
@@ -288,7 +395,7 @@ export function QuickAddPresetsScreen() {
               <IconButton
                 accessibilityLabel={`Move ${formatMeasurementAmount(
                   preset.amountMl,
-                  settings.measurementUnit,
+                  capacityUnit,
                 )} preset later`}
                 disabled={index === presets.length - 1}
                 icon="chevron-down"
@@ -301,7 +408,7 @@ export function QuickAddPresetsScreen() {
               <IconButton
                 accessibilityLabel={`Edit ${formatMeasurementAmount(
                   preset.amountMl,
-                  settings.measurementUnit,
+                  capacityUnit,
                 )} preset`}
                 icon="pencil-outline"
                 onPress={() => {
@@ -313,7 +420,7 @@ export function QuickAddPresetsScreen() {
               <IconButton
                 accessibilityLabel={`Remove ${formatMeasurementAmount(
                   preset.amountMl,
-                  settings.measurementUnit,
+                  capacityUnit,
                 )} preset`}
                 disabled={presets.length <= 1}
                 icon="trash-can-outline"
@@ -324,7 +431,7 @@ export function QuickAddPresetsScreen() {
                 style={styles.rowButton}
               />
             </View>
-          </View>
+          </GlassSurface>
         ))}
       </View>
     </AppScreen>
@@ -332,6 +439,17 @@ export function QuickAddPresetsScreen() {
 }
 
 const styles = StyleSheet.create({
+  glassGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  glassCell: { flexBasis: '30%', flexGrow: 1, minWidth: 96 },
+  selectionMark: { position: 'absolute', top: 8, right: 8 },
+  glassOption: {
+    alignItems: 'center',
+    borderWidth: 1,
+    gap: 8,
+    paddingHorizontal: 6,
+    paddingTop: 20,
+    paddingBottom: 12,
+  },
   editor: {
     borderWidth: 1,
     gap: 12,

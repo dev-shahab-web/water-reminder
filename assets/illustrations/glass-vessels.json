@@ -1,0 +1,41 @@
+{
+  "cup": {
+    "body": "M18 35 H73 L69 66 Q66 86 46 86 Q26 86 23 66 Z",
+    "handle": "M73 42 H81 Q97 42 88 58 Q82 67 70 66",
+    "rim": "M18 35 H73",
+    "highlight": "M28 44 L31 63",
+    "waterY": 49
+  },
+  "tumbler": {
+    "body": "M22 18 H78 L70 94 H30 Z",
+    "rim": "M22 18 H78",
+    "highlight": "M31 28 L36 78",
+    "waterY": 43
+  },
+  "mug": {
+    "body": "M19 18 H70 V85 Q70 94 61 94 H28 Q19 94 19 85 Z",
+    "handle": "M70 35 H80 Q92 35 92 48 V64 Q92 77 80 77 H70",
+    "rim": "M19 18 H70",
+    "highlight": "M29 34 V78",
+    "waterY": 44
+  },
+  "tall": {
+    "body": "M24 10 H76 L70 96 H30 Z",
+    "rim": "M24 10 H76",
+    "highlight": "M33 22 L37 81",
+    "waterY": 34
+  },
+  "bottle": {
+    "body": "M40 17 H60 V26 Q76 33 76 48 L72 92 Q72 98 66 98 H34 Q28 98 28 92 L24 48 Q24 33 40 26 Z",
+    "rim": "M40 17 H60",
+    "highlight": "M36 39 Q33 42 34 53 L37 83",
+    "waterY": 47
+  },
+  "pitcher": {
+    "body": "M25 12 H68 L66 31 Q79 48 77 79 Q76 98 59 98 H30 Q15 98 17 80 L24 35 L12 19 Z",
+    "handle": "M70 34 H84 Q95 34 93 49 L89 74 Q87 87 76 85",
+    "rim": "M25 12 H68",
+    "highlight": "M34 37 L28 77",
+    "waterY": 48
+  }
+}

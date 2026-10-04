@@ -1,5 +1,4 @@
 import { loadTodayHydration } from '@modules/hydration';
-import { resetDatabaseConnection } from '@platform/database';
 import { trackEventSafely } from '@platform/telemetry';
 import type { AppDispatch } from '@state/store';
 
@@ -14,7 +13,8 @@ export const syncWidgetLiveState = async ({
   dispatch: AppDispatch;
   reason: WidgetLiveSyncReason;
 }): Promise<void> => {
-  await resetDatabaseConnection();
+  // SQLite sees committed widget writes on the next query. Closing the shared
+  // connection here races with queries triggered by notification/app activation.
   await dispatch(loadTodayHydration()).unwrap();
   await refreshHydrationWidgets(reason === 'app_active' ? 'app_active' : 'widget_event');
 

@@ -12,6 +12,7 @@ import { useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { AppTheme } from '@shared/theme';
+import { GlassScene } from './glass-surface';
 
 type AppScreenProps = {
   children: ReactNode;
@@ -72,7 +73,7 @@ export function AppScreen({
     );
 
   return (
-    <SafeAreaView
+    <View
       style={[
         styles.safeArea,
         {
@@ -80,37 +81,41 @@ export function AppScreen({
         },
       ]}
     >
-      {scrollable ? (
-        <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            {
-              padding: theme.app.spacing[6],
-            },
-            style,
-          ]}
-          keyboardDismissMode="on-drag"
-          keyboardShouldPersistTaps="handled"
-          refreshControl={refreshControl}
-        >
-          {header}
-          {content}
-        </ScrollView>
-      ) : (
-        <View
-          style={[
-            styles.staticContent,
-            {
-              padding: theme.app.spacing[6],
-            },
-            style,
-          ]}
-        >
-          {header}
-          {content}
-        </View>
-      )}
-    </SafeAreaView>
+      <GlassScene>
+        <SafeAreaView style={styles.safeArea}>
+          {scrollable ? (
+            <ScrollView
+              contentContainerStyle={[
+                styles.scrollContent,
+                {
+                  padding: theme.app.spacing[6],
+                },
+                style,
+              ]}
+              keyboardDismissMode="on-drag"
+              keyboardShouldPersistTaps="handled"
+              refreshControl={refreshControl}
+            >
+              {header}
+              {content}
+            </ScrollView>
+          ) : (
+            <View
+              style={[
+                styles.staticContent,
+                {
+                  padding: theme.app.spacing[6],
+                },
+                style,
+              ]}
+            >
+              {header}
+              {content}
+            </View>
+          )}
+        </SafeAreaView>
+      </GlassScene>
+    </View>
   );
 }
 

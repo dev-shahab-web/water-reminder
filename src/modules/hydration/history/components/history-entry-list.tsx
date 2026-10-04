@@ -44,8 +44,6 @@ export function HistoryEntryList({
             style={[
               styles.item,
               {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.app.colors.borderSubtle,
                 borderRadius: theme.app.radius.md,
               },
             ]}

@@ -30,8 +30,6 @@ export function HistoryDaySummary({ measurementUnit, summary }: HistoryDaySummar
       style={[
         styles.card,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.app.colors.borderSubtle,
           borderRadius: theme.app.radius.lg,
         },
       ]}

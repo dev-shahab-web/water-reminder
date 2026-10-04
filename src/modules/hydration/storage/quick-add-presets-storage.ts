@@ -169,3 +169,15 @@ export const moveQuickAddPreset = (id: string, direction: 'down' | 'up'): QuickA
 export const resetQuickAddPresetsCacheForTests = (): void => {
   cachedPresets = undefined;
 };
+
+export const makeDefaultQuickAddPreset = (id: string): QuickAddPreset[] => {
+  const presets = getQuickAddPresets();
+  const selected = presets.find((preset) => preset.id === id);
+  if (!selected) return presets;
+  return setQuickAddPresets(
+    [selected, ...presets.filter((preset) => preset.id !== id)].map((preset, position) => ({
+      ...preset,
+      position,
+    })),
+  );
+};

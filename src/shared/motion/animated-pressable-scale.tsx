@@ -15,9 +15,12 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { getMotionDuration, motionDuration } from './motion-tokens';
+import { GlassPressable, type GlassTone } from '../components/glass-surface';
 
 type AnimatedPressableScaleProps = Omit<PressableProps, 'children' | 'style'> & {
   children: ReactNode;
+  glass?: GlassTone;
+  selected?: boolean;
   pressedScale?: number;
   style?: StyleProp<ViewStyle> | ((state: PressableStateCallbackType) => StyleProp<ViewStyle>);
 };
@@ -25,6 +28,8 @@ type AnimatedPressableScaleProps = Omit<PressableProps, 'children' | 'style'> & 
 export const AnimatedPressableScale = memo(function AnimatedPressableScale({
   children,
   disabled = false,
+  glass,
+  selected,
   onPressIn,
   onPressOut,
   pressedScale = 0.985,
@@ -32,6 +37,7 @@ export const AnimatedPressableScale = memo(function AnimatedPressableScale({
   ...props
 }: AnimatedPressableScaleProps) {
   const reduceMotion = useReducedMotion();
+  const Surface = glass === undefined ? Pressable : GlassPressable;
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -46,7 +52,8 @@ export const AnimatedPressableScale = memo(function AnimatedPressableScale({
 
   return (
     <Animated.View style={animatedStyle}>
-      <Pressable
+      <Surface
+        {...(glass === undefined ? {} : { tone: glass, selected })}
         disabled={disabled}
         onPressIn={(event) => {
           if (!disabled) {
@@ -63,7 +70,7 @@ export const AnimatedPressableScale = memo(function AnimatedPressableScale({
         {...props}
       >
         {children}
-      </Pressable>
+      </Surface>
     </Animated.View>
   );
 });

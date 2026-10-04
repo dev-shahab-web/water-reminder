@@ -10,6 +10,8 @@ import {
 import { MaterialCommunityIcon } from '@shared/components';
 import { AnimatedPressableScale } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
+import { alternateGlassCapacity } from '../utils/glass-options';
+import { GlassIllustration } from './glass-illustration';
 
 export type QuickAddCardVariant = { amountMl: number; type: 'preset' } | { type: 'add' };
 
@@ -34,10 +36,11 @@ export const QuickAddButton = memo(function QuickAddButton({
 
   return (
     <AnimatedPressableScale
+      glass="regular"
       accessibilityLabel={
         variant.type === 'preset'
           ? `Add ${amountLabel} ${unitLabel} of water`
-          : 'Manage quick add presets'
+          : 'Choose glass sizes'
       }
       accessibilityRole="button"
       disabled={disabled}
@@ -47,21 +50,18 @@ export const QuickAddButton = memo(function QuickAddButton({
       style={({ pressed }) => [
         styles.button,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.app.colors.borderSubtle,
           borderRadius: theme.app.radius.md,
-          elevation: disabled ? 0 : 1,
+
           opacity: disabled ? 0.48 : pressed ? 0.76 : 1,
-          shadowColor: theme.app.colors.hydrationProgress,
         },
       ]}
     >
       <View style={styles.content}>
-        <MaterialCommunityIcon
-          color={theme.app.colors.hydrationProgress}
-          name={isAddCard ? 'plus' : 'water'}
-          size={isAddCard ? 26 : 18}
-        />
+        {variant.type === 'preset' ? (
+          <GlassIllustration amountMl={variant.amountMl} compact />
+        ) : (
+          <MaterialCommunityIcon color={theme.app.colors.hydrationProgress} name="plus" size={26} />
+        )}
         {variant.type === 'preset' ? (
           <>
             <Text
@@ -88,6 +88,14 @@ export const QuickAddButton = memo(function QuickAddButton({
             >
               {unitLabel}
             </Text>
+            <Text
+              style={{
+                color: theme.app.colors.textSecondary,
+                fontSize: theme.app.typography.fontSize.caption,
+              }}
+            >
+              ≈ {alternateGlassCapacity(variant.amountMl, measurementUnit)}
+            </Text>
           </>
         ) : (
           <Text
@@ -100,7 +108,7 @@ export const QuickAddButton = memo(function QuickAddButton({
               },
             ]}
           >
-            Add
+            Glasses
           </Text>
         )}
       </View>
@@ -119,17 +127,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     justifyContent: 'center',
-    height: 80,
+    minHeight: 174,
     flexShrink: 0,
     paddingHorizontal: 12,
     paddingVertical: 14,
-    shadowOffset: {
-      height: 3,
-      width: 0,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    width: 96,
+    minWidth: 106,
   },
   content: {
     alignItems: 'center',

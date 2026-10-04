@@ -1,25 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#F7FBF8"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:padding="16dp">
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Water Reminder"
-        android:textColor="#12312B"
-        android:textSize="16sp"
-        android:textStyle="bold" />
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="6dp"
-        android:text="Today’s hydration"
-        android:textColor="#536B66"
-        android:textSize="12sp" />
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/water_reminder_widget_background"
+    android:orientation="vertical" android:padding="12dp">
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="Today's water" android:textColor="@color/widget_secondary"
+        android:textSize="12sp" android:textStyle="bold" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="4dp" android:text="750 ml"
+        android:textColor="@color/widget_ink" android:textSize="24sp" android:textStyle="bold" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="38% of 2 L" android:textColor="@color/widget_secondary" android:textSize="11sp" />
+    <ImageView android:layout_width="match_parent" android:layout_height="4dp"
+        android:layout_marginTop="6dp" android:background="@drawable/water_reminder_widget_progress"
+        android:importantForAccessibility="no" />
+    <TextView android:layout_width="1dp" android:layout_height="0dp" android:layout_weight="1"
+        android:importantForAccessibility="no" />
+    <TextView android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginTop="8dp"
+        android:background="@drawable/water_reminder_widget_button" android:gravity="center"
+        android:text="+250 ml" android:textColor="@color/widget_on_accent"
+        android:textSize="12sp" android:textStyle="bold" />
 </LinearLayout>

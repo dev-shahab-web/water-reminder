@@ -45,10 +45,18 @@
         }
       ],
       "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/branding/app/notification-icon.png",
+          "color": "#007A8A"
+        }
+      ],
       "expo-health-connect",
       "@react-native-firebase/app",
       "@react-native-firebase/crashlytics",
       "./plugins/water-reminder-widget/withWaterReminderWidgets",
+      "./plugins/water-reminder-notifications/withWaterReminderNotifications",
       [
         "expo-build-properties",
         {
@@ -57,6 +65,15 @@
             "targetSdkVersion": 36,
             "minSdkVersion": 28
           }
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundRecording": false,
+          "enableBackgroundPlayback": false
         }
       ]
     ],

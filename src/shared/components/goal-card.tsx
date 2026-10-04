@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { GlassPressable, GlassSurface } from '@shared/components/glass-surface';
+import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
 import type { AppTheme } from '@shared/theme';
@@ -21,13 +22,11 @@ export function GoalCard({
   const theme = useTheme<AppTheme>();
 
   return (
-    <View
+    <GlassSurface
       accessibilityLabel={`Daily goal ${amountMl} milliliters`}
       style={[
         styles.card,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.app.colors.borderSubtle,
           borderRadius: theme.app.radius.lg,
         },
       ]}
@@ -85,7 +84,7 @@ export function GoalCard({
           onPress={onIncrease}
         />
       </View>
-    </View>
+    </GlassSurface>
   );
 }
 
@@ -100,7 +99,8 @@ function StepButton({ accessibilityLabel, disabled, label, onPress }: StepButton
   const theme = useTheme<AppTheme>();
 
   return (
-    <Pressable
+    <GlassPressable
+      tone="inset"
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
       disabled={disabled}
@@ -108,7 +108,6 @@ function StepButton({ accessibilityLabel, disabled, label, onPress }: StepButton
       style={({ pressed }) => [
         styles.stepButton,
         {
-          backgroundColor: theme.app.colors.surfaceSubtle,
           borderRadius: theme.app.radius.full,
           opacity: disabled ? 0.42 : pressed ? 0.72 : 1,
         },
@@ -126,7 +125,7 @@ function StepButton({ accessibilityLabel, disabled, label, onPress }: StepButton
       >
         {label}
       </Text>
-    </Pressable>
+    </GlassPressable>
   );
 }
 

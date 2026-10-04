@@ -1,3 +1,4 @@
+import { GlassSurface } from '@shared/components/glass-surface';
 import { memo } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from 'react-native-paper';
@@ -34,12 +35,10 @@ export const HealthConnectCard = memo(function HealthConnectCard() {
   };
 
   return (
-    <View
+    <GlassSurface
       style={[
         styles.card,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.app.colors.borderSubtle,
           borderRadius: theme.app.radius.lg,
         },
       ]}
@@ -142,7 +141,7 @@ export const HealthConnectCard = memo(function HealthConnectCard() {
           }}
         />
       )}
-    </View>
+    </GlassSurface>
   );
 });
 
