@@ -1,3 +1,4 @@
+import { useAppReduceMotion } from '@shared/motion/motion-provider';
 import { type ReactNode, memo } from 'react';
 import {
   Pressable,
@@ -9,7 +10,6 @@ import {
 import Animated, {
   Easing,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
@@ -36,7 +36,7 @@ export const AnimatedPressableScale = memo(function AnimatedPressableScale({
   style,
   ...props
 }: AnimatedPressableScaleProps) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useAppReduceMotion();
   const Surface = glass === undefined ? Pressable : GlassPressable;
   const scale = useSharedValue(1);
   const animatedStyle = useAnimatedStyle(() => ({

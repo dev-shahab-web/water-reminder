@@ -1,30 +1,35 @@
 import { type ReactNode, type ComponentProps, memo } from 'react';
-import Animated, { Easing, FadeInDown, useReducedMotion } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import { GlassSurface, type GlassSurfaceProps } from '../components/glass-surface';
-import { motionDuration } from './motion-tokens';
+import { useAppReduceMotion } from './motion-provider';
 
 export const AnimatedGlassSurface = Animated.createAnimatedComponent(GlassSurface);
 
 type AnimatedCardProps = GlassSurfaceProps &
   Pick<ComponentProps<typeof Animated.View>, 'entering' | 'exiting' | 'layout'> & {
     children: ReactNode;
-    delay?: number;
   };
 
 export const AnimatedCard = memo(function AnimatedCard({
   children,
-  delay = 0,
+  entering,
+  exiting,
+  layout,
   style,
   ...props
 }: AnimatedCardProps) {
-  const reduceMotion = useReducedMotion();
-  const entering = reduceMotion
-    ? undefined
-    : FadeInDown.duration(motionDuration.standard).delay(delay).easing(Easing.out(Easing.cubic));
-
+  const reduceMotion = useAppReduceMotion();
+  // The native stack owns screen transitions. Animate cards only for an explicit
+  // content change, rather than replaying staggered entrances on navigation.
   return (
-    <AnimatedGlassSurface entering={entering} style={style} {...props}>
+    <AnimatedGlassSurface
+      entering={reduceMotion ? undefined : entering}
+      exiting={reduceMotion ? undefined : exiting}
+      layout={reduceMotion ? undefined : layout}
+      style={style}
+      {...props}
+    >
       {children}
     </AnimatedGlassSurface>
   );

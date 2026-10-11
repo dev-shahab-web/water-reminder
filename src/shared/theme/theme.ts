@@ -44,6 +44,9 @@ export const appLightTheme: AppTheme = {
     error: lightColors.error,
     onBackground: lightColors.onBackground,
     onPrimary: lightColors.onPrimary,
+    onPrimaryContainer: '#124F56',
+    onSecondary: '#FFFFFF',
+    onSecondaryContainer: '#234C3D',
     onSurface: lightColors.onSurface,
     onSurfaceVariant: lightColors.onSurfaceVariant,
     outline: lightColors.border,
@@ -53,6 +56,14 @@ export const appLightTheme: AppTheme = {
     secondaryContainer: lightColors.secondaryContainer,
     surface: lightColors.surface,
     surfaceVariant: lightColors.surfaceMuted,
+    elevation: {
+      level0: 'transparent',
+      level1: '#F3F8FA',
+      level2: '#EDF5F7',
+      level3: '#E7F1F4',
+      level4: '#E3EFF2',
+      level5: '#DEECEF',
+    },
   },
 };
 
@@ -68,6 +79,9 @@ export const appDarkTheme: AppTheme = {
     error: darkColors.error,
     onBackground: darkColors.onBackground,
     onPrimary: darkColors.onPrimary,
+    onPrimaryContainer: '#D8F3EF',
+    onSecondary: '#142D22',
+    onSecondaryContainer: '#C9E8D8',
     onSurface: darkColors.onSurface,
     onSurfaceVariant: darkColors.onSurfaceVariant,
     outline: darkColors.border,
@@ -77,6 +91,14 @@ export const appDarkTheme: AppTheme = {
     secondaryContainer: darkColors.secondaryContainer,
     surface: darkColors.surface,
     surfaceVariant: darkColors.surfaceMuted,
+    elevation: {
+      level0: 'transparent',
+      level1: '#1D2E38',
+      level2: '#21333D',
+      level3: '#263A43',
+      level4: '#293E46',
+      level5: '#2E444C',
+    },
   },
 };
 

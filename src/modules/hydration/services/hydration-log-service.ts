@@ -23,7 +23,10 @@ export const persistHydrationLog = async ({
   const entry = await addHydrationEntry({ amount, source });
 
   await reminderCleanupAfterHydrationPersistence();
-  void refreshHydrationWidgets('hydration_changed');
+  // Do not report the app write as complete while the widget still projects
+  // the previous database total. The coordinator absorbs widget-only failures,
+  // so local hydration persistence remains the source of truth.
+  await refreshHydrationWidgets('hydration_changed');
   void queueBestEffortHealthConnectSync();
   trackEventSafely('hydration_log_action', { source: source === 'widget' ? 'widget' : 'app' });
 

@@ -1,6 +1,6 @@
 import { GlassSurface } from '@shared/components/glass-surface';
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { useTheme } from 'react-native-paper';
 
@@ -39,6 +39,7 @@ import {
 
 export function QuickAddPresetsScreen() {
   const theme = useTheme<AppTheme>();
+  const { fontScale } = useWindowDimensions();
   const settings = useSettingsSnapshot();
   const [capacityUnit, setCapacityUnit] = useState<MeasurementUnit>(settings.measurementUnit);
   const { addPreset, makeDefaultPreset, movePreset, presets, removePreset, updatePreset } =
@@ -203,7 +204,7 @@ export function QuickAddPresetsScreen() {
               ? presets.length === 1
               : presets.length >= maxQuickAddPresetCount;
             return (
-              <View key={glass.amountMl} style={styles.glassCell}>
+              <View key={glass.amountMl} style={[styles.glassCell, { minWidth: 96 * fontScale }]}>
                 <AnimatedPressableScale
                   glass="regular"
                   selected={selected}
@@ -332,6 +333,8 @@ export function QuickAddPresetsScreen() {
         {presets.map((preset, index) => (
           <GlassSurface
             key={preset.id}
+            testID={`selected-glass-${preset.amountMl}`}
+            selected={index === 0}
             style={[
               styles.presetRow,
               {
@@ -339,34 +342,39 @@ export function QuickAddPresetsScreen() {
               },
             ]}
           >
-            <View style={styles.presetCopy}>
-              <Text
-                style={[
-                  styles.presetAmount,
-                  {
-                    color: theme.app.colors.textPrimary,
-                    fontSize: theme.app.typography.fontSize.subtitle,
-                    lineHeight: theme.app.typography.lineHeight.subtitle,
-                  },
-                ]}
-              >
-                {formatGlassCapacity(preset.amountMl, capacityUnit)}
-              </Text>
-              <Text
-                style={[
-                  styles.presetPosition,
-                  {
-                    color: theme.app.colors.textSecondary,
-                    fontSize: theme.app.typography.fontSize.caption,
-                    lineHeight: theme.app.typography.lineHeight.caption,
-                  },
-                ]}
-              >
-                ≈ {alternateGlassCapacity(preset.amountMl, capacityUnit)} ·{' '}
-                {index === 0 ? 'Notification default' : `Position ${index + 1}`}
-              </Text>
+            <View style={styles.presetDetails}>
+              <GlassIllustration amountMl={preset.amountMl} compact scale={0.7} />
+              <View style={styles.presetCopy}>
+                <Text
+                  style={[
+                    styles.presetAmount,
+                    {
+                      color: theme.app.colors.textPrimary,
+                      fontSize: theme.app.typography.fontSize.subtitle,
+                      lineHeight: theme.app.typography.lineHeight.subtitle,
+                    },
+                  ]}
+                >
+                  {formatGlassCapacity(preset.amountMl, capacityUnit)}
+                </Text>
+                <Text
+                  style={[
+                    styles.presetPosition,
+                    {
+                      color: theme.app.colors.textSecondary,
+                      fontSize: theme.app.typography.fontSize.caption,
+                      lineHeight: theme.app.typography.lineHeight.caption,
+                    },
+                  ]}
+                >
+                  ≈ {alternateGlassCapacity(preset.amountMl, capacityUnit)}
+                </Text>
+                <Text style={[styles.presetPosition, { color: theme.app.colors.textSecondary }]}>
+                  {index === 0 ? 'Notification default' : `Position ${index + 1}`}
+                </Text>
+              </View>
             </View>
-            <View style={styles.rowActions}>
+            <View style={[styles.rowActions, { borderTopColor: theme.app.colors.borderSubtle }]}>
               <IconButton
                 accessibilityLabel={
                   index === 0
@@ -492,18 +500,23 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   presetPosition: {},
-  presetRow: {
+  presetDetails: {
     alignItems: 'center',
-    borderWidth: 1,
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    gap: 12,
+  },
+  presetRow: {
+    borderWidth: 1,
     gap: 12,
     padding: 14,
   },
   rowActions: {
+    borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
     gap: 8,
+    paddingTop: 10,
   },
   rowButton: {
     height: 44,

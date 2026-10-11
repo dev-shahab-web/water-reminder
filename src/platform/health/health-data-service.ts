@@ -16,6 +16,7 @@ const unsupportedPermissionState: HealthDataPermissionState = {
 };
 
 export const healthDataService: HealthDataService = {
+  deleteHydration: async () => {},
   getAvailability: async (): Promise<HealthDataAvailability> => 'unsupported',
   getPermissionState: async (): Promise<HealthDataPermissionState> => unsupportedPermissionState,
   readHydration: async (_options: ReadHydrationOptions): Promise<ExternalHydrationRecord[]> => [],

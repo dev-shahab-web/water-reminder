@@ -1,3 +1,4 @@
+import { useAppReduceMotion } from '@shared/motion/motion-provider';
 import { GlassSurface } from '@shared/components/glass-surface';
 import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -13,7 +14,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { useTheme } from 'react-native-paper';
-import { Easing, FadeInDown, FadeOutUp, useReducedMotion } from 'react-native-reanimated';
+import { Easing, FadeInDown, FadeOutUp } from 'react-native-reanimated';
 
 import { appConfig } from '@core/config';
 import {
@@ -49,9 +50,8 @@ export default function HomeScreen() {
   const params = useLocalSearchParams<{ reminderPulse?: string }>();
   const { state } = useOnboardingState();
   const isFocused = useIsFocused();
-  const systemReduceMotion = useReducedMotion();
+  const reduceMotion = useAppReduceMotion();
   const settings = useSettingsSnapshot();
-  const reduceMotion = systemReduceMotion || settings.reduceMotion;
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
   const [actionRowWidth, setActionRowWidth] = useState(0);
   const { presets } = useQuickAddPresets();

@@ -123,5 +123,33 @@ export const runDatabaseMigrations = async (database: AppDatabase): Promise<void
       amount INTEGER NOT NULL CHECK (amount > 0),
       createdAt TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS health_connect_deletions (
+      entryId TEXT PRIMARY KEY NOT NULL,
+      recordId TEXT,
+      clientRecordId TEXT,
+      deleteRemote INTEGER NOT NULL,
+      pending INTEGER NOT NULL DEFAULT 1
+    );
+
+    CREATE TRIGGER IF NOT EXISTS hydration_delete_health_connect
+    AFTER DELETE ON hydration_entries
+    BEGIN
+      INSERT OR REPLACE INTO health_connect_deletions
+        (entryId, recordId, clientRecordId, deleteRemote, pending)
+      VALUES (
+        OLD.id, OLD.healthConnectRecordId,
+        COALESCE(OLD.healthConnectClientRecordId, OLD.id),
+        CASE WHEN (OLD.healthConnectDataOrigin IS NULL AND OLD.source != 'health_connect')
+          OR OLD.healthConnectDataOrigin = 'com.shahab.waterreminder' THEN 1 ELSE 0 END,
+        1
+      );
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS hydration_restore_health_connect
+    AFTER INSERT ON hydration_entries
+    BEGIN
+      DELETE FROM health_connect_deletions WHERE entryId = NEW.id;
+    END;
   `);
 };

@@ -1,5 +1,6 @@
+import { useAppReduceMotion } from '@shared/motion/motion-provider';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useTheme } from 'react-native-paper';
 
 import { motionDuration } from '@shared/motion';
@@ -13,7 +14,7 @@ type MonthlyHeatmapProps = {
 
 export function MonthlyHeatmap({ points }: MonthlyHeatmapProps) {
   const theme = useTheme<AppTheme>();
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useAppReduceMotion();
 
   return (
     <View

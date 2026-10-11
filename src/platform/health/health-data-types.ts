@@ -26,6 +26,7 @@ export type ExternalHydrationRecord = {
 export type HydrationWriteRecord = {
   amountMl: number;
   clientRecordId: string;
+  clientRecordVersion?: number;
   endTime: string;
   startTime: string;
 };
@@ -40,5 +41,6 @@ export type HealthDataService = {
   requestPermissions: () => Promise<HealthDataPermissionState>;
   readHydration: (options: ReadHydrationOptions) => Promise<ExternalHydrationRecord[]>;
   writeHydration: (records: HydrationWriteRecord[]) => Promise<HealthWriteResult>;
+  deleteHydration: (recordIds: string[], clientRecordIds: string[]) => Promise<void>;
   revokeOrDisconnect: () => Promise<void>;
 };

@@ -1,6 +1,7 @@
+import { useAppReduceMotion } from '@shared/motion/motion-provider';
 import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Easing, FadeInDown, FadeOutUp, useReducedMotion } from 'react-native-reanimated';
+import { Easing, FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useTheme } from 'react-native-paper';
 
 import { IconButton, SectionHeader } from '@shared/components';
@@ -22,7 +23,7 @@ export const HydrationTimeline = memo(function HydrationTimeline({
   onEditEntry,
 }: HydrationTimelineProps) {
   const theme = useTheme<AppTheme>();
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useAppReduceMotion();
   const entering = reduceMotion
     ? undefined
     : FadeInDown.duration(180).easing(Easing.out(Easing.cubic));

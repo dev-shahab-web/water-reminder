@@ -153,7 +153,11 @@ export const addHydrationEntry = async ({
         healthConnectDataOrigin,
         healthConnectSyncedAt
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+      SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      WHERE ? != 'health_connect' OR NOT EXISTS (
+        SELECT 1 FROM health_connect_deletions
+        WHERE recordId = ? OR clientRecordId = ?
+      );
     `,
     [
       entry.id,
@@ -166,6 +170,9 @@ export const addHydrationEntry = async ({
       entry.healthConnectClientRecordId ?? null,
       entry.healthConnectDataOrigin ?? null,
       entry.healthConnectSyncedAt ?? null,
+      entry.source,
+      entry.healthConnectRecordId ?? null,
+      entry.healthConnectClientRecordId ?? null,
     ],
   );
 
@@ -185,10 +192,13 @@ export const updateHydrationEntry = async ({
   await database.runAsync(
     `
       UPDATE hydration_entries
-      SET amount = ?, source = 'edit', updatedAt = ?
+      SET amount = ?, source = 'edit',
+        updatedAt = CASE WHEN updatedAt >= ?
+          THEN strftime('%Y-%m-%dT%H:%M:%fZ', updatedAt, '+0.001 seconds') ELSE ? END,
+        healthConnectSyncedAt = NULL
       WHERE id = ?;
     `,
-    [amount, updatedAt, id],
+    [amount, updatedAt, updatedAt, id],
   );
 
   const row = await database.getFirstAsync<HydrationEntryRow>(
@@ -226,7 +236,10 @@ export const getHealthConnectWritableEntries = async (): Promise<HydrationEntry[
         healthConnectRecordId, healthConnectClientRecordId, healthConnectDataOrigin, healthConnectSyncedAt
       FROM hydration_entries
       WHERE source IN ('quick_add', 'custom', 'edit', 'widget')
-        AND healthConnectRecordId IS NULL
+        AND (healthConnectRecordId IS NULL OR healthConnectSyncedAt IS NULL
+          OR updatedAt > healthConnectSyncedAt)
+        AND (healthConnectDataOrigin IS NULL
+          OR healthConnectDataOrigin = 'com.shahab.waterreminder')
       ORDER BY timestamp ASC;
     `,
     [],
@@ -264,7 +277,13 @@ export const hasHydrationEntryForHealthConnectRecord = async ({
 };
 
 export const markHydrationEntriesSyncedToHealthConnect = async (
-  updates: readonly { healthConnectRecordId: string; id: string; syncedAt: string }[],
+  updates: readonly {
+    healthConnectRecordId: string;
+    id: string;
+    syncedAt: string;
+    exportedUpdatedAt: string;
+    exportedClientRecordId?: string;
+  }[],
 ): Promise<void> => {
   if (updates.length === 0) {
     return;
@@ -281,11 +300,16 @@ export const markHydrationEntriesSyncedToHealthConnect = async (
           UPDATE hydration_entries
           SET healthConnectRecordId = ?,
             healthConnectClientRecordId = ?,
-            healthConnectSyncedAt = ?,
-            updatedAt = ?
-          WHERE id = ?;
+            healthConnectSyncedAt = ?
+          WHERE id = ? AND updatedAt = ?;
         `,
-        [update.healthConnectRecordId, update.id, update.syncedAt, update.syncedAt, update.id],
+        [
+          update.healthConnectRecordId,
+          update.exportedClientRecordId ?? update.id,
+          update.syncedAt,
+          update.id,
+          update.exportedUpdatedAt,
+        ],
       );
     }
 
@@ -294,6 +318,27 @@ export const markHydrationEntriesSyncedToHealthConnect = async (
     await database.execAsync('ROLLBACK;');
     throw error;
   }
+};
+
+export type HealthConnectDeletion = {
+  entryId: string;
+  recordId: string | null;
+  clientRecordId: string | null;
+  deleteRemote: number;
+  pending: number;
+};
+
+export const getHealthConnectDeletions = async (): Promise<HealthConnectDeletion[]> => {
+  const database = await getDatabase();
+  return database.getAllAsync<HealthConnectDeletion>('SELECT * FROM health_connect_deletions;', []);
+};
+
+export const markHealthConnectDeletionSynced = async (entryId: string): Promise<void> => {
+  const database = await getDatabase();
+  // Keep the tombstone to suppress delayed or stale Health Connect imports.
+  await database.runAsync('UPDATE health_connect_deletions SET pending = 0 WHERE entryId = ?;', [
+    entryId,
+  ]);
 };
 
 export const replaceHydrationEntries = async (

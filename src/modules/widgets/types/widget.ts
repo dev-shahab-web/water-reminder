@@ -10,6 +10,7 @@ export type HydrationWidgetState = {
   measurementUnit: MeasurementUnit;
   nextReminderAt: number | null;
   onboardingCompleted: boolean;
+  quickAddAmountsMl: number[];
   remainingMl: number;
   themePreference: ThemePreference;
   updatedAt: number;

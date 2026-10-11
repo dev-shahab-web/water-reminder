@@ -1,9 +1,9 @@
 package __PACKAGE__.widgets
 
 import android.content.Context
-import android.util.Log
 import androidx.datastore.preferences.core.stringPreferencesKey
 import org.json.JSONObject
+import org.json.JSONArray
 import java.util.UUID
 
 data class WidgetState(
@@ -16,16 +16,15 @@ data class WidgetState(
   val measurementUnit: String,
   val nextReminderAt: Long?,
   val onboardingCompleted: Boolean,
+  val quickAddAmountsMl: List<Int>,
   val remainingMl: Int,
   val themePreference: String,
   val updatedAt: Long
 )
 
 object WidgetStateStore {
-  private const val tag = "WaterReminderWidget"
   private const val preferencesName = "water_reminder_widget"
   private const val stateKey = "state_json"
-  private const val processedPrefix = "processed_action_"
   val glanceStateKey = stringPreferencesKey(stateKey)
 
   fun read(context: Context): WidgetState? {
@@ -54,6 +53,9 @@ object WidgetStateStore {
         measurementUnit = value.optString("measurementUnit", "ml"),
         nextReminderAt = if (value.isNull("nextReminderAt")) null else value.optLong("nextReminderAt"),
         onboardingCompleted = value.optBoolean("onboardingCompleted", false),
+        quickAddAmountsMl = value.optJSONArray("quickAddAmountsMl")?.let { amounts ->
+          (0 until amounts.length()).map { amounts.optInt(it) }.filter { it in 1..5000 }.distinct()
+        }?.takeIf { it.isNotEmpty() } ?: listOf(250, 500, 750),
         remainingMl = value.optInt("remainingMl", 0),
         themePreference = value.optString("themePreference", "system"),
         updatedAt = value.optLong("updatedAt", System.currentTimeMillis())
@@ -61,21 +63,12 @@ object WidgetStateStore {
     }.getOrNull()
   }
 
+  @Synchronized
   fun write(context: Context, stateJson: String): Boolean {
-    val incomingState = parse(stateJson)
-    val existingState = read(context)
-
-    if (
-      incomingState != null &&
-      existingState != null &&
-      incomingState.updatedAt < existingState.updatedAt
-    ) {
-      Log.d(
-        tag,
-        "Skipped stale widget snapshot incomingUpdatedAt=${incomingState.updatedAt} existingUpdatedAt=${existingState.updatedAt}"
-      )
-      return true
-    }
+    // JS owns preferences; a native refresh must not discard a changed glass,
+    // goal or theme just because the JS query began before a widget tap.
+    // Totals are reconciled from SQLite immediately before rendering.
+    requireNotNull(parse(stateJson)) { "Invalid widget state" }
 
     return context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
       .edit()
@@ -98,20 +91,11 @@ object WidgetStateStore {
       .put("measurementUnit", state.measurementUnit)
       .put("nextReminderAt", state.nextReminderAt)
       .put("onboardingCompleted", state.onboardingCompleted)
+      .put("quickAddAmountsMl", JSONArray(state.quickAddAmountsMl))
       .put("remainingMl", state.remainingMl)
       .put("themePreference", state.themePreference)
       .put("updatedAt", state.updatedAt)
       .toString()
   }
 
-  fun markProcessed(context: Context, actionId: String): Boolean {
-    val preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
-    val key = processedPrefix + actionId
-
-    if (preferences.getBoolean(key, false)) {
-      return false
-    }
-
-    return preferences.edit().putBoolean(key, true).commit()
-  }
 }

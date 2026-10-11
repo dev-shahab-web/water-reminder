@@ -6,7 +6,7 @@ import type { HydrationEntry } from '../types';
 
 const mockAddHydrationEntry = jest.fn<() => Promise<HydrationEntry>>();
 const mockReminderCleanupAfterHydrationPersistence = jest.fn(async () => undefined);
-const mockRefreshHydrationWidgets = jest.fn(async (_reason: string) => undefined);
+const mockRefreshHydrationWidgets = jest.fn<(_reason: string) => Promise<void>>();
 const mockQueueBestEffortHealthConnectSync = jest.fn(() => undefined);
 const mockTrackEventSafely = jest.fn(() => undefined);
 
@@ -41,6 +41,7 @@ const entry: HydrationEntry = {
 describe('hydration log service reminder effects', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRefreshHydrationWidgets.mockResolvedValue();
     setHydrationLogReminderCleanup(mockReminderCleanupAfterHydrationPersistence);
   });
 
@@ -65,5 +66,27 @@ describe('hydration log service reminder effects', () => {
     );
 
     expect(mockReminderCleanupAfterHydrationPersistence).not.toHaveBeenCalled();
+  });
+
+  it('waits for widget projection before completing an app hydration log', async () => {
+    let finishWidgetRefresh!: () => void;
+    let didComplete = false;
+    mockAddHydrationEntry.mockResolvedValue(entry);
+    mockRefreshHydrationWidgets.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishWidgetRefresh = resolve;
+      }),
+    );
+
+    const persistence = persistHydrationLog({ amount: 250, source: 'quick_add' }).then(() => {
+      didComplete = true;
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(didComplete).toBe(false);
+    finishWidgetRefresh();
+    await persistence;
+    expect(didComplete).toBe(true);
   });
 });

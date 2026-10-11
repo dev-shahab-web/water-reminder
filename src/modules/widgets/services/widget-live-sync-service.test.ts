@@ -6,6 +6,11 @@ const mockLoadTodayHydration = jest.fn();
 const mockRefreshHydrationWidgets = jest.fn<() => Promise<void>>();
 const mockResetDatabaseConnection = jest.fn<() => Promise<void>>();
 const mockTrackEvent = jest.fn();
+const mockQueueHealthSync = jest.fn<() => Promise<void>>();
+
+jest.mock('@modules/health-connect/services/health-connect-sync-service', () => ({
+  queueBestEffortHealthConnectSync: mockQueueHealthSync,
+}));
 
 jest.mock('@modules/hydration', () => ({
   loadTodayHydration: mockLoadTodayHydration,
@@ -32,6 +37,7 @@ describe('widget live sync service', () => {
     mockRefreshHydrationWidgets.mockReset();
     mockResetDatabaseConnection.mockReset();
     mockTrackEvent.mockReset();
+    mockQueueHealthSync.mockReset().mockResolvedValue();
     mockLoadTodayHydration.mockReturnValue({ type: 'hydration/loadToday' });
     mockRefreshHydrationWidgets.mockResolvedValue();
     mockResetDatabaseConnection.mockResolvedValue();
@@ -64,8 +70,9 @@ describe('widget live sync service', () => {
 
     expect(dispatch).toHaveBeenCalledWith({ type: 'hydration/loadToday' });
     expect(mockRefreshHydrationWidgets).toHaveBeenCalledWith('app_active');
-    expect(callOrder).toEqual(['load', 'refresh']);
+    expect(callOrder).toEqual(['load', 'refresh', 'load']);
     expect(mockResetDatabaseConnection).not.toHaveBeenCalled();
+    expect(mockQueueHealthSync).toHaveBeenCalledTimes(1);
   });
 
   it('uses the widget event refresh reason after native widget actions', async () => {
@@ -80,6 +87,7 @@ describe('widget live sync service', () => {
 
     expect(mockRefreshHydrationWidgets).toHaveBeenCalledWith('widget_event');
     expect(mockTrackEvent).toHaveBeenCalledWith('widget_action_used', { source: 'widget' });
+    expect(mockQueueHealthSync).toHaveBeenCalledTimes(1);
   });
 
   it('does not track widget actions during app-active reconciliation', async () => {
@@ -93,5 +101,24 @@ describe('widget live sync service', () => {
     });
 
     expect(mockTrackEvent).not.toHaveBeenCalled();
+  });
+
+  it('shows the committed drink before a slow health sync and reloads imported data afterwards', async () => {
+    let finishSync!: () => void;
+    mockQueueHealthSync.mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishSync = resolve;
+      }),
+    );
+    const dispatch = jest.fn(() => ({
+      unwrap: jest.fn<() => Promise<void>>().mockResolvedValue(),
+    }));
+
+    await syncWidgetLiveState({ dispatch: dispatch as never, reason: 'native_widget_event' });
+    expect(mockRefreshHydrationWidgets).toHaveBeenCalledWith('widget_event');
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    finishSync();
+    await Promise.resolve();
+    expect(dispatch).toHaveBeenCalledTimes(2);
   });
 });

@@ -11,11 +11,13 @@ import type { AppTheme } from '@shared/theme';
 import { addNotificationResponseListener } from '@platform/notifications';
 import { trackEventSafely, trackScreen } from '@platform/telemetry';
 import { useAppDispatch } from '@state/store/hooks';
+import { useAppReduceMotion } from '@shared/motion/motion-provider';
 
 export function AppShell() {
   const theme = useTheme<AppTheme>();
   const pathname = usePathname();
   const dispatch = useAppDispatch();
+  const reduceMotion = useAppReduceMotion();
 
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(theme.app.colors.surfaceBase);
@@ -64,7 +66,7 @@ export function AppShell() {
       <HydrationFeedback />
       <Stack
         screenOptions={{
-          animation: 'fade',
+          animation: reduceMotion ? 'none' : 'slide_from_right',
           contentStyle: {
             backgroundColor: theme.app.colors.surfaceBase,
           },

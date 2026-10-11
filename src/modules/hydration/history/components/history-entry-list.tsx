@@ -37,10 +37,9 @@ export function HistoryEntryList({
     <View style={styles.section}>
       <SectionHeader subtitle={`${entries.length} entries for this day.`} title="Entries" />
       <View style={styles.list}>
-        {entries.map((entry, index) => (
+        {entries.map((entry) => (
           <AnimatedCard
             key={entry.id}
-            delay={Math.min(index * 28, 160)}
             style={[
               styles.item,
               {

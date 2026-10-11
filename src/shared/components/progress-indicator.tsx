@@ -1,8 +1,8 @@
+import { useAppReduceMotion } from '@shared/motion/motion-provider';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
@@ -18,7 +18,7 @@ type ProgressIndicatorProps = {
 
 export function ProgressIndicator({ currentStep, totalSteps }: ProgressIndicatorProps) {
   const theme = useTheme<AppTheme>();
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useAppReduceMotion();
   const progress = useSharedValue(currentStep / totalSteps);
 
   useEffect(() => {

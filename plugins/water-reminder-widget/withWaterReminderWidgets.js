@@ -15,6 +15,7 @@ const widgetDependencies = [
   'implementation("androidx.glance:glance-appwidget:1.1.1")',
   'implementation("androidx.glance:glance-material3:1.1.1")',
   'implementation("androidx.work:work-runtime-ktx:2.10.0")',
+  'implementation("androidx.health.connect:connect-client:1.1.0-alpha11")',
 ];
 
 const widgetReceiverName = '.widgets.WaterReminderWidgetReceiver';

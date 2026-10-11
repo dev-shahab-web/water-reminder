@@ -6,6 +6,8 @@ import { refreshHydrationWidgets } from '@modules/widgets';
 import {
   addHydrationEntry,
   getHealthConnectWritableEntries,
+  getHealthConnectDeletions,
+  markHealthConnectDeletionSynced,
   hasHydrationEntryForHealthConnectRecord,
   markHydrationEntriesSyncedToHealthConnect,
 } from '@modules/hydration/repository/hydration-repository';
@@ -24,6 +26,15 @@ const bestEffortSyncDelayMs = 500;
 
 let activeSyncPromise: Promise<HealthConnectSyncResult> | null = null;
 let queuedBestEffortSyncPromise: Promise<void> | null = null;
+let bestEffortSyncRequested = false;
+const hydrationSyncListeners = new Set<() => void>();
+
+export const subscribeToHealthConnectHydrationChanges = (listener: () => void): (() => void) => {
+  hydrationSyncListeners.add(listener);
+  return () => {
+    hydrationSyncListeners.delete(listener);
+  };
+};
 
 const getDefaultPermissionState = () => ({
   canRequest: false,
@@ -116,22 +127,30 @@ export const syncHealthConnectIfConnected = async (): Promise<
 };
 
 export const queueBestEffortHealthConnectSync = (): Promise<void> => {
+  bestEffortSyncRequested = true;
   if (queuedBestEffortSyncPromise) {
     return queuedBestEffortSyncPromise;
   }
 
-  queuedBestEffortSyncPromise = new Promise((resolve) => {
-    setTimeout(() => {
-      void syncHealthConnectIfConnected()
-        .catch((error: unknown) => {
+  queuedBestEffortSyncPromise = new Promise<void>((resolve) => {
+    setTimeout(resolve, bestEffortSyncDelayMs);
+  })
+    .then(async () => {
+      do {
+        bestEffortSyncRequested = false;
+        // A running sync may have read its rows before this drink was logged.
+        // Wait for it, then take a fresh database snapshot for this request.
+        await activeSyncPromise?.catch(() => undefined);
+        try {
+          await syncHealthConnectIfConnected();
+        } catch (error: unknown) {
           logHealthConnectSyncError(error);
-        })
-        .finally(() => {
-          queuedBestEffortSyncPromise = null;
-          resolve();
-        });
-    }, bestEffortSyncDelayMs);
-  });
+        }
+      } while (bestEffortSyncRequested);
+    })
+    .finally(() => {
+      queuedBestEffortSyncPromise = null;
+    });
 
   return queuedBestEffortSyncPromise;
 };
@@ -183,7 +202,8 @@ const performHealthConnectSync = async ({
     const localEntries = await getHealthConnectWritableEntries();
     const writableRecords = localEntries.map((entry) => ({
       amountMl: entry.amount,
-      clientRecordId: entry.id,
+      clientRecordId: entry.healthConnectClientRecordId ?? entry.id,
+      clientRecordVersion: new Date(entry.updatedAt).getTime(),
       endTime: getEndTimeForEntry(entry.timestamp),
       startTime: entry.timestamp,
     }));
@@ -194,9 +214,25 @@ const performHealthConnectSync = async ({
           healthConnectRecordId,
           id: localEntries[index]?.id ?? '',
           syncedAt: nowIso,
+          exportedUpdatedAt: localEntries[index]?.updatedAt ?? '',
+          exportedClientRecordId:
+            localEntries[index]?.healthConnectClientRecordId ?? localEntries[index]?.id ?? '',
         }))
         .filter((update) => update.id.length > 0),
     );
+
+    // Read after exporting: a drink can be removed while its export is in flight.
+    // Deleting by client ID also covers a record whose remote ID was not saved yet.
+    const deletions = await getHealthConnectDeletions();
+    for (const deletion of deletions.filter((item) => item.pending === 1)) {
+      if (deletion.deleteRemote === 1) {
+        await healthDataService.deleteHydration(
+          deletion.recordId ? [deletion.recordId] : [],
+          deletion.clientRecordId ? [deletion.clientRecordId] : [],
+        );
+      }
+      await markHealthConnectDeletionSynced(deletion.entryId);
+    }
 
     const externalRecords = await healthDataService.readHydration({
       endTime: nowIso,
@@ -206,6 +242,18 @@ const performHealthConnectSync = async ({
     let skippedCount = 0;
 
     for (const record of externalRecords) {
+      // Re-read to catch a deletion made while the Health Connect read was pending.
+      const tombstones = await getHealthConnectDeletions();
+      if (
+        tombstones.some(
+          (item) =>
+            item.recordId === record.healthConnectRecordId ||
+            (record.clientRecordId !== undefined && item.clientRecordId === record.clientRecordId),
+        )
+      ) {
+        skippedCount += 1;
+        continue;
+      }
       const alreadyExists = await hasHydrationEntryForHealthConnectRecord({
         clientRecordId: record.clientRecordId,
         healthConnectRecordId: record.healthConnectRecordId,
@@ -231,6 +279,7 @@ const performHealthConnectSync = async ({
 
     setHealthConnectSyncSuccess(nowIso);
     await refreshHydrationWidgets('health_connect_sync');
+    hydrationSyncListeners.forEach((listener) => listener());
     trackEventSafely('health_connect_sync_completed', { result: 'success', source: 'app' });
 
     return {

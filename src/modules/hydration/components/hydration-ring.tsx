@@ -1,5 +1,5 @@
 import { memo, useEffect, useId, useRef } from 'react';
-import { StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, {
   Easing,
   cancelAnimation,
@@ -21,7 +21,6 @@ import Svg, {
   G,
   LinearGradient,
   Path,
-  RadialGradient,
   Stop,
 } from 'react-native-svg';
 
@@ -33,31 +32,10 @@ import type { HydrationLogFeedback } from '../types';
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedEllipse = Animated.createAnimatedComponent(Ellipse);
-const AnimatedInput = Animated.createAnimatedComponent(TextInput);
 const SIZE = 260;
 const TAU = Math.PI * 2;
 const CIRCUMFERENCE = TAU * 123;
 const DROPS = Array.from({ length: 8 }, (_, i) => i);
-const BUBBLES = [0, 1, 2, 3, 4];
-
-// Two travelling harmonics deform the actual surface on the UI thread. Both
-// phases join at 2pi, so there is no visible jump when a wave cycle repeats.
-function waterPath(fill: number, phase: number, swell: number, rear = false, closed = true) {
-  'worklet';
-  const level = 242 - fill * 224 + (rear ? -3 : 0);
-  const edge = Math.sin(Math.PI * fill);
-  const amplitude = (rear ? 3.4 : 4.6) + swell * 8;
-  const surface = (x: number) =>
-    level +
-    edge *
-      (Math.sin(x / 43 + (rear ? -phase : phase) + (rear ? 1.5 : 0)) * amplitude +
-        Math.sin(x / 23 - phase * 2) * (1.4 + swell * 2));
-  let path = `M 0 ${surface(0).toFixed(2)}`;
-  for (let x = 10; x <= SIZE; x += 10) {
-    path += ` L ${x} ${surface(x).toFixed(2)}`;
-  }
-  return closed ? `${path} L 260 260 L 0 260 Z` : path;
-}
 
 type HydrationRingProps = {
   attentionKey?: string;
@@ -91,7 +69,6 @@ export const HydrationRing = memo(function HydrationRing({
   const percent = goalAmount > 0 ? Math.round((totalAmount / goalAmount) * 100) : 0;
   const animated = continuousMotionEnabled && !reduceMotion;
   const progress = useSharedValue(capped);
-  const count = useSharedValue(totalAmount);
   const phase = useSharedValue(0);
   const swell = useSharedValue(0);
   const splash = useSharedValue(1);
@@ -116,9 +93,6 @@ export const HydrationRing = memo(function HydrationRing({
     progress.value = animated
       ? withSpring(capped, { damping: 19, stiffness: 85, mass: 1.2, overshootClamping: true })
       : capped;
-    count.value = animated
-      ? withTiming(totalAmount, { duration: 900, easing: Easing.out(Easing.cubic) })
-      : totalAmount;
     if (feedback?.id !== previousFeedback.current) {
       previousFeedback.current = feedback?.id;
       if (feedback && animated) {
@@ -139,7 +113,7 @@ export const HydrationRing = memo(function HydrationRing({
       splash.value = 1;
     }
     previousTotal.current = totalAmount;
-  }, [animated, capped, count, feedback, progress, splash, swell, totalAmount]);
+  }, [animated, capped, feedback, progress, splash, swell, totalAmount]);
 
   useEffect(() => {
     if (attentionKey !== undefined && attentionKey !== previousAttention.current && animated) {
@@ -150,15 +124,6 @@ export const HydrationRing = memo(function HydrationRing({
     if (!animated) attention.value = 1;
   }, [animated, attention, attentionKey]);
 
-  const rearProps = useAnimatedProps(() => ({
-    d: waterPath(progress.value, phase.value, swell.value, true),
-  }));
-  const frontProps = useAnimatedProps(() => ({
-    d: waterPath(progress.value, phase.value, swell.value),
-  }));
-  const edgeProps = useAnimatedProps(() => ({
-    d: waterPath(progress.value, phase.value, swell.value, false, false),
-  }));
   const arcProps = useAnimatedProps(() => ({
     strokeDashoffset: CIRCUMFERENCE * (1 - progress.value),
   }));
@@ -182,14 +147,12 @@ export const HydrationRing = memo(function HydrationRing({
     opacity: reduceMotion ? 0 : interpolate(splash.value, [0, 0.12, 0.72, 1], [0, 1, 1, 0]),
     transform: [{ translateY: interpolate(splash.value, [0, 1], [8, -10]) }],
   }));
-  const countProps = useAnimatedProps(() => {
-    const amount = measurementUnit === 'oz' ? count.value / 29.5735 : count.value;
-    const text =
-      measurementUnit === 'oz'
-        ? amount.toFixed(2).replace(/\.?0+$/, '')
-        : String(Math.round(amount));
-    return { text, defaultValue: text };
-  });
+  // TextInput's animated text/defaultValue can stay at the mounted value in
+  // release builds. Render the committed amount through React; animate water.
+  const displayedAmount =
+    measurementUnit === 'oz'
+      ? (totalAmount / 29.5735).toFixed(2).replace(/\.?0+$/, '')
+      : String(Math.round(totalAmount));
 
   return (
     <View style={styles.container}>
@@ -213,19 +176,41 @@ export const HydrationRing = memo(function HydrationRing({
             haloStyle,
           ]}
         />
+        <View
+          pointerEvents="none"
+          importantForAccessibility="no-hide-descendants"
+          style={{
+            position: 'absolute',
+            left: (21 * size) / SIZE,
+            top: (21 * size) / SIZE,
+            width: (218 * size) / SIZE,
+            height: (218 * size) / SIZE,
+            borderRadius: (109 * size) / SIZE,
+            overflow: 'hidden',
+            backgroundColor: theme.dark ? '#102E3C' : '#EDF8FA',
+          }}
+        >
+          <WaterLayer
+            phase={phase}
+            progress={progress}
+            size={size}
+            rear
+            topColor={theme.dark ? '#3AB2BA' : '#62CBD7'}
+            bottomColor={waterBottom}
+          />
+          <WaterLayer
+            phase={phase}
+            progress={progress}
+            size={size}
+            topColor={waterTop}
+            bottomColor={waterBottom}
+          />
+        </View>
         <Svg width="100%" height="100%" viewBox="0 0 260 260" accessible={false}>
           <Defs>
             <ClipPath id={`${id}-glass`}>
               <Circle cx="130" cy="130" r="109" />
             </ClipPath>
-            <LinearGradient id={`${id}-water`} x1="0" x2="0.25" y1="0" y2="1">
-              <Stop offset="0" stopColor={waterTop} />
-              <Stop offset="1" stopColor={waterBottom} />
-            </LinearGradient>
-            <RadialGradient id={`${id}-air`} cx="0.35" cy="0.25" r="0.8">
-              <Stop offset="0" stopColor={theme.dark ? '#143F4A' : '#FFFFFF'} />
-              <Stop offset="1" stopColor={theme.dark ? '#102E3C' : '#EDF8FA'} />
-            </RadialGradient>
             <LinearGradient id={`${id}-rim`} x1="0" x2="1" y1="0" y2="1">
               <Stop offset="0" stopColor={theme.dark ? '#458898' : '#FFFFFF'} />
               <Stop offset="0.5" stopColor={theme.dark ? '#1A5365' : '#D1EBF0'} />
@@ -261,31 +246,7 @@ export const HydrationRing = memo(function HydrationRing({
             stroke={`url(#${id}-rim)`}
             strokeWidth="2"
           />
-          <Circle cx="130" cy="130" r="109" fill={`url(#${id}-air)`} />
           <G clipPath={`url(#${id}-glass)`}>
-            <AnimatedPath
-              animatedProps={rearProps}
-              fill={theme.dark ? '#3AB2BA' : '#62CBD7'}
-              opacity={0.38}
-            />
-            <AnimatedPath animatedProps={frontProps} fill={`url(#${id}-water)`} />
-            <AnimatedPath
-              animatedProps={edgeProps}
-              fill="none"
-              stroke={theme.dark ? '#8DE3E5' : '#E8FFFF'}
-              strokeWidth="1.6"
-              opacity={0.8}
-              strokeLinejoin="round"
-            />
-            {BUBBLES.map((index) => (
-              <WaterBubble
-                key={index}
-                index={index}
-                phase={phase}
-                progress={progress}
-                visible={animated}
-              />
-            ))}
             <AnimatedPath
               animatedProps={pourProps}
               fill="none"
@@ -319,18 +280,15 @@ export const HydrationRing = memo(function HydrationRing({
           <Text maxFontSizeMultiplier={1.2} style={[styles.eyebrow, { color: secondary }]}>
             TODAY’S HYDRATION
           </Text>
-          <AnimatedInput
-            editable={false}
-            caretHidden
-            underlineColorAndroid="transparent"
-            defaultValue={String(totalAmount)}
-            animatedProps={countProps}
+          <Text
             style={[
               styles.amount,
               { color: foreground, fontFamily: theme.app.typography.fontFamily.display },
             ]}
             maxFontSizeMultiplier={1.2}
-          />
+          >
+            {displayedAmount}
+          </Text>
           <Text style={[styles.unit, { color: secondary }]}>
             {measurementUnit === 'ml' ? 'mL' : 'oz'} of{' '}
             {formatMeasurementAmount(goalAmount, measurementUnit).replace(' ml', ' mL')}
@@ -371,30 +329,62 @@ export const HydrationRing = memo(function HydrationRing({
   );
 });
 
-function WaterBubble({
-  index,
+// Cache each wave as a texture and translate it on the compositor. Updating SVG
+// paths/bubbles on every idle frame used to rasterize and upload the whole ring.
+const WaterLayer = memo(function WaterLayer({
   phase,
   progress,
-  visible,
+  size,
+  topColor,
+  bottomColor,
+  rear = false,
 }: {
-  index: number;
   phase: SharedValue<number>;
   progress: SharedValue<number>;
-  visible: boolean;
+  size: number;
+  topColor: string;
+  bottomColor: string;
+  rear?: boolean;
 }) {
-  const props = useAnimatedProps(() => {
-    const travel = (phase.value / TAU + index * 0.193) % 1;
-    const cy = 241 - travel * 176;
-    const surface = 242 - progress.value * 224;
-    return {
-      cx: 50 + index * 39 + Math.sin(phase.value + index) * 5,
-      cy,
-      r: 1.4 + (index % 3) * 0.7,
-      opacity: visible && cy > surface + 10 ? Math.sin(travel * Math.PI) * 0.38 : 0,
-    };
-  });
-  return <AnimatedCircle animatedProps={props} fill="none" stroke="#D6FAFF" strokeWidth="1" />;
-}
+  const id = useId().replace(/:/g, '');
+  const ratio = size / SIZE;
+  const style = useAnimatedStyle(() => ({
+    opacity: progress.value <= 0 ? 0 : rear ? 0.38 : 1,
+    transform: [
+      {
+        translateX:
+          (rear ? -SIZE + (phase.value / TAU) * SIZE : -(phase.value / TAU) * SIZE) * ratio,
+      },
+      { translateY: (211 - progress.value * 224 + (rear ? -3 : 0)) * ratio },
+    ],
+  }));
+  return (
+    <Animated.View
+      renderToHardwareTextureAndroid
+      style={[{ position: 'absolute', width: 780 * ratio, height: 260 * ratio }, style]}
+    >
+      <Svg width="100%" height="100%" viewBox="0 0 780 260">
+        <Defs>
+          <LinearGradient id={`${id}-water`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={topColor} />
+            <Stop offset="1" stopColor={bottomColor} />
+          </LinearGradient>
+        </Defs>
+        <Path
+          d="M0 10 Q65 0 130 10 T260 10 T390 10 T520 10 T650 10 T780 10 V260 H0 Z"
+          fill={`url(#${id}-water)`}
+        />
+        <Path
+          d="M0 10 Q65 0 130 10 T260 10 T390 10 T520 10 T650 10 T780 10"
+          fill="none"
+          stroke="#C1F5FA"
+          strokeWidth="1.5"
+          opacity={0.8}
+        />
+      </Svg>
+    </Animated.View>
+  );
+});
 
 function SplashDroplet({
   index,

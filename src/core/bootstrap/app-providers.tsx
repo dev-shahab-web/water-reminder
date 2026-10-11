@@ -16,6 +16,7 @@ import {
 } from '@shared/theme';
 import { PaperMaterialCommunityIcon } from '@shared/components/material-community-icon';
 import { store } from '@state/store';
+import { MotionProvider } from '@shared/motion/motion-provider';
 
 export function AppProviders({ children }: PropsWithChildren) {
   const colorScheme = useColorScheme();
@@ -42,7 +43,9 @@ export function AppProviders({ children }: PropsWithChildren) {
       <WidgetLiveSync />
       <QueryClientProvider client={queryClient}>
         <PaperProvider settings={paperSettings} theme={paperTheme}>
-          <ThemeProvider value={navigationTheme}>{children}</ThemeProvider>
+          <MotionProvider reduceMotion={settings.reduceMotion}>
+            <ThemeProvider value={navigationTheme}>{children}</ThemeProvider>
+          </MotionProvider>
         </PaperProvider>
       </QueryClientProvider>
     </ReduxProvider>

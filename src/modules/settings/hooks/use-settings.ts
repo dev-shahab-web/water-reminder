@@ -8,6 +8,7 @@ import {
 } from '@modules/onboarding/repository/onboarding-storage';
 import { useReminders } from '@modules/reminders';
 import { refreshHydrationWidgets } from '@modules/widgets';
+import { queueBestEffortHealthConnectSync } from '@modules/health-connect/services/health-connect-sync-service';
 import { trackEvent } from '@platform/telemetry';
 
 import {
@@ -145,6 +146,7 @@ export const useSettings = () => {
         await refreshDataSummary();
         await dispatch(loadTodayHydration()).unwrap();
         await refreshHydrationWidgets('database_import');
+        void queueBestEffortHealthConnectSync();
         trackEvent('import_completed', { result: 'success', source: 'app' });
       } finally {
         setIsBusy(false);
@@ -161,6 +163,7 @@ export const useSettings = () => {
       await refreshDataSummary();
       await dispatch(loadTodayHydration()).unwrap();
       await refreshHydrationWidgets('history_reset');
+      void queueBestEffortHealthConnectSync();
     } finally {
       setIsBusy(false);
     }

@@ -5,6 +5,7 @@ import { getSettingsState } from '@modules/settings/storage/settings-storage';
 import { getStatisticsDashboardData } from '@modules/statistics/services/statistics-service';
 import { getTodayHydrationEntries } from '@modules/hydration/repository/hydration-repository';
 import { calculateHydrationSummary } from '@modules/hydration/utils/summary';
+import { getQuickAddPresets } from '@modules/hydration/storage/quick-add-presets-storage';
 
 import type { HydrationWidgetState } from '../types';
 import { clampCompletionPercentage, getRemainingMl } from '../utils/widget-format';
@@ -46,6 +47,7 @@ export const buildHydrationWidgetState = async (
     measurementUnit: settings.measurementUnit,
     nextReminderAt: reminderSchedule[0]?.date.getTime() ?? null,
     onboardingCompleted: onboardingState.onboardingCompleted,
+    quickAddAmountsMl: getQuickAddPresets().map((preset) => preset.amountMl),
     remainingMl: getRemainingMl({
       consumedMl: summary.totalAmount,
       goalMl: summary.goalAmount,

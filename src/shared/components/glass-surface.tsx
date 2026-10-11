@@ -38,7 +38,10 @@ const GlassSceneContext = createContext<{
   reduceTransparency: boolean;
 }>({ reduceTransparency: false });
 const InsideGlassContext = createContext(false);
-const supportsBlur = Platform.OS !== 'android' || Number(Platform.Version) >= 31;
+// The scene is already a soft gradient. Android live blur was recapturing it for
+// every card during scroll/transition frames, with no useful detail to blur.
+const supportsBlur = Platform.OS !== 'android';
+const SceneBackdrop = supportsBlur ? BlurTargetView : View;
 
 /** A shared, background-only blur target keeps content and the water animation crisp. */
 export function GlassScene({ children }: { children: ReactNode }) {
@@ -70,7 +73,7 @@ export function GlassScene({ children }: { children: ReactNode }) {
 
   return (
     <GlassSceneContext.Provider value={context}>
-      <BlurTargetView
+      <SceneBackdrop
         ref={blurTarget}
         collapsable={false}
         pointerEvents="none"
@@ -97,7 +100,7 @@ export function GlassScene({ children }: { children: ReactNode }) {
           <Rect width="400" height="900" fill={`url(#${id}-b)`} />
           <Rect width="400" height="900" fill={`url(#${id}-c)`} />
         </Svg>
-      </BlurTargetView>
+      </SceneBackdrop>
       {children}
     </GlassSceneContext.Provider>
   );
@@ -129,7 +132,7 @@ function useGlassMaterial(style: StyleProp<ViewStyle>, tone: GlassTone, selected
         ? dark
           ? 'rgba(205, 226, 246, 0.055)'
           : 'rgba(255, 255, 255, 0.24)'
-        : blur
+        : !elevated && !!blurTarget
           ? dark
             ? 'rgba(20, 32, 44, 0.54)'
             : 'rgba(255, 255, 255, 0.38)'
@@ -155,16 +158,9 @@ function useGlassMaterial(style: StyleProp<ViewStyle>, tone: GlassTone, selected
             {
               offsetX: 0,
               offsetY: elevated ? 20 : 8,
-              blurRadius: elevated ? 48 : 28,
+              blurRadius: elevated ? 32 : 16,
               spreadDistance: elevated ? -12 : -10,
               color: dark ? 'rgba(0, 4, 12, 0.42)' : 'rgba(40, 67, 94, 0.16)',
-            },
-            {
-              offsetX: 0,
-              offsetY: 1,
-              blurRadius: 4,
-              spreadDistance: -1,
-              color: dark ? 'rgba(0, 4, 12, 0.24)' : 'rgba(40, 67, 94, 0.07)',
             },
           ],
       elevation: 0,
@@ -198,6 +194,31 @@ function useGlassMaterial(style: StyleProp<ViewStyle>, tone: GlassTone, selected
 type Material = ReturnType<typeof useGlassMaterial>;
 
 const GlassLayers = memo(function GlassLayers({ material }: { material: Material }) {
+  if (Platform.OS !== 'android' && !material.inset) {
+    return <RichGlassLayers material={material} />;
+  }
+
+  // Native fills and hairlines need no layout measurement, SVG bitmap upload,
+  // or blur target. Keep the soft glass edge without multiplying render passes.
+  return (
+    <View
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[
+        StyleSheet.absoluteFill,
+        {
+          backgroundColor: material.backgroundColor,
+          borderRadius: material.radius,
+          borderWidth: material.reduceTransparency ? 0 : StyleSheet.hairlineWidth,
+          borderColor: material.dark ? 'rgba(220,240,255,0.14)' : 'rgba(255,255,255,0.8)',
+        },
+      ]}
+    />
+  );
+});
+
+const RichGlassLayers = memo(function RichGlassLayers({ material }: { material: Material }) {
   const id = useId().replace(/:/g, '');
   const { backgroundColor, blur, blurTarget, dark, inset, radius, reduceTransparency } = material;
   const [size, setSize] = useState({ width: 0, height: 0 });
