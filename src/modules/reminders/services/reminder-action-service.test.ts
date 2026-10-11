@@ -102,6 +102,7 @@ jest.mock('@modules/onboarding/repository/onboarding-storage', () => ({
 }));
 
 jest.mock('../repository/reminder-action-storage', () => ({
+  hasHandledReminderOccurrence: (occurrenceId: string) => mockHandledOccurrences.has(occurrenceId),
   markReminderOccurrenceHandled: (occurrenceId: string) => {
     if (mockHandledOccurrences.has(occurrenceId)) {
       return false;
@@ -118,6 +119,7 @@ jest.mock('./reminder-engine', () => ({
 }));
 
 jest.mock('./reminder-snooze-manager', () => ({
+  isReminderSnoozeMinutes: (value: number) => [5, 10, 15, 30, 60].includes(value),
   snoozeReminder: (input: unknown) => mockSnoozeReminder(input),
 }));
 
@@ -137,6 +139,26 @@ const createResponse = (
 });
 
 describe('reminder notification action service', () => {
+  it('logs the displayed glass capacity rather than a hard-coded serving', async () => {
+    const response = createResponse(REMINDER_ACTION_DRINK, 'glass-750');
+    response.data.amountMl = 750;
+    await expect(handleReminderNotificationResponse({ dispatch, response })).resolves.toBe(
+      'drink_logged',
+    );
+    expect(mockLogHydration).toHaveBeenCalledWith({ amount: 750, source: 'quick_add' });
+  });
+
+  it('honors the snooze duration printed on the notification', async () => {
+    const response = createResponse(REMINDER_ACTION_SNOOZE, 'snooze-30');
+    response.data.snoozeMinutes = 30;
+    await expect(handleReminderNotificationResponse({ dispatch, response })).resolves.toBe(
+      'snoozed',
+    );
+    expect(mockSnoozeReminder).toHaveBeenCalledWith({
+      handledNotificationIdentifier: 'notification-1',
+      durationMinutes: 30,
+    });
+  });
   beforeEach(() => {
     mockHandledOccurrences.clear();
     mockDismissPresentedNotification.mockClear();
@@ -210,10 +232,6 @@ describe('reminder notification action service', () => {
     expect(mockSnoozeReminder).toHaveBeenCalledTimes(1);
     expect(mockSnoozeReminder).toHaveBeenCalledWith({
       handledNotificationIdentifier: 'notification-1',
-      preferences: expect.objectContaining({
-        defaultSnoozeMinutes: 10,
-        snoozeEnabled: true,
-      }),
     });
     expect(mockDismissPresentedNotification).toHaveBeenCalledWith('notification-1');
   });
@@ -229,10 +247,6 @@ describe('reminder notification action service', () => {
     expect(mockSnoozeReminder).toHaveBeenCalledTimes(1);
     expect(mockSnoozeReminder).toHaveBeenCalledWith({
       handledNotificationIdentifier: 'notification-1',
-      preferences: expect.objectContaining({
-        defaultSnoozeMinutes: 10,
-        snoozeEnabled: true,
-      }),
     });
     expect(mockDismissPresentedNotification).toHaveBeenCalledWith('notification-1');
   });

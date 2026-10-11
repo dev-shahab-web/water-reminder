@@ -43,8 +43,8 @@ export const palette = {
 } as const;
 
 export const lightColors = {
-  background: palette.mist[50],
-  border: palette.mist[200],
+  background: '#EDF3F6',
+  border: '#D8E2EA',
   error: palette.coral[700],
   onBackground: palette.night[900],
   onPrimary: palette.white,
@@ -62,8 +62,8 @@ export const lightColors = {
 } as const;
 
 export const darkColors = {
-  background: palette.night[900],
-  border: palette.night[700],
+  background: '#0D161E',
+  border: '#344653',
   error: palette.coral[500],
   onBackground: palette.night[50],
   onPrimary: palette.night[900],
@@ -74,7 +74,7 @@ export const darkColors = {
   secondary: palette.moss[400],
   secondaryContainer: palette.night[700],
   success: palette.moss[400],
-  surface: palette.night[800],
+  surface: '#192732',
   surfaceMuted: palette.night[700],
   textMuted: palette.night[300],
   warning: palette.sand[300],
@@ -90,7 +90,7 @@ export const lightSemanticColors = {
   statusError: lightColors.error,
   statusWarning: lightColors.warning,
   surfaceBase: lightColors.background,
-  surfaceSubtle: lightColors.surfaceMuted,
+  surfaceSubtle: 'rgba(103, 149, 171, 0.08)',
   textPrimary: lightColors.onBackground,
   textSecondary: lightColors.textMuted,
 } as const;
@@ -105,7 +105,7 @@ export const darkSemanticColors = {
   statusError: darkColors.error,
   statusWarning: darkColors.warning,
   surfaceBase: darkColors.background,
-  surfaceSubtle: darkColors.surfaceMuted,
+  surfaceSubtle: 'rgba(207, 231, 250, 0.06)',
   textPrimary: darkColors.onBackground,
   textSecondary: darkColors.textMuted,
 } as const;

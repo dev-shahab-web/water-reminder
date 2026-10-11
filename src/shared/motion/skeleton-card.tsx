@@ -1,9 +1,11 @@
+import { useAppReduceMotion } from '@shared/motion/motion-provider';
+import { AnimatedGlassSurface } from './animated-card';
 import { memo, useEffect } from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
-import Animated, {
+import {
+  cancelAnimation,
   interpolate,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withRepeat,
   withTiming,
@@ -19,7 +21,7 @@ type SkeletonCardProps = {
 
 export const SkeletonCard = memo(function SkeletonCard({ rows = 3, style }: SkeletonCardProps) {
   const theme = useTheme<AppTheme>();
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useAppReduceMotion();
   const progress = useSharedValue(0);
 
   useEffect(() => {
@@ -29,6 +31,7 @@ export const SkeletonCard = memo(function SkeletonCard({ rows = 3, style }: Skel
     }
 
     progress.value = withRepeat(withTiming(1, { duration: 1200 }), -1, true);
+    return () => cancelAnimation(progress);
   }, [progress, reduceMotion]);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -36,14 +39,12 @@ export const SkeletonCard = memo(function SkeletonCard({ rows = 3, style }: Skel
   }));
 
   return (
-    <Animated.View
+    <AnimatedGlassSurface
       accessibilityLabel="Loading"
       accessibilityRole="progressbar"
       style={[
         styles.card,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.app.colors.borderSubtle,
           borderRadius: theme.app.radius.lg,
         },
         style,
@@ -63,7 +64,7 @@ export const SkeletonCard = memo(function SkeletonCard({ rows = 3, style }: Skel
           ]}
         />
       ))}
-    </Animated.View>
+    </AnimatedGlassSurface>
   );
 });
 

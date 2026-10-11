@@ -3,6 +3,7 @@ import { cancelLocalNotifications, scheduleLocalNotification } from '@platform/n
 import type { ReminderPreferences } from '../types';
 import { addMinutes } from '../utils/time';
 import { buildReminderNotificationContent } from './reminder-notification-factory';
+import { getReminderGlass } from './reminder-glass';
 
 const testReminderDelayMinutes = 1 / 30;
 export const TEST_REMINDER_NOTIFICATION_ID = 'hydration-reminder-test';
@@ -18,9 +19,11 @@ export const scheduleTestReminderNotification = async ({
   await cancelLocalNotifications([TEST_REMINDER_NOTIFICATION_ID]);
 
   const notificationContent = buildReminderNotificationContent({
+    glass: getReminderGlass(),
+    defaultSnoozeMinutes: preferences.defaultSnoozeMinutes,
     copyKey: 'time_for_sip',
     mode: preferences.mode,
-    occurrenceId: TEST_REMINDER_NOTIFICATION_ID,
+    occurrenceId: `${TEST_REMINDER_NOTIFICATION_ID}-${date.getTime()}`,
     snoozeEnabled: preferences.snoozeEnabled,
     sound: preferences.sound,
     source: 'test',

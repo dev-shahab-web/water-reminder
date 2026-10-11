@@ -25,14 +25,13 @@ export function SecondaryButton({
 
   return (
     <AnimatedPressableScale
+      glass="inset"
       accessibilityRole="button"
       disabled={disabled}
       pressedScale={0.982}
       style={(state) => [
         styles.button,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.app.colors.borderSubtle,
           borderRadius: theme.app.radius.md,
           opacity: state.pressed && !disabled ? 0.72 : disabled ? 0.5 : 1,
         },

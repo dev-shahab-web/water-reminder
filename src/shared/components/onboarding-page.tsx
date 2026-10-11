@@ -1,9 +1,9 @@
+import { useAppReduceMotion } from '@shared/motion/motion-provider';
 import { type ReactNode, useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
@@ -24,7 +24,7 @@ export function OnboardingPage({
   currentStep,
   totalSteps,
 }: OnboardingPageProps) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useAppReduceMotion();
   const opacity = useSharedValue(reduceMotion ? 1 : 0);
   const translateY = useSharedValue(reduceMotion ? 0 : 10);
 

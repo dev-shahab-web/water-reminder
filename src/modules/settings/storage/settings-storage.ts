@@ -11,6 +11,7 @@ import {
 export const settingsStorageKeys = {
   measurementUnit: 'settingsMeasurementUnit',
   reduceMotion: 'settingsReduceMotion',
+  logSoundEnabled: 'settingsLogSoundEnabled',
   shareAnonymousDiagnostics: 'settingsShareAnonymousDiagnostics',
   startOfDay: 'settingsStartOfDay',
   themePreference: 'settingsThemePreference',
@@ -23,6 +24,7 @@ const areSettingsEqual = (left: SettingsState, right: SettingsState): boolean =>
   return (
     left.measurementUnit === right.measurementUnit &&
     left.reduceMotion === right.reduceMotion &&
+    left.logSoundEnabled === right.logSoundEnabled &&
     left.shareAnonymousDiagnostics === right.shareAnonymousDiagnostics &&
     left.startOfDay === right.startOfDay &&
     left.themePreference === right.themePreference
@@ -55,6 +57,8 @@ const readSettingsState = (): SettingsState => {
       : defaultSettings.measurementUnit,
     reduceMotion:
       storage.getBoolean(settingsStorageKeys.reduceMotion) ?? defaultSettings.reduceMotion,
+    logSoundEnabled:
+      storage.getBoolean(settingsStorageKeys.logSoundEnabled) ?? defaultSettings.logSoundEnabled,
     shareAnonymousDiagnostics:
       storage.getBoolean(settingsStorageKeys.shareAnonymousDiagnostics) ??
       defaultSettings.shareAnonymousDiagnostics,
@@ -82,6 +86,7 @@ export const setSettingsState = (settings: SettingsState): SettingsState => {
 
   storage.set(settingsStorageKeys.measurementUnit, settings.measurementUnit);
   storage.set(settingsStorageKeys.reduceMotion, settings.reduceMotion);
+  storage.set(settingsStorageKeys.logSoundEnabled, settings.logSoundEnabled);
   storage.set(settingsStorageKeys.shareAnonymousDiagnostics, settings.shareAnonymousDiagnostics);
   storage.set(settingsStorageKeys.startOfDay, settings.startOfDay);
   storage.set(settingsStorageKeys.themePreference, settings.themePreference);

@@ -3,6 +3,10 @@ import Constants from 'expo-constants';
 import { loadReminderPreferences } from '@modules/reminders/services/reminder-engine';
 import { scheduleTestReminderNotification } from '@modules/reminders/services/reminder-test-notification-service';
 import { setTelemetryEnabled, trackEvent } from '@platform/telemetry';
+import {
+  initializeNotificationInfrastructure,
+  requestNotificationPermissions,
+} from '@platform/notifications';
 
 import { getSettingsState, updateSettingsState } from '../storage/settings-storage';
 import type { MeasurementUnit, SettingsState, ThemePreference } from '../types';
@@ -30,6 +34,9 @@ export const saveReduceMotion = (reduceMotion: boolean): SettingsState => {
   trackEvent('reduce_motion_changed');
   return updateSettingsState({ reduceMotion });
 };
+
+export const saveLogSoundEnabled = (logSoundEnabled: boolean): SettingsState =>
+  updateSettingsState({ logSoundEnabled });
 
 export const saveShareAnonymousDiagnostics = async (
   shareAnonymousDiagnostics: boolean,
@@ -72,6 +79,11 @@ export const getAppInformation = (): AppInformation => {
 };
 
 export const sendTestReminderNotification = async (): Promise<boolean> => {
+  await initializeNotificationInfrastructure();
+  const permission = await requestNotificationPermissions();
+  if (!permission.granted) {
+    throw new Error('Allow Water Reminder notifications in Android settings, then try again.');
+  }
   return scheduleTestReminderNotification({
     preferences: loadReminderPreferences(),
   });

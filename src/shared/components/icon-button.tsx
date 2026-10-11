@@ -43,6 +43,7 @@ export function IconButton({
 
   return (
     <AnimatedPressableScale
+      glass="inset"
       accessibilityLabel={accessibilityLabel}
       accessibilityRole="button"
       accessibilityState={{ disabled }}
@@ -52,8 +53,6 @@ export function IconButton({
       style={({ pressed }) => [
         styles.button,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.app.colors.borderSubtle,
           borderRadius: 24,
           opacity: disabled ? 0.5 : pressed ? 0.72 : 1,
         },

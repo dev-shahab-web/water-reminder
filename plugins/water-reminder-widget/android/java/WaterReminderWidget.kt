@@ -1,6 +1,7 @@
 package __PACKAGE__.widgets
 
 import android.content.Context
+import android.content.res.Configuration
 import android.content.ComponentName
 import android.util.Log
 import androidx.compose.runtime.Composable
@@ -11,7 +12,7 @@ import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.Preferences
-import androidx.glance.Button
+import androidx.glance.action.clickable
 import androidx.glance.GlanceModifier
 import androidx.glance.Image
 import androidx.glance.ImageProvider
@@ -22,6 +23,9 @@ import androidx.glance.action.actionStartActivity
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.SizeMode
+import androidx.glance.appwidget.LinearProgressIndicator
+import androidx.glance.appwidget.appWidgetBackground
+import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.state.updateAppWidgetState
@@ -46,8 +50,8 @@ import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.unit.ColorProvider
 import __PACKAGE__.MainActivity
 import __PACKAGE__.R
-import java.text.DateFormat
-import java.util.Date
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.math.roundToInt
 
 private const val GLANCE_MAX_CONTAINER_CHILDREN = 10
@@ -61,22 +65,28 @@ class WaterReminderWidget : GlanceAppWidget(errorUiLayout = R.layout.water_remin
       DpSize(110.dp, 110.dp),
       DpSize(180.dp, 110.dp),
       DpSize(250.dp, 110.dp),
-      DpSize(250.dp, 180.dp),
+      DpSize(150.dp, 170.dp),
+      DpSize(250.dp, 170.dp),
       DpSize(250.dp, 250.dp)
     )
   )
 
   override suspend fun provideGlance(context: Context, id: androidx.glance.GlanceId) {
+    val initialState = WidgetHydrationWriter.refreshSnapshot(context)
     provideContent {
       val preferences = currentState<Preferences>()
       val stateJson = preferences[WidgetStateStore.glanceStateKey]
-      val state = WidgetStateStore.parse(stateJson)
+      val storedState = WidgetStateStore.parse(stateJson)
+      val state = if ((initialState?.updatedAt ?: 0) > (storedState?.updatedAt ?: 0)) initialState else storedState
       WidgetContent(context = context, state = state)
     }
   }
 
   companion object {
-    suspend fun syncStateAndUpdate(context: Context, source: String) {
+    private val refreshMutex = Mutex()
+
+    suspend fun syncStateAndUpdate(context: Context, source: String) = refreshMutex.withLock {
+      WidgetHydrationWriter.refreshSnapshot(context)
       val stateJson = WidgetStateStore.readJson(context)
       val state = WidgetStateStore.parse(stateJson)
       val glanceIds = GlanceAppWidgetManager(context).getGlanceIds(WaterReminderWidget::class.java)
@@ -103,223 +113,193 @@ class WaterReminderWidget : GlanceAppWidget(errorUiLayout = R.layout.water_remin
 
 @Composable
 private fun WidgetContent(context: Context, state: WidgetState?) {
-  val colors = widgetColors(state)
+  val colors = widgetColors(context, state)
   val size = LocalSize.current
-  val isExpanded = size.height >= 220.dp
-  val isMedium = size.width >= 220.dp
-
-  requireGlanceContainerChildren("WidgetContent", 5)
+  val short = size.height < 160.dp
+  val wide = size.width >= 220.dp
+  val expanded = size.height >= 220.dp
+  // Use a compact tile for short slots instead of clipping a full-height card.
   Column(
-    modifier = GlanceModifier
-      .fillMaxSize()
-      .background(colors.background)
-      .padding(14.dp),
+    modifier = GlanceModifier.fillMaxSize().appWidgetBackground()
+      .background(colors.background).cornerRadius(24.dp)
+      .clickable(actionStartActivity(openHomeIntent(context)))
+      .padding(if (expanded) 16.dp else 10.dp),
     verticalAlignment = Alignment.Vertical.CenterVertically
   ) {
     if (state == null || !state.onboardingCompleted || state.goalMl <= 0) {
-      FallbackContent(context, colors)
+      FallbackContent(colors, short)
       return@Column
     }
-
-    HeaderSection(state, colors, isMedium)
-    Spacer(modifier = GlanceModifier.height(8.dp))
-    ProgressSection(state, colors, isMedium, isExpanded)
-    Spacer(modifier = GlanceModifier.height(8.dp))
-    QuickActionsSection(state = state, isMedium = isMedium, isExpanded = isExpanded)
+    if (short) {
+      CompactContent(state, colors, wide)
+    } else {
+      HeaderSection(state, colors)
+      Spacer(GlanceModifier.height(8.dp))
+      Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Vertical.CenterVertically) {
+        Column(modifier = GlanceModifier.defaultWeight()) {
+          SummarySection(state, colors, large = true)
+        }
+        Spacer(GlanceModifier.width(8.dp))
+        GlassImage(state.quickAddAmountsMl.first(), if (expanded) 64 else 48)
+      }
+      Spacer(GlanceModifier.height(8.dp))
+      ProgressBar(state, colors)
+      if (expanded) {
+        Spacer(GlanceModifier.height(10.dp))
+        ContextSection(state, colors)
+      }
+      Spacer(GlanceModifier.height(10.dp))
+      QuickActionsSection(state, colors, wide, expanded)
+    }
   }
 }
 
 @Composable
-private fun HeaderSection(state: WidgetState, colors: WidgetColors, showTitle: Boolean) {
-  val childCount = if (showTitle) 3 else 1
+private fun CompactContent(state: WidgetState, colors: WidgetColors, wide: Boolean) {
+  Column {
+    Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Vertical.CenterVertically) {
+      Column(modifier = GlanceModifier.defaultWeight()) {
+        SummarySection(state, colors, large = false)
+      }
+      if (LocalSize.current.width >= 150.dp) {
+        GlassImage(state.quickAddAmountsMl.first(), 36)
+      }
+    }
+    Spacer(GlanceModifier.height(4.dp))
+    ProgressBar(state, colors)
+    Spacer(GlanceModifier.height(6.dp))
+    QuickActionsSection(state, colors, wide, expanded = false)
+  }
+}
 
-  requireGlanceContainerChildren("HeaderSection", childCount)
-  Row(
-    modifier = GlanceModifier.fillMaxWidth(),
-    verticalAlignment = Alignment.Vertical.CenterVertically
-  ) {
+@Composable
+private fun HeaderSection(state: WidgetState, colors: WidgetColors) {
+  Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.Vertical.CenterVertically) {
     Image(
       provider = ImageProvider(R.drawable.water_reminder_widget_mark),
-      contentDescription = "Water Reminder",
-      modifier = GlanceModifier.size(24.dp)
+      contentDescription = null,
+      modifier = GlanceModifier.size(20.dp)
     )
-    if (showTitle) {
-      Spacer(modifier = GlanceModifier.width(8.dp))
-      Text(
-        text = if (state.goalCompleted) "Goal complete" else "Water Reminder",
-        style = TextStyle(
-          color = colors.textPrimary,
-          fontSize = 14.sp,
-          fontWeight = FontWeight.Bold
-        )
-      )
-    }
+    Spacer(GlanceModifier.width(6.dp))
+    Text(
+      text = if (state.goalCompleted) "Goal reached" else "Today's water",
+      maxLines = 1,
+      style = TextStyle(color = colors.textSecondary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+    )
   }
 }
 
 @Composable
-private fun ProgressSection(
-  state: WidgetState,
-  colors: WidgetColors,
-  isMedium: Boolean,
-  isExpanded: Boolean
-) {
-  requireGlanceContainerChildren("ProgressSection", 5)
-  Column {
-    SummarySection(state, colors, isMedium)
-    Spacer(modifier = GlanceModifier.height(8.dp))
-    ProgressSegments(state.completionPercentage, colors)
-    if ((isMedium && !state.goalCompleted) || isExpanded) {
-      Spacer(modifier = GlanceModifier.height(6.dp))
-      ContextSection(state, colors, showRemaining = isMedium && !state.goalCompleted, showReminder = isExpanded)
-    }
-  }
-}
-
-@Composable
-private fun SummarySection(state: WidgetState, colors: WidgetColors, isMedium: Boolean) {
-  requireGlanceContainerChildren("SummarySection", 2)
-  Column {
+private fun SummarySection(state: WidgetState, colors: WidgetColors, large: Boolean) {
+  Column(modifier = GlanceModifier.fillMaxWidth()) {
     Text(
       text = formatAmount(state.consumedMl, state.measurementUnit),
-      style = TextStyle(
-        color = colors.textPrimary,
-        fontSize = if (isMedium) 28.sp else 22.sp,
-        fontWeight = FontWeight.Bold
-      )
+      maxLines = 1,
+      style = TextStyle(color = colors.textPrimary, fontSize = if (large) 28.sp else 20.sp, fontWeight = FontWeight.Bold)
     )
     Text(
       text = "${state.completionPercentage}% of ${formatAmount(state.goalMl, state.measurementUnit)}",
-      style = TextStyle(color = colors.textSecondary, fontSize = 12.sp)
+      maxLines = 1,
+      style = TextStyle(color = colors.textSecondary, fontSize = 11.sp)
     )
   }
 }
 
 @Composable
-private fun ContextSection(
-  state: WidgetState,
-  colors: WidgetColors,
-  showRemaining: Boolean,
-  showReminder: Boolean
-) {
-  requireGlanceContainerChildren("ContextSection", 3)
-  Column {
-    if (showRemaining) {
-      Text(
-        text = "${formatAmount(state.remainingMl, state.measurementUnit)} left",
-        style = TextStyle(color = colors.textSecondary, fontSize = 12.sp)
-      )
-    }
-    if (showReminder) {
-      ReminderSection(state, colors)
-    }
-  }
-}
-
-@Composable
-private fun ReminderSection(state: WidgetState, colors: WidgetColors) {
-  requireGlanceContainerChildren("ReminderSection", 2)
-  Column {
-    Text(
-      text = "Streak ${state.currentStreak} day${if (state.currentStreak == 1) "" else "s"}",
-      style = TextStyle(color = colors.textSecondary, fontSize = 12.sp)
-    )
-    state.nextReminderAt?.let {
-      Text(
-        text = "Next ${DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))}",
-        style = TextStyle(color = colors.textSecondary, fontSize = 12.sp)
-      )
-    }
-  }
-}
-
-@Composable
-private fun FallbackContent(context: Context, colors: WidgetColors) {
-  SafeFallbackContent(context = context, colors = colors)
-}
-
-@Composable
-private fun SafeFallbackContent(context: Context, colors: WidgetColors) {
-  requireGlanceContainerChildren("SafeFallbackContent", 3)
-  Column(
-    modifier = GlanceModifier
-      .fillMaxSize()
-      .background(colors.background)
-      .padding(14.dp),
-    verticalAlignment = Alignment.Vertical.CenterVertically
-  ) {
-    Text(
-      text = "Water Reminder",
-      style = TextStyle(color = colors.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-    )
-    Spacer(modifier = GlanceModifier.height(8.dp))
-    Button(
-      text = "Open app",
-      onClick = actionStartActivity(openHomeIntent(context))
-    )
-  }
-}
-
-@Composable
-private fun QuickActionsSection(state: WidgetState, isMedium: Boolean, isExpanded: Boolean) {
-  val childCount = 1 + (if (isMedium) 2 else 0) + (if (isExpanded) 2 else 0)
-
-  requireGlanceContainerChildren("QuickActionsSection", childCount)
-  Row(modifier = GlanceModifier.fillMaxWidth()) {
-    QuickAddButton(amountMl = 250, state = state)
-    if (isMedium) {
-      Spacer(modifier = GlanceModifier.width(6.dp))
-      QuickAddButton(amountMl = 500, state = state)
-    }
-    if (isExpanded) {
-      Spacer(modifier = GlanceModifier.width(6.dp))
-      QuickAddButton(amountMl = 750, state = state)
-    }
-  }
-}
-
-@Composable
-private fun QuickAddButton(amountMl: Int, state: WidgetState) {
-  Button(
-    text = "+${amountMl}",
-    onClick = actionRunCallback<WidgetQuickAddAction>(
-      actionParametersOf(
-        WidgetActionKeys.amount to amountMl,
-        WidgetActionKeys.actionNonce to state.actionNonce
-      )
-    )
+private fun ProgressBar(state: WidgetState, colors: WidgetColors) {
+  LinearProgressIndicator(
+    progress = state.completionPercentage.coerceIn(0, 100) / 100f,
+    modifier = GlanceModifier.fillMaxWidth().height(4.dp).cornerRadius(2.dp),
+    color = colors.primary,
+    backgroundColor = colors.track
   )
 }
 
 @Composable
-private fun ProgressSegments(completionPercentage: Int, colors: WidgetColors) {
-  requireGlanceContainerChildren("ProgressSegments", 5)
-  Row(modifier = GlanceModifier.fillMaxWidth()) {
-    val filledSegments = (completionPercentage.coerceIn(0, 100) / 10.0).roundToInt()
+private fun ContextSection(state: WidgetState, colors: WidgetColors) {
+  Column {
+    Text(
+      text = if (state.goalCompleted) "Daily goal complete" else "${formatAmount(state.remainingMl, state.measurementUnit)} to go",
+      maxLines = 1,
+      style = TextStyle(color = colors.primary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+    )
+  }
+}
 
-    repeat(5) { pairIndex ->
-      SegmentPair(firstIndex = pairIndex * 2, filledSegments = filledSegments, colors = colors)
+@Composable
+private fun FallbackContent(colors: WidgetColors, short: Boolean) {
+  Column {
+    Text(
+      text = "Water Reminder",
+      maxLines = 2,
+      style = TextStyle(color = colors.textPrimary, fontSize = if (short) 14.sp else 18.sp, fontWeight = FontWeight.Bold)
+    )
+    Spacer(GlanceModifier.height(6.dp))
+    Text(
+      text = "Tap to get started",
+      maxLines = 2,
+      style = TextStyle(color = colors.primary, fontSize = 12.sp)
+    )
+  }
+}
+
+@Composable
+private fun QuickActionsSection(state: WidgetState, colors: WidgetColors, wide: Boolean, expanded: Boolean) {
+  val amounts = state.quickAddAmountsMl.take(if (expanded && wide) 3 else if (wide) 2 else 1)
+  requireGlanceContainerChildren("QuickActionsSection", amounts.size * 2 - 1)
+  Row(modifier = GlanceModifier.fillMaxWidth()) {
+    amounts.forEachIndexed { index, amount ->
+      if (index > 0) Spacer(GlanceModifier.width(6.dp))
+      QuickAddButton(amount, state, colors, GlanceModifier.defaultWeight(), primary = index == 0, showGlass = expanded)
     }
   }
 }
 
 @Composable
-private fun SegmentPair(firstIndex: Int, filledSegments: Int, colors: WidgetColors) {
-  requireGlanceContainerChildren("SegmentPair", 2)
-  Row {
-    ProgressSegment(index = firstIndex, filledSegments = filledSegments, colors = colors)
-    ProgressSegment(index = firstIndex + 1, filledSegments = filledSegments, colors = colors)
+private fun QuickAddButton(amountMl: Int, state: WidgetState, colors: WidgetColors, modifier: GlanceModifier, primary: Boolean = true, showGlass: Boolean = false) {
+  Box(
+    modifier = modifier.height(if (showGlass) 72.dp else 40.dp)
+      .background(if (primary) colors.primary else colors.track).cornerRadius(14.dp)
+      .clickable(actionRunCallback<WidgetQuickAddAction>(
+        actionParametersOf(
+          WidgetActionKeys.amount to amountMl,
+          WidgetActionKeys.actionNonce to state.actionNonce
+        )
+      )),
+    contentAlignment = Alignment.Center
+  ) {
+    Column(horizontalAlignment = Alignment.Horizontal.CenterHorizontally) {
+      if (showGlass) GlassImage(amountMl, 38)
+      Row(verticalAlignment = Alignment.Vertical.CenterVertically) {
+        if (!showGlass) {
+          GlassImage(amountMl, 20)
+          Spacer(GlanceModifier.width(3.dp))
+        }
+        Text(
+          text = "+${formatAmount(amountMl, state.measurementUnit)}",
+          maxLines = 1,
+          style = TextStyle(color = if (primary) colors.onPrimary else colors.textPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        )
+      }
+    }
   }
 }
 
 @Composable
-private fun ProgressSegment(index: Int, filledSegments: Int, colors: WidgetColors) {
-  Box(
-    modifier = GlanceModifier
-      .width(16.dp)
-      .height(6.dp)
-      .background(if (index < filledSegments) colors.primary else colors.track)
-  ) {}
+private fun GlassImage(amountMl: Int, sizeDp: Int) {
+  val resource = when {
+    amountMl < 180 -> R.drawable.notification_glass_cup
+    amountMl < 280 -> R.drawable.notification_glass_tumbler
+    amountMl < 400 -> R.drawable.notification_glass_mug
+    amountMl < 650 -> R.drawable.notification_glass_tall
+    amountMl < 950 -> R.drawable.notification_glass_bottle
+    else -> R.drawable.notification_glass_pitcher
+  }
+  Image(
+    provider = ImageProvider(resource),
+    contentDescription = null,
+    modifier = GlanceModifier.size(sizeDp.dp)
+  )
 }
 
 private fun requireGlanceContainerChildren(name: String, childCount: Int) {
@@ -328,50 +308,52 @@ private fun requireGlanceContainerChildren(name: String, childCount: Int) {
   }
 }
 
-private fun openHomeIntent(context: Context): ComponentName {
-  return ComponentName(context, MainActivity::class.java)
-}
+private fun openHomeIntent(context: Context): ComponentName = ComponentName(context, MainActivity::class.java)
 
 private fun formatAmount(amountMl: Int, unit: String): String {
   if (unit == "oz") {
     val ounces = amountMl / 29.5735
     return if (ounces >= 10) "${ounces.roundToInt()} oz" else String.format("%.1f oz", ounces)
   }
-
   if (amountMl >= 1000) {
     val litres = amountMl / 1000.0
     return if (litres % 1.0 == 0.0) "${litres.roundToInt()} L" else String.format("%.1f L", litres)
   }
-
   return "$amountMl ml"
 }
 
 private data class WidgetColors(
   val background: ColorProvider,
   val primary: ColorProvider,
+  val onPrimary: ColorProvider,
   val textPrimary: ColorProvider,
   val textSecondary: ColorProvider,
   val track: ColorProvider
 )
 
-private fun widgetColors(state: WidgetState?): WidgetColors {
-  val dark = state?.themePreference == "dark"
-
+private fun widgetColors(context: Context, state: WidgetState?): WidgetColors {
+  val dark = when (state?.themePreference) {
+    "dark" -> true
+    "light" -> false
+    else -> context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+  }
   return if (dark) {
     WidgetColors(
-      background = ColorProvider(Color(0xFF101E1B)),
-      primary = ColorProvider(Color(0xFF5AD3BE)),
-      textPrimary = ColorProvider(Color.White),
-      textSecondary = ColorProvider(Color(0xFFC4D8D3)),
-      track = ColorProvider(Color(0xFF304843))
+      background = ColorProvider(Color(0xFF192732)),
+      primary = ColorProvider(Color(0xFF8DDDD3)),
+      onPrimary = ColorProvider(Color(0xFF101816)),
+      textPrimary = ColorProvider(Color(0xFFEAF3EF)),
+      textSecondary = ColorProvider(Color(0xFFB7C9D3)),
+      track = ColorProvider(Color(0xFF304852))
     )
   } else {
     WidgetColors(
-      background = ColorProvider(Color(0xFFF7FBF8)),
-      primary = ColorProvider(Color(0xFF128B77)),
-      textPrimary = ColorProvider(Color(0xFF12312B)),
-      textSecondary = ColorProvider(Color(0xFF536B66)),
-      track = ColorProvider(Color(0xFFD5E8E4))
+      background = ColorProvider(Color(0xFFF3F8FC)),
+      primary = ColorProvider(Color(0xFF007A8A)),
+      onPrimary = ColorProvider(Color.White),
+      textPrimary = ColorProvider(Color(0xFF142B36)),
+      textSecondary = ColorProvider(Color(0xFF526875)),
+      track = ColorProvider(Color(0xFFDDEEF1))
     )
   }
 }

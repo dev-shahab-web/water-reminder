@@ -77,6 +77,7 @@ const getActiveWindow = (
 };
 
 export const calculateReminderSchedule = ({
+  glass,
   goalAmount,
   now,
   preferences,
@@ -100,6 +101,7 @@ export const calculateReminderSchedule = ({
 
     reminders.push(
       ...calculateDailyReminderSchedule({
+        glass,
         goalAmount,
         maxCount: maxScheduledReminders - reminders.length,
         now: scheduleNow,
@@ -114,6 +116,7 @@ export const calculateReminderSchedule = ({
 };
 
 const calculateDailyReminderSchedule = ({
+  glass,
   goalAmount,
   maxCount,
   now,
@@ -152,13 +155,21 @@ const calculateDailyReminderSchedule = ({
   );
   const reminders: ReminderScheduleItem[] = [];
 
+  const snoozeTarget =
+    preferences.pendingSnoozeNotificationId === undefined
+      ? NaN
+      : new Date(preferences.pendingSnoozeTargetIso ?? '').getTime();
+
   for (
     let nextDate = firstCandidate;
     nextDate <= scheduleEnd && reminders.length < maxCount;
     nextDate = addMinutes(nextDate, intervalMinutes)
   ) {
+    if (nextDate.getTime() <= snoozeTarget) continue;
     const occurrenceId = getReminderOccurrenceId(nextDate, occurrenceOffset + reminders.length);
     const notificationContent = buildReminderNotificationContent({
+      glass,
+      defaultSnoozeMinutes: preferences.defaultSnoozeMinutes,
       copyKey: getReminderCopyKey(progress, reminders.length),
       mode: preferences.mode,
       occurrenceId,
@@ -195,6 +206,7 @@ const isPausedForWholeDay = (preferences: ReminderPreferences, day: Date): boole
 };
 
 export const buildReminderScheduleSignature = ({
+  glass,
   goalAmount,
   preferences,
   totalAmount,
@@ -203,6 +215,9 @@ export const buildReminderScheduleSignature = ({
     totalAmount >= goalAmount ? 'complete' : Math.floor((totalAmount / goalAmount) * 10);
 
   return [
+    'glass-notification-v1',
+    glass?.amountMl ?? 250,
+    glass?.amountLabel ?? '250 mL',
     preferences.enabled,
     preferences.wakeTime,
     preferences.sleepTime,
@@ -213,6 +228,7 @@ export const buildReminderScheduleSignature = ({
     preferences.defaultSnoozeMinutes,
     preferences.sound.type,
     preferences.pausedUntilIso ?? 'none',
+    preferences.pendingSnoozeTargetIso ?? 'none',
     preferences.timezone,
     reminderScheduleHorizonDays,
     progressBucket,

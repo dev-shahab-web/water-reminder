@@ -1,3 +1,4 @@
+import { GlassSurface } from '@shared/components/glass-surface';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Linking, Modal, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
@@ -70,6 +71,7 @@ export function SettingsScreen() {
     updateGoalAmount,
     updateMeasurementUnit,
     updateReduceMotion,
+    updateLogSoundEnabled,
     updateShareAnonymousDiagnostics,
     updateStartOfDay,
     updateThemePreference,
@@ -309,7 +311,7 @@ export function SettingsScreen() {
             />
           </View>
         </View>
-        <SettingsRow icon="cup-water" label="Measurement unit">
+        <SettingsRow controlLayout="stacked" icon="cup-water" label="Measurement unit">
           <SegmentedSetting
             accessibilityLabel="Measurement unit"
             onChange={updateMeasurementUnit}
@@ -317,7 +319,13 @@ export function SettingsScreen() {
             value={settings.measurementUnit}
           />
         </SettingsRow>
-        <SettingsRow icon="weather-sunset-up" label="Start of day">
+        <SecondaryButton
+          accessibilityLabel="Choose glass sizes"
+          icon="cup-water"
+          label="My glasses"
+          onPress={() => router.push('/quick-add-presets')}
+        />
+        <SettingsRow controlLayout="stacked" icon="weather-sunset-up" label="Start of day">
           <SegmentedSetting
             accessibilityLabel="Start of day"
             onChange={updateStartOfDay}
@@ -335,9 +343,9 @@ export function SettingsScreen() {
 
       <SettingsSection
         subtitle="Respect your device while keeping the app readable."
-        title="Appearance"
+        title="Appearance & feedback"
       >
-        <SettingsRow icon="theme-light-dark" label="Theme">
+        <SettingsRow controlLayout="stacked" icon="theme-light-dark" label="Theme">
           <SegmentedSetting
             accessibilityLabel="Theme preference"
             onChange={updateThemePreference}
@@ -362,6 +370,17 @@ export function SettingsScreen() {
           supportingText="Hydration should stay readable with larger system text."
           value="Aa"
         />
+        <SettingsRow
+          icon="water"
+          label="Water sounds"
+          supportingText="A soft pour when you log water. Respects silent mode and media volume."
+        >
+          <Switch
+            accessibilityLabel="Water sounds"
+            onValueChange={updateLogSoundEnabled}
+            value={settings.logSoundEnabled}
+          />
+        </SettingsRow>
       </SettingsSection>
 
       <SettingsSection
@@ -383,11 +402,10 @@ export function SettingsScreen() {
         </SettingsRow>
       </SettingsSection>
 
-      <View style={styles.sectionGroup}>
-        <SectionHeader
-          subtitle="Adjust reminder rhythm, sound, vibration, snooze, and pauses."
-          title="Notifications"
-        />
+      <SettingsSection
+        subtitle="Adjust reminder rhythm, sound, vibration, snooze, and pauses."
+        title="Notifications"
+      >
         <SettingsRow
           icon="bell-outline"
           label="Reminder Settings"
@@ -406,7 +424,7 @@ export function SettingsScreen() {
             void sendTestNotification();
           }}
         />
-      </View>
+      </SettingsSection>
 
       <View style={styles.sectionGroup}>
         <HealthConnectCard />
@@ -519,11 +537,11 @@ function ExportModal({
   return (
     <Modal animationType="fade" transparent visible={payload !== undefined}>
       <View style={styles.modalBackdrop}>
-        <View
+        <GlassSurface
+          tone="elevated"
           style={[
             styles.modalCard,
             {
-              backgroundColor: theme.colors.surface,
               borderRadius: theme.app.radius.lg,
             },
           ]}
@@ -549,7 +567,7 @@ function ExportModal({
             value={payload}
           />
           <PrimaryButton label="Done" onPress={onClose} />
-        </View>
+        </GlassSurface>
       </View>
     </Modal>
   );
@@ -573,11 +591,11 @@ function ImportModal({
   return (
     <Modal animationType="fade" transparent visible={visible}>
       <View style={styles.modalBackdrop}>
-        <View
+        <GlassSurface
+          tone="elevated"
           style={[
             styles.modalCard,
             {
-              backgroundColor: theme.colors.surface,
               borderRadius: theme.app.radius.lg,
             },
           ]}
@@ -608,7 +626,7 @@ function ImportModal({
             <SecondaryButton label="Cancel" onPress={onCancel} style={styles.modalButton} />
             <PrimaryButton label="Import" onPress={onImport} style={styles.modalButton} />
           </View>
-        </View>
+        </GlassSurface>
       </View>
     </Modal>
   );

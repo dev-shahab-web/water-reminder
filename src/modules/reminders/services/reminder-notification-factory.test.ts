@@ -6,6 +6,7 @@ import {
 } from '@platform/notifications/notification-channels';
 import {
   REMINDER_NOTIFICATION_CATEGORY,
+  REMINDER_NOTIFICATION_CATEGORY_WITHOUT_SNOOZE,
   isReminderNotificationData,
 } from '@platform/notifications/notification-actions';
 
@@ -25,14 +26,19 @@ describe('reminder notification factory', () => {
 
     expect(content).toMatchObject({
       androidChannelId: HYDRATION_GENTLE_CHANNEL_ID,
-      body: 'Time for a sip.',
+      body: 'Time for a sip. Your 250 mL glass is ready.',
       categoryIdentifier: REMINDER_NOTIFICATION_CATEGORY,
       copyKey: 'time_for_sip',
       sound: false,
-      title: 'Water Reminder',
+      title: 'Time to hydrate',
     });
     expect(content.vibrate).toBeUndefined();
     expect(content.data).toEqual({
+      amountMl: 250,
+      amountLabel: '250 mL',
+      presentationVersion: 1,
+      snoozeEnabled: true,
+      snoozeMinutes: 10,
       occurrenceId: 'occurrence-1',
       schemaVersion: 1,
       source: 'scheduled',
@@ -100,6 +106,11 @@ describe('reminder notification factory', () => {
 
     expect(content.androidChannelId).toBe(HYDRATION_ACTIVE_CHANNEL_ID);
     expect(content.data).toEqual({
+      amountMl: 250,
+      amountLabel: '250 mL',
+      presentationVersion: 1,
+      snoozeEnabled: true,
+      snoozeMinutes: 10,
       occurrenceId: 'hydration-reminder-test',
       schemaVersion: 1,
       source: 'test',
@@ -108,7 +119,7 @@ describe('reminder notification factory', () => {
     expect(isReminderNotificationData(content.data)).toBe(true);
   });
 
-  it('omits the action category when snooze is disabled', () => {
+  it('keeps Log and Dismiss available when snooze is disabled', () => {
     const content = buildReminderNotificationContent({
       copyKey: 'little_water_refresh',
       mode: 'gentle',
@@ -118,7 +129,8 @@ describe('reminder notification factory', () => {
       vibrationEnabled: false,
     });
 
-    expect(content.categoryIdentifier).toBeUndefined();
+    expect(content.categoryIdentifier).toBe(REMINDER_NOTIFICATION_CATEGORY_WITHOUT_SNOOZE);
+    expect(content.data.snoozeEnabled).toBe(false);
   });
 
   it('does not include sensitive hydration or scheduling fields', () => {
@@ -133,10 +145,27 @@ describe('reminder notification factory', () => {
     });
     const serializedContent = JSON.stringify(content).toLowerCase();
 
-    expect(serializedContent).not.toContain('amount');
+    // The chosen glass capacity is presentation data, not hydration history.
+    expect(content.data.amountMl).toBe(250);
+    expect(serializedContent).not.toContain('totalamount');
     expect(serializedContent).not.toContain('goal');
     expect(serializedContent).not.toContain('reminder_time');
     expect(serializedContent).not.toContain('timestamp');
     expect(serializedContent).not.toContain('record');
+  });
+
+  it('carries the displayed glass and snooze duration for later actions', () => {
+    const content = buildReminderNotificationContent({
+      glass: { amountMl: 473, amountLabel: '16 oz' },
+      defaultSnoozeMinutes: 30,
+      copyKey: 'time_for_sip',
+      mode: 'gentle',
+      snoozeEnabled: true,
+      sound: { type: 'silent' },
+      source: 'snoozed',
+      vibrationEnabled: false,
+    });
+    expect(content.body).toContain('16 oz');
+    expect(content.data).toMatchObject({ amountMl: 473, amountLabel: '16 oz', snoozeMinutes: 30 });
   });
 });

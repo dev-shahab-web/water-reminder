@@ -1,5 +1,6 @@
 import {
   cancelLocalNotifications,
+  dismissPresentedNotification,
   getPresentedLocalNotifications,
   getScheduledLocalNotifications,
   scheduleLocalNotification,
@@ -13,7 +14,9 @@ import {
   setReminderPreferences,
 } from '../repository/reminder-preferences-storage';
 import { buildReminderNotificationContent } from './reminder-notification-factory';
+import { getReminderGlass } from './reminder-glass';
 import { addMinutes } from '../utils/time';
+import { runReminderScheduleOperation } from './reminder-operation-queue';
 
 const snoozeCopyKey = 'time_for_sip';
 let snoozeOperationQueue: Promise<void> = Promise.resolve();
@@ -25,24 +28,28 @@ export const isReminderSnoozeMinutes = (value: number): value is ReminderSnoozeM
 export const snoozeReminder = async ({
   durationMinutes,
   handledNotificationIdentifier,
-  now = new Date(),
+  now,
   preferences,
 }: {
   durationMinutes?: ReminderSnoozeMinutes;
   handledNotificationIdentifier?: string;
   now?: Date;
-  preferences: ReminderPreferences;
+  preferences?: ReminderPreferences;
 }): Promise<ReminderPreferences> => {
-  return runSerializedSnoozeOperation(async () => {
-    const latestPreferences = mergeLatestPendingSnoozeState(preferences);
+  return runReminderScheduleOperation(() =>
+    runSerializedSnoozeOperation(async () => {
+      const latestPreferences = mergeLatestPendingSnoozeState(
+        preferences ?? getReminderPreferences(),
+      );
 
-    return snoozeReminderWithoutLock({
-      durationMinutes,
-      handledNotificationIdentifier,
-      now,
-      preferences: latestPreferences,
-    });
-  });
+      return snoozeReminderWithoutLock({
+        durationMinutes,
+        handledNotificationIdentifier,
+        now: now ?? new Date(),
+        preferences: latestPreferences,
+      });
+    }),
+  );
 };
 
 const snoozeReminderWithoutLock = async ({
@@ -64,6 +71,7 @@ const snoozeReminderWithoutLock = async ({
   }
 
   const snoozeMinutes = durationMinutes ?? preferences.defaultSnoozeMinutes;
+  const storedBeforeScheduling = JSON.stringify(getReminderPreferences());
 
   if (!isReminderSnoozeMinutes(snoozeMinutes)) {
     logger.info('Reminder snooze skipped.', {
@@ -78,8 +86,6 @@ const snoozeReminderWithoutLock = async ({
     snoozeEnabled: preferences.snoozeEnabled,
   });
 
-  await cancelPendingSnoozeNotification(preferences);
-
   const date = addMinutes(now, snoozeMinutes);
   const pendingSnoozeTargetIso = date.toISOString();
 
@@ -88,25 +94,10 @@ const snoozeReminderWithoutLock = async ({
     targetIso: pendingSnoozeTargetIso,
   });
 
-  const presentedHydrationNotification = await getVisibleHydrationNotificationToPreserve(
-    handledNotificationIdentifier,
-  );
-
-  if (presentedHydrationNotification !== undefined) {
-    logger.info('Reminder snooze skipped.', {
-      presentedNotificationIdentifier: presentedHydrationNotification.identifier,
-      reason: 'hydration_notification_already_presented',
-      targetIso: pendingSnoozeTargetIso,
-    });
-    return setReminderPreferences({
-      ...preferences,
-      pendingSnoozeNotificationId: undefined,
-      pendingSnoozeTargetIso: undefined,
-    });
-  }
-
   const occurrenceId = `hydration-reminder-snooze-${date.getTime()}`;
   const notificationContent = buildReminderNotificationContent({
+    glass: getReminderGlass(),
+    defaultSnoozeMinutes: preferences.defaultSnoozeMinutes,
     copyKey: snoozeCopyKey,
     mode: preferences.mode,
     occurrenceId,
@@ -130,12 +121,54 @@ const snoozeReminderWithoutLock = async ({
     targetIso: pendingSnoozeTargetIso,
   });
 
+  if (pendingSnoozeNotificationId === undefined) {
+    throw new Error('Snooze could not be scheduled. Please try again.');
+  }
+
+  const ensurePreferencesUnchanged = async () => {
+    // Settings controls are synchronous and can change while the OS schedules.
+    // Never overwrite a newer setting or recreate a snooze the user disabled.
+    if (JSON.stringify(getReminderPreferences()) !== storedBeforeScheduling) {
+      await cancelLocalNotifications([pendingSnoozeNotificationId]);
+      throw new Error('Reminder settings changed. Please try Snooze again.');
+    }
+  };
+  await ensurePreferencesUnchanged();
+
+  // Preserve the previous snooze until its replacement has actually scheduled.
+  if (preferences.pendingSnoozeNotificationId !== pendingSnoozeNotificationId) {
+    await cancelPendingSnoozeNotification(preferences);
+  }
+
+  // Base identifiers encode the delivery timestamp (see scheduler.ts). Remove
+  // reminders within the snooze window, including an exact-time collision.
+  const interruptedIds = preferences.scheduledNotificationIds.filter((identifier) => {
+    const match = /^hydration-reminder-(\d+)-\d+$/.exec(identifier);
+    return match === null || Number(match[1]) <= date.getTime();
+  });
+  if (interruptedIds.length > 0) await cancelLocalNotifications(interruptedIds);
+
+  await ensurePreferencesUnchanged();
+
   const nextPreferences = setReminderPreferences({
     ...preferences,
     pendingSnoozeNotificationId,
-    pendingSnoozeTargetIso:
-      pendingSnoozeNotificationId === undefined ? undefined : pendingSnoozeTargetIso,
+    pendingSnoozeTargetIso,
+    scheduledNotificationIds: preferences.scheduledNotificationIds.filter(
+      (id) => !interruptedIds.includes(id),
+    ),
   });
+
+  const presentedNotifications = await getPresentedLocalNotifications();
+  await Promise.all(
+    presentedNotifications
+      .filter(
+        (notification) =>
+          notification.identifier !== handledNotificationIdentifier &&
+          isReminderNotificationData(notification.data),
+      )
+      .map((notification) => dismissPresentedNotification(notification.identifier)),
+  );
 
   logger.info('Reminder snooze persisted.', {
     pendingSnoozeNotificationId: nextPreferences.pendingSnoozeNotificationId,
@@ -197,20 +230,6 @@ const cancelPendingSnoozeNotification = async (preferences: ReminderPreferences)
   }
 
   await cancelLocalNotifications([preferences.pendingSnoozeNotificationId]);
-};
-
-const getVisibleHydrationNotificationToPreserve = async (
-  handledNotificationIdentifier: string | undefined,
-) => {
-  const presentedNotifications = await getPresentedLocalNotifications();
-
-  return presentedNotifications.find((notification) => {
-    if (notification.identifier === handledNotificationIdentifier) {
-      return false;
-    }
-
-    return isReminderNotificationData(notification.data);
-  });
 };
 
 const mergeLatestPendingSnoozeState = (preferences: ReminderPreferences): ReminderPreferences => {

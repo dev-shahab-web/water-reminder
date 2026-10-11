@@ -4,6 +4,7 @@ import {
   addQuickAddPreset,
   getQuickAddPresets,
   moveQuickAddPreset,
+  makeDefaultQuickAddPreset,
   removeQuickAddPreset,
   subscribeToQuickAddPresets,
   updateQuickAddPreset,
@@ -28,6 +29,7 @@ export const useQuickAddPresets = () => {
   );
 
   return {
+    makeDefaultPreset: makeDefaultQuickAddPreset,
     addPreset,
     movePreset,
     presets,

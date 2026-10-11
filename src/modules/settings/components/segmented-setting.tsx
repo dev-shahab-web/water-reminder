@@ -1,7 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
-import { AnimatedPressableScale } from '@shared/motion';
+import { GlassPressable } from '@shared/components/glass-surface';
 import type { AppTheme } from '@shared/theme';
 
 type SegmentedOption<T extends string> = {
@@ -23,6 +23,7 @@ export function SegmentedSetting<T extends string>({
   value,
 }: SegmentedSettingProps<T>) {
   const theme = useTheme<AppTheme>();
+  const { fontScale } = useWindowDimensions();
 
   return (
     <View accessibilityLabel={accessibilityLabel} style={styles.row}>
@@ -30,30 +31,27 @@ export function SegmentedSetting<T extends string>({
         const selected = option.value === value;
 
         return (
-          <AnimatedPressableScale
+          <GlassPressable
             key={option.value}
+            tone="inset"
+            selected={selected}
             accessibilityLabel={option.label}
             accessibilityRole="button"
             accessibilityState={{ selected }}
             onPress={() => {
               onChange(option.value);
             }}
-            pressedScale={0.97}
             style={({ pressed }) => [
               styles.option,
               {
-                backgroundColor: selected
-                  ? theme.colors.primaryContainer
-                  : theme.app.colors.surfaceSubtle,
-                borderColor: selected ? theme.colors.primary : theme.app.colors.borderSubtle,
                 borderRadius: theme.app.radius.md,
+                flexBasis: 80 * fontScale,
+                minWidth: 72 * fontScale,
                 opacity: pressed ? 0.72 : 1,
               },
             ]}
           >
             <Text
-              maxFontSizeMultiplier={1.25}
-              numberOfLines={1}
               style={[
                 styles.label,
                 {
@@ -65,7 +63,7 @@ export function SegmentedSetting<T extends string>({
             >
               {option.label}
             </Text>
-          </AnimatedPressableScale>
+          </GlassPressable>
         );
       })}
     </View>
@@ -80,12 +78,10 @@ const styles = StyleSheet.create({
   option: {
     alignItems: 'center',
     borderWidth: 1,
-    flexBasis: 0,
     flexGrow: 1,
     flexShrink: 1,
     justifyContent: 'center',
     minHeight: 44,
-    minWidth: 0,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },

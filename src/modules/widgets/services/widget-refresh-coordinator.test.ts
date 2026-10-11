@@ -30,6 +30,7 @@ const createWidgetState = (consumedMl: number): HydrationWidgetState => ({
   measurementUnit: 'ml',
   nextReminderAt: null,
   onboardingCompleted: true,
+  quickAddAmountsMl: [350, 500, 750],
   remainingMl: Math.max(2000 - consumedMl, 0),
   themePreference: 'system',
   updatedAt: consumedMl,

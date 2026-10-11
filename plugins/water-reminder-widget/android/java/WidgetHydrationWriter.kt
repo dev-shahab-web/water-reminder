@@ -1,145 +1,121 @@
 package __PACKAGE__.widgets
 
 import android.content.Context
-import android.database.sqlite.SQLiteDatabase
 import android.util.Log
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatterBuilder
 import java.util.UUID
-import kotlin.math.max
-import kotlin.math.min
+import kotlin.math.roundToInt
 
 object WidgetHydrationWriter {
   private const val tag = "WaterReminderWidget"
-  private const val databaseName = "water_reminder.db"
+  // Match Date.toISOString() exactly so TEXT range queries include midnight.
+  private val iso = DateTimeFormatterBuilder().appendInstant(3).toFormatter()
 
+  private fun openDatabase(context: Context): WidgetDatabase? {
+    val file = File(File(context.filesDir, "SQLite"), "water_reminder.db")
+    if (!file.exists()) return null
+    return WidgetDatabase.open(file.absolutePath)
+  }
+
+  @Synchronized
   fun addWater(context: Context, amountMl: Int, actionId: String): Boolean {
-    Log.d(tag, "Widget action received amountMl=$amountMl")
-
-    if (amountMl <= 0 || !WidgetStateStore.markProcessed(context, actionId)) {
-      Log.d(tag, "Widget action skipped amountMl=$amountMl")
-      return false
-    }
-
-    val databaseFile = File(File(context.filesDir, "SQLite"), databaseName)
-
-    if (!databaseFile.exists()) {
-      Log.d(tag, "Widget database unavailable for quick-add.")
-      return false
-    }
-
-    val now = Instant.now().toString()
-    val entryId = "widget_${System.currentTimeMillis()}_${UUID.randomUUID()}"
-    val database = SQLiteDatabase.openDatabase(
-      databaseFile.absolutePath,
-      null,
-      SQLiteDatabase.OPEN_READWRITE
-    )
-
-    var didWrite = false
-    database.beginTransaction()
-    try {
-      ensureWidgetTables(database)
-      database.execSQL(
-        """
-          INSERT OR IGNORE INTO widget_actions (actionId, amount, createdAt)
-          VALUES (?, ?, ?);
-        """.trimIndent(),
-        arrayOf<Any>(actionId, amountMl, now)
-      )
-      database.execSQL(
-        """
-          INSERT INTO hydration_entries (
-            id,
-            timestamp,
-            amount,
-            source,
-            createdAt,
-            updatedAt,
-            healthConnectRecordId,
-            healthConnectClientRecordId,
-            healthConnectDataOrigin,
-            healthConnectSyncedAt
+    if (amountMl !in 1..5000) return false
+    return try {
+      val database = openDatabase(context) ?: return false
+      database.use {
+        val now = iso.format(Instant.now())
+        val entryId = "widget_${UUID.randomUUID()}"
+        var inserted = false
+        database.beginTransaction()
+        try {
+          database.execSQL("""
+            CREATE TABLE IF NOT EXISTS widget_actions (
+              actionId TEXT PRIMARY KEY NOT NULL,
+              amount INTEGER NOT NULL CHECK (amount > 0),
+              createdAt TEXT NOT NULL
+            );
+          """.trimIndent())
+          // Deduplication and the entry commit together. Failed writes remain
+          // retryable; a repeated action cannot insert a second entry.
+          val actionInserted = database.insertIfAbsent(
+            "INSERT OR IGNORE INTO widget_actions (actionId, amount, createdAt) VALUES (?, ?, ?)",
+            arrayOf(actionId, amountMl, now)
           )
-          VALUES (?, ?, ?, 'widget', ?, ?, NULL, NULL, NULL, NULL);
-        """.trimIndent(),
-        arrayOf<Any>(entryId, now, amountMl, now, now)
-      )
-      database.setTransactionSuccessful()
-      didWrite = true
-    } catch (_: Throwable) {
-      Log.d(tag, "Widget hydration write failed.")
-    } finally {
-      runCatching { database.endTransaction() }
-    }
-
-    if (didWrite) {
-      Log.d(tag, "Widget hydration write committed.")
-      updateSnapshotFromDatabase(context, database)
-    }
-
-    database.close()
-    return didWrite
-  }
-
-  private fun ensureWidgetTables(database: SQLiteDatabase) {
-    database.execSQL(
-      """
-        CREATE TABLE IF NOT EXISTS widget_actions (
-          actionId TEXT PRIMARY KEY NOT NULL,
-          amount INTEGER NOT NULL CHECK (amount > 0),
-          createdAt TEXT NOT NULL
-        );
-      """.trimIndent()
-    )
-  }
-
-  private fun updateSnapshotFromDatabase(context: Context, database: SQLiteDatabase) {
-    val state = WidgetStateStore.read(context) ?: return
-    val consumedMlBefore = state.consumedMl
-    val consumedMl = getTodayConsumedMl(database)
-    val remainingMl = max(state.goalMl - consumedMl, 0)
-    val completion = if (state.goalMl <= 0) 0 else min((consumedMl * 100) / state.goalMl, 999)
-    val didWriteSnapshot = WidgetStateStore.write(
-      context,
-      state.copy(
-        actionNonce = UUID.randomUUID().toString(),
-        completionPercentage = completion,
-        consumedMl = consumedMl,
-        goalCompleted = state.goalMl > 0 && consumedMl >= state.goalMl,
-        remainingMl = remainingMl,
-        updatedAt = System.currentTimeMillis()
-      )
-    )
-
-    Log.d(
-      tag,
-      "Widget snapshot write completed=$didWriteSnapshot consumedMlBefore=$consumedMlBefore consumedMlAfter=$consumedMl"
-    )
-  }
-
-  private fun getTodayConsumedMl(database: SQLiteDatabase): Int {
-    val zone = ZoneId.systemDefault()
-    val today = LocalDate.now(zone)
-    val start = today.atStartOfDay(zone).toInstant().toString()
-    val end = today.plusDays(1).atStartOfDay(zone).toInstant().toString()
-    val cursor = database.rawQuery(
-      """
-        SELECT COALESCE(SUM(amount), 0) AS consumedMl
-        FROM hydration_entries
-        WHERE timestamp >= ? AND timestamp < ?;
-      """.trimIndent(),
-      arrayOf(start, end)
-    )
-
-    return cursor.use {
-      if (it.moveToFirst()) {
-        it.getInt(0)
-      } else {
-        0
+          if (actionInserted) {
+            database.execSQL("""
+              INSERT INTO hydration_entries (id, timestamp, amount, source, createdAt, updatedAt)
+              VALUES (?, ?, ?, 'widget', ?, ?);
+            """.trimIndent(), arrayOf<Any>(entryId, now, amountMl, now, now))
+            inserted = true
+          }
+          database.setTransactionSuccessful()
+        } finally {
+          database.endTransaction()
+        }
+        Log.d(tag, "Widget hydration transaction committed inserted=$inserted")
+        inserted
       }
+    } catch (error: Exception) {
+      Log.e(tag, "Widget hydration write failed", error)
+      false
+    }
+  }
+
+  // Reconcile on every refresh, including periodic launcher updates, process
+  // restarts, day changes and concurrent React Native writes.
+  @Synchronized
+  fun refreshSnapshot(context: Context): WidgetState? = synchronized(WidgetStateStore) {
+    val state = WidgetStateStore.read(context) ?: return null
+    return try {
+      val database = openDatabase(context) ?: return state
+      database.use {
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val start = iso.format(today.atStartOfDay(zone).toInstant())
+        val end = iso.format(today.plusDays(1).atStartOfDay(zone).toInstant())
+        val consumedMl = database.rawQuery("""
+          SELECT COALESCE(SUM(amount), 0) FROM hydration_entries
+          WHERE timestamp >= ? AND timestamp < ?;
+        """.trimIndent(), arrayOf(start, end)).use { cursor ->
+          if (cursor.moveToFirst()) cursor.getInt(0) else 0
+        }
+        val completed = state.goalMl > 0 && consumedMl >= state.goalMl
+        val completedDays = mutableSetOf<LocalDate>()
+        if (completed) {
+          database.rawQuery("""
+            SELECT date(timestamp, 'localtime'), SUM(amount) FROM hydration_entries
+            GROUP BY date(timestamp, 'localtime') HAVING SUM(amount) >= ?;
+          """.trimIndent(), arrayOf(state.goalMl.toString())).use { cursor ->
+            while (cursor.moveToNext()) completedDays.add(LocalDate.parse(cursor.getString(0)))
+          }
+        }
+        var streak = 0
+        var day = today
+        while (completedDays.contains(day)) {
+          streak++
+          day = day.minusDays(1)
+        }
+        val refreshed = state.copy(
+          actionNonce = UUID.randomUUID().toString(),
+          completionPercentage = if (state.goalMl <= 0) 0 else
+            (consumedMl.toDouble() * 100 / state.goalMl).roundToInt().coerceIn(0, 999),
+          consumedMl = consumedMl,
+          currentStreak = streak,
+          goalCompleted = completed,
+          remainingMl = (state.goalMl - consumedMl).coerceAtLeast(0),
+          nextReminderAt = state.nextReminderAt?.takeIf { !completed && it > System.currentTimeMillis() },
+          updatedAt = System.currentTimeMillis()
+        )
+        WidgetStateStore.write(context, refreshed)
+        refreshed
+      }
+    } catch (error: Exception) {
+      Log.e(tag, "Widget snapshot reconciliation failed", error)
+      state
     }
   }
 }

@@ -1,0 +1,8 @@
+<resources>
+    <color name="notification_ink">#123C4A</color>
+    <color name="notification_secondary">#47626B</color>
+    <color name="notification_accent">#007A8A</color>
+    <color name="notification_tile_start">#F4FDFF</color>
+    <color name="notification_tile_end">#D6F1F5</color>
+    <color name="notification_tile_border">#AADCE6</color>
+</resources>

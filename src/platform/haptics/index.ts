@@ -4,4 +4,5 @@ export {
   playGoalCompleteHaptic,
   playReminderPauseHaptic,
   playWaterLogHaptic,
+  playWaterRippleHaptic,
 } from './haptic-service';

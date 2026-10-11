@@ -31,6 +31,8 @@ import {
 } from '../repository/reminder-preferences-storage';
 import { buildReminderScheduleSignature, calculateReminderSchedule } from '../utils/scheduler';
 import { addMinutes, getCurrentTimezone, getEndOfLocalDay } from '../utils/time';
+import { runReminderScheduleOperation } from './reminder-operation-queue';
+import { getReminderGlass } from './reminder-glass';
 import {
   buildPreferencesWithoutPendingSnooze,
   clearPendingSnooze,
@@ -44,8 +46,6 @@ type ScheduledHydrationReconciliationSummary = {
   preservedCount: number;
   requiresRebuild: boolean;
 };
-
-let scheduleOperationQueue: Promise<void> = Promise.resolve();
 
 const firstActivationReminderDefaults = {
   activeModeDefaultsApplied: true,
@@ -108,7 +108,7 @@ export const getReminderStatus = ({
 export const reconcileReminderSchedule = async (
   input: Omit<ReminderScheduleInput, 'now'>,
 ): Promise<ReminderPreferences> => {
-  return runSerializedScheduleOperation(() => reconcileReminderScheduleWithoutLock(input));
+  return runReminderScheduleOperation(() => reconcileReminderScheduleWithoutLock(input));
 };
 
 const reconcileReminderScheduleWithoutLock = async (
@@ -119,11 +119,8 @@ const reconcileReminderScheduleWithoutLock = async (
     timezone: getCurrentTimezone(),
   };
 
-  if (input.totalAmount >= input.goalAmount) {
-    await clearPendingSnooze(preferences);
-  }
-
   const requestedSignature = buildReminderScheduleSignature({
+    glass: getReminderGlass(),
     goalAmount: input.goalAmount,
     preferences,
     totalAmount: input.totalAmount,
@@ -133,6 +130,7 @@ const reconcileReminderScheduleWithoutLock = async (
     timezone: preferences.timezone,
   };
   const latestSignature = buildReminderScheduleSignature({
+    glass: getReminderGlass(),
     goalAmount: input.goalAmount,
     preferences: latestPreferences,
     totalAmount: input.totalAmount,
@@ -144,7 +142,12 @@ const reconcileReminderScheduleWithoutLock = async (
 
   preferences = latestPreferences;
 
+  if (input.totalAmount >= input.goalAmount) {
+    preferences = await clearPendingSnooze(preferences);
+  }
+
   const signature = buildReminderScheduleSignature({
+    glass: getReminderGlass(),
     goalAmount: input.goalAmount,
     preferences,
     totalAmount: input.totalAmount,
@@ -159,6 +162,7 @@ const reconcileReminderScheduleWithoutLock = async (
 
   const schedule = calculateReminderSchedule({
     ...input,
+    glass: getReminderGlass(),
     now: new Date(),
     preferences,
   });
@@ -170,6 +174,7 @@ const reconcileReminderScheduleWithoutLock = async (
     timezone: preferences.timezone,
   };
   const latestAfterSchedulingSignature = buildReminderScheduleSignature({
+    glass: getReminderGlass(),
     goalAmount: input.goalAmount,
     preferences: latestAfterScheduling,
     totalAmount: input.totalAmount,
@@ -185,7 +190,10 @@ const reconcileReminderScheduleWithoutLock = async (
     scheduledNotificationIds,
   });
 
-  setLastReminderScheduleSignature(signature);
+  // A partial OS scheduling failure must remain eligible for a retry.
+  setLastReminderScheduleSignature(
+    scheduledNotificationIds.length === schedule.length ? signature : '',
+  );
   void refreshHydrationWidgets('reminder_changed');
 
   return nextPreferences;
@@ -536,16 +544,4 @@ const getExpectedSnoozeChannelId = (
   preferences: ReminderPreferences,
 ): HydrationReminderChannelId => {
   return getExpectedBaseChannelId(preferences);
-};
-
-const runSerializedScheduleOperation = async <Result>(
-  operation: () => Promise<Result>,
-): Promise<Result> => {
-  const resultPromise = scheduleOperationQueue.then(operation, operation);
-  scheduleOperationQueue = resultPromise.then(
-    () => undefined,
-    () => undefined,
-  );
-
-  return resultPromise;
 };

@@ -7,6 +7,7 @@ import type { MeasurementUnit } from '@modules/settings';
 import { formatMeasurementAmount } from '@modules/settings/utils/settings-options';
 import {
   AppScreen,
+  GlassSurface,
   IconButton,
   PrimaryButton,
   SecondaryButton,
@@ -137,15 +138,19 @@ function StatisticsDashboard({
       </Section>
 
       <Section title="Weekly overview">
-        <WeeklyBarChart
-          goalAmount={goalAmount}
-          measurementUnit={measurementUnit}
-          points={data.weeklyTotals}
-        />
+        <GlassSurface style={styles.chartCard}>
+          <WeeklyBarChart
+            goalAmount={goalAmount}
+            measurementUnit={measurementUnit}
+            points={data.weeklyTotals}
+          />
+        </GlassSurface>
       </Section>
 
       <Section title="Monthly overview">
-        <MonthlyHeatmap points={data.monthlyTotals} />
+        <GlassSurface style={styles.chartCard}>
+          <MonthlyHeatmap points={data.monthlyTotals} />
+        </GlassSurface>
       </Section>
 
       <Section title="Summary insights">
@@ -194,6 +199,9 @@ function formatDayValue(
 }
 
 const styles = StyleSheet.create({
+  chartCard: {
+    padding: 18,
+  },
   cardGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',

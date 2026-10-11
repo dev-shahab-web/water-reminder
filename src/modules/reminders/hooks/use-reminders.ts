@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { AppState } from 'react-native';
 
 import { logger } from '@core/logger';
 import { playErrorHaptic, playReminderPauseHaptic } from '@platform/haptics';
@@ -8,6 +9,8 @@ import {
 } from '@platform/notifications';
 import { trackEvent } from '@platform/telemetry';
 import { getOnboardingState } from '@modules/onboarding/repository/onboarding-storage';
+import { useQuickAddPresets } from '@modules/hydration/hooks/use-quick-add-presets';
+import { getSettingsState, subscribeToSettings } from '@modules/settings/storage/settings-storage';
 
 import type {
   ReminderIntervalMinutes,
@@ -43,10 +46,18 @@ type UseRemindersInput = {
 type BooleanReminderPreferenceName = 'snoozeEnabled' | 'vibrationEnabled';
 
 export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => {
+  const { presets } = useQuickAddPresets();
+  const { measurementUnit } = useSyncExternalStore(
+    subscribeToSettings,
+    getSettingsState,
+    getSettingsState,
+  );
+  const defaultGlassAmount = presets[0]?.amountMl;
   const [preferences, setPreferences] = useState<ReminderPreferences>(() =>
     loadReminderPreferences(),
   );
   const [hasPermission, setHasPermission] = useState(false);
+  const [now, setNow] = useState(() => new Date());
   const [permissionMessage, setPermissionMessage] = useState<string | undefined>();
   const operationIdRef = useRef(0);
   const preferenceVersionRef = useRef(0);
@@ -72,9 +83,19 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
     };
 
     void loadPermission();
+    const clockTimer = setInterval(() => setNow(new Date()), 30_000);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        setNow(new Date());
+        void loadPermission();
+        setPreferences(loadReminderPreferences());
+      }
+    });
 
     return () => {
       isMounted = false;
+      subscription.remove();
+      clearInterval(clockTimer);
     };
   }, []);
 
@@ -177,6 +198,8 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
       isMounted = false;
     };
   }, [
+    defaultGlassAmount,
+    measurementUnit,
     goalAmount,
     hasPermission,
     preferences.activationState,
@@ -185,6 +208,7 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
     preferences.intervalMinutes,
     preferences.mode,
     preferences.pausedUntilIso,
+    preferences.pendingSnoozeTargetIso,
     preferences.sleepTime,
     preferences.snoozeEnabled,
     preferences.sound.type,
@@ -209,21 +233,12 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
     });
   }, [preferences.snoozeEnabled, tracePreferenceUpdate]);
 
-  const status = useMemo(
-    () =>
-      getReminderStatus({
-        goalAmount,
-        hasPermission,
-        preferences,
-        totalAmount,
-      }),
-    [goalAmount, hasPermission, preferences, totalAmount],
-  );
+  const status = getReminderStatus({ goalAmount, hasPermission, preferences, totalAmount });
 
   const preview = useMemo(() => {
     const schedule = calculateReminderSchedule({
       goalAmount,
-      now: new Date(),
+      now,
       preferences,
       totalAmount,
     });
@@ -244,13 +259,21 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
       return 'Reminders are off.';
     }
 
+    const snoozeTarget = new Date(preferences.pendingSnoozeTargetIso ?? '');
+    if (preferences.pendingSnoozeNotificationId && snoozeTarget > now) {
+      return `Snoozed until ${new Intl.DateTimeFormat(undefined, {
+        hour: 'numeric',
+        minute: '2-digit',
+      }).format(snoozeTarget)}.`;
+    }
+
     return schedule[0] === undefined
       ? 'No more reminders in this active window.'
       : `Next reminder around ${new Intl.DateTimeFormat(undefined, {
           hour: 'numeric',
           minute: '2-digit',
         }).format(schedule[0].date)}.`;
-  }, [goalAmount, preferences, status, totalAmount]);
+  }, [goalAmount, now, preferences, status, totalAmount]);
 
   const summary = `${formatReminderTime(preferences.wakeTime)} to ${formatReminderTime(
     preferences.sleepTime,
@@ -285,25 +308,21 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
   }, [goalAmount, preferences, totalAmount]);
 
   const updateInterval = useCallback((intervalMinutes: ReminderIntervalMinutes) => {
-    setPreferences((currentPreferences) =>
-      updateReminderSchedulePreference(currentPreferences, { intervalMinutes }),
+    setPreferences(
+      updateReminderSchedulePreference(loadReminderPreferences(), { intervalMinutes }),
     );
   }, []);
 
   const updateWakeTime = useCallback((wakeTime: string) => {
-    setPreferences((currentPreferences) =>
-      updateReminderSchedulePreference(currentPreferences, { wakeTime }),
-    );
+    setPreferences(updateReminderSchedulePreference(loadReminderPreferences(), { wakeTime }));
   }, []);
 
   const updateSleepTime = useCallback((sleepTime: string) => {
-    setPreferences((currentPreferences) =>
-      updateReminderSchedulePreference(currentPreferences, { sleepTime }),
-    );
+    setPreferences(updateReminderSchedulePreference(loadReminderPreferences(), { sleepTime }));
   }, []);
 
   const updateMode = useCallback((mode: ReminderMode) => {
-    setPreferences((currentPreferences) => updateReminderModePreference(currentPreferences, mode));
+    setPreferences(updateReminderModePreference(loadReminderPreferences(), mode));
   }, []);
 
   const commitBooleanPreferenceUpdate = useCallback(
@@ -324,44 +343,43 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
         requestedValue,
       });
 
-      setPreferences((currentPreferences) => {
-        const previousValue = currentPreferences[name];
+      const currentPreferences = loadReminderPreferences();
+      const previousValue = currentPreferences[name];
 
-        tracePreferenceUpdate('repository_read', {
-          operationId,
-          preference: name,
-          previousValue,
-          requestedValue,
-        });
-
-        if (previousValue === requestedValue) {
-          tracePreferenceUpdate('operation_noop', {
-            operationId,
-            preference: name,
-            value: requestedValue,
-          });
-
-          return currentPreferences;
-        }
-
-        const nextPreferences = updater(currentPreferences, requestedValue);
-        preferenceVersionRef.current += 1;
-
-        tracePreferenceUpdate('repository_write', {
-          committedValue: nextPreferences[name],
-          operationId,
-          preference: name,
-          previousValue,
-          requestedValue,
-        });
-        tracePreferenceUpdate('hook_state_update', {
-          operationId,
-          preference: name,
-          value: nextPreferences[name],
-        });
-
-        return nextPreferences;
+      tracePreferenceUpdate('repository_read', {
+        operationId,
+        preference: name,
+        previousValue,
+        requestedValue,
       });
+
+      if (previousValue === requestedValue) {
+        tracePreferenceUpdate('operation_noop', {
+          operationId,
+          preference: name,
+          value: requestedValue,
+        });
+
+        return currentPreferences;
+      }
+
+      const nextPreferences = updater(currentPreferences, requestedValue);
+      preferenceVersionRef.current += 1;
+
+      tracePreferenceUpdate('repository_write', {
+        committedValue: nextPreferences[name],
+        operationId,
+        preference: name,
+        previousValue,
+        requestedValue,
+      });
+      tracePreferenceUpdate('hook_state_update', {
+        operationId,
+        preference: name,
+        value: nextPreferences[name],
+      });
+
+      setPreferences(nextPreferences);
     },
     [tracePreferenceUpdate],
   );
@@ -413,9 +431,7 @@ export const useReminders = ({ goalAmount, totalAmount }: UseRemindersInput) => 
   }, []);
 
   const updateDefaultSnooze = useCallback((defaultSnoozeMinutes: ReminderSnoozeMinutes) => {
-    setPreferences((currentPreferences) =>
-      updateDefaultSnoozePreference(currentPreferences, defaultSnoozeMinutes),
-    );
+    setPreferences(updateDefaultSnoozePreference(loadReminderPreferences(), defaultSnoozeMinutes));
   }, []);
 
   const pause = useCallback(

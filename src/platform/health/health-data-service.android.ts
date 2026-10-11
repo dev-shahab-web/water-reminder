@@ -1,6 +1,7 @@
 import {
   SdkAvailabilityStatus,
   getGrantedPermissions,
+  deleteRecordsByUuids,
   getSdkStatus,
   initialize,
   insertRecords,
@@ -85,6 +86,14 @@ const ensureInitialized = async (): Promise<boolean> => {
 };
 
 export const healthDataService: HealthDataService = {
+  deleteHydration: async (recordIds, clientRecordIds): Promise<void> => {
+    if (!(await ensureInitialized())) {
+      throw new Error('Health Connect is not available.');
+    }
+    if (recordIds.length > 0 || clientRecordIds.length > 0) {
+      await deleteRecordsByUuids('Hydration', recordIds, clientRecordIds);
+    }
+  },
   getAvailability: async (): Promise<HealthDataAvailability> => {
     let status: Awaited<ReturnType<typeof getSdkStatus>>;
 
@@ -160,28 +169,24 @@ export const healthDataService: HealthDataService = {
     const initialized = await ensureInitialized();
 
     if (!initialized) {
-      return [];
+      throw new Error('Health Connect is not available.');
     }
 
-    let records: Awaited<ReturnType<typeof readRecords<'Hydration'>>>['records'];
-
-    try {
+    const records: Awaited<ReturnType<typeof readRecords<'Hydration'>>>['records'] = [];
+    let pageToken: string | undefined;
+    do {
       const response = await readRecords('Hydration', {
         ascendingOrder: true,
+        pageToken,
         timeRangeFilter: {
           endTime,
           operator: 'between',
           startTime,
         },
       });
-      records = response.records;
-    } catch (error) {
-      if (isNativeModuleUnavailableError(error)) {
-        return [];
-      }
-
-      throw error;
-    }
+      records.push(...response.records);
+      pageToken = response.pageToken || undefined;
+    } while (pageToken !== undefined);
 
     return records
       .filter((record) => record.metadata?.id !== undefined)
@@ -212,7 +217,10 @@ export const healthDataService: HealthDataService = {
   writeHydration: async (records: HydrationWriteRecord[]): Promise<HealthWriteResult> => {
     const initialized = await ensureInitialized();
 
-    if (!initialized || records.length === 0) {
+    if (!initialized) {
+      throw new Error('Health Connect is not available.');
+    }
+    if (records.length === 0) {
       return { recordIds: [] };
     }
 
@@ -220,6 +228,7 @@ export const healthDataService: HealthDataService = {
       endTime: record.endTime,
       metadata: {
         clientRecordId: record.clientRecordId,
+        clientRecordVersion: record.clientRecordVersion ?? 0,
         recordingMethod: 3,
       },
       recordType: 'Hydration',
@@ -230,16 +239,6 @@ export const healthDataService: HealthDataService = {
       },
     }));
 
-    try {
-      return {
-        recordIds: await insertRecords(healthRecords),
-      };
-    } catch (error) {
-      if (isNativeModuleUnavailableError(error)) {
-        return { recordIds: [] };
-      }
-
-      throw error;
-    }
+    return { recordIds: await insertRecords(healthRecords) };
   },
 };

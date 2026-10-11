@@ -1,9 +1,9 @@
+import { useAppReduceMotion } from '@shared/motion/motion-provider';
 import React from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
@@ -110,7 +110,7 @@ export function WeeklyBarChart({ goalAmount, measurementUnit, points }: WeeklyBa
 }
 
 function AnimatedBar({ children, height }: { children: React.ReactNode; height: number }) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useAppReduceMotion();
   const progress = useSharedValue(reduceMotion ? 1 : 0);
 
   React.useEffect(() => {

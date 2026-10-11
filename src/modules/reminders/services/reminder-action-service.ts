@@ -10,11 +10,17 @@ import {
 import { logger } from '@core/logger';
 import { defaultQuickAddAmountMl, loadTodayHydration, logHydration } from '@modules/hydration';
 import { getOnboardingState } from '@modules/onboarding/repository/onboarding-storage';
+import { isValidQuickAddAmount } from '@modules/hydration/utils/quick-add-presets';
 import type { AppDispatch } from '@state/store';
 
-import { markReminderOccurrenceHandled } from '../repository/reminder-action-storage';
+import {
+  hasHandledReminderOccurrence,
+  markReminderOccurrenceHandled,
+} from '../repository/reminder-action-storage';
 import { loadReminderPreferences, reconcileReminderSchedule } from './reminder-engine';
-import { snoozeReminder } from './reminder-snooze-manager';
+import { isReminderSnoozeMinutes, snoozeReminder } from './reminder-snooze-manager';
+
+const snoozeActionsInFlight = new Map<string, Promise<void>>();
 
 export type ReminderActionResult =
   'dismissed' | 'drink_logged' | 'duplicate' | 'ignored' | 'open_home' | 'snoozed';
@@ -44,15 +50,36 @@ export const handleReminderNotificationResponse = async ({
   }
 
   if (response.actionIdentifier === REMINDER_ACTION_SNOOZE) {
+    const snoozeActionId = `snooze:${response.data.occurrenceId ?? response.notificationIdentifier}`;
+    if (hasHandledReminderOccurrence(snoozeActionId)) return 'duplicate';
+    const pendingAction = snoozeActionsInFlight.get(snoozeActionId);
+    if (pendingAction) {
+      await pendingAction;
+      return 'duplicate';
+    }
+    const preferences = loadReminderPreferences();
+    if (!preferences.snoozeEnabled) return 'ignored';
     logger.info('Reminder snooze handler entered.', {
       notificationIdentifier: response.notificationIdentifier,
       source: response.data.source,
     });
-    await snoozeReminder({
-      handledNotificationIdentifier: response.notificationIdentifier,
-      preferences: loadReminderPreferences(),
-    });
-    await dismissPresentedNotification(response.notificationIdentifier);
+    const action = (async () => {
+      await snoozeReminder({
+        handledNotificationIdentifier: response.notificationIdentifier,
+        ...(typeof response.data.snoozeMinutes === 'number' &&
+        isReminderSnoozeMinutes(response.data.snoozeMinutes)
+          ? { durationMinutes: response.data.snoozeMinutes }
+          : {}),
+      });
+      markReminderOccurrenceHandled(snoozeActionId);
+      await dismissPresentedNotification(response.notificationIdentifier);
+    })();
+    snoozeActionsInFlight.set(snoozeActionId, action);
+    try {
+      await action;
+    } finally {
+      snoozeActionsInFlight.delete(snoozeActionId);
+    }
     return 'snoozed';
   }
 
@@ -65,7 +92,11 @@ export const handleReminderNotificationResponse = async ({
 
   await dispatch(
     logHydration({
-      amount: defaultQuickAddAmountMl,
+      // Log the capacity actually shown, even if the default changed afterwards.
+      amount:
+        typeof response.data.amountMl === 'number' && isValidQuickAddAmount(response.data.amountMl)
+          ? response.data.amountMl
+          : defaultQuickAddAmountMl,
       source: 'quick_add',
     }),
   ).unwrap();

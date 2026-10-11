@@ -26,8 +26,6 @@ export const SettingsSection = memo(function SettingsSection({
         style={[
           styles.card,
           {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.app.colors.borderSubtle,
             borderRadius: theme.app.radius.lg,
           },
         ]}

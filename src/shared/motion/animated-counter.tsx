@@ -1,9 +1,9 @@
+import { useAppReduceMotion } from '@shared/motion/motion-provider';
 import { memo, useEffect, useRef } from 'react';
 import { type StyleProp, type TextStyle } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
-  useReducedMotion,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
@@ -19,7 +19,7 @@ export const AnimatedCounter = memo(function AnimatedCounter({
   style,
   value,
 }: AnimatedCounterProps) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useAppReduceMotion();
   const opacity = useSharedValue(1);
   const translateY = useSharedValue(0);
   const previousValue = useRef(value);

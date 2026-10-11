@@ -2,26 +2,31 @@ import { Stack, router, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
+import { Alert } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
 import { handleReminderNotificationResponse } from '@modules/reminders';
+import { HydrationFeedback } from '@modules/hydration/components/hydration-feedback';
 import type { AppTheme } from '@shared/theme';
 import { addNotificationResponseListener } from '@platform/notifications';
 import { trackEventSafely, trackScreen } from '@platform/telemetry';
 import { useAppDispatch } from '@state/store/hooks';
+import { useAppReduceMotion } from '@shared/motion/motion-provider';
 
 export function AppShell() {
   const theme = useTheme<AppTheme>();
   const pathname = usePathname();
   const dispatch = useAppDispatch();
+  const reduceMotion = useAppReduceMotion();
 
   useEffect(() => {
     void SystemUI.setBackgroundColorAsync(theme.app.colors.surfaceBase);
   }, [theme.app.colors.surfaceBase]);
 
   useEffect(() => {
-    const subscription = addNotificationResponseListener((response) => {
-      void handleReminderNotificationResponse({ dispatch, response }).then((result) => {
+    const subscription = addNotificationResponseListener(async (response) => {
+      try {
+        const result = await handleReminderNotificationResponse({ dispatch, response });
         if (
           result === 'ignored' ||
           result === 'dismissed' ||
@@ -38,7 +43,13 @@ export function AppShell() {
             reminderPulse: String(Date.now()),
           },
         });
-      });
+      } catch (error) {
+        Alert.alert(
+          'Reminder action failed',
+          error instanceof Error ? error.message : 'Please try again.',
+        );
+        throw error;
+      }
     });
 
     return () => {
@@ -52,9 +63,10 @@ export function AppShell() {
 
   return (
     <>
+      <HydrationFeedback />
       <Stack
         screenOptions={{
-          animation: 'fade',
+          animation: reduceMotion ? 'none' : 'slide_from_right',
           contentStyle: {
             backgroundColor: theme.app.colors.surfaceBase,
           },

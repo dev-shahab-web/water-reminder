@@ -15,15 +15,12 @@ export function InsightList({ insights }: InsightListProps) {
 
   return (
     <View style={styles.list}>
-      {insights.map((insight, index) => (
+      {insights.map((insight) => (
         <AnimatedCard
           key={`${insight.title}-${insight.detail}`}
-          delay={Math.min(index * 34, 180)}
           style={[
             styles.item,
             {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.app.colors.borderSubtle,
               borderRadius: theme.app.radius.md,
             },
           ]}

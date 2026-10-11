@@ -8,6 +8,7 @@ import {
 } from '@modules/onboarding/repository/onboarding-storage';
 import { useReminders } from '@modules/reminders';
 import { refreshHydrationWidgets } from '@modules/widgets';
+import { queueBestEffortHealthConnectSync } from '@modules/health-connect/services/health-connect-sync-service';
 import { trackEvent } from '@platform/telemetry';
 
 import {
@@ -23,6 +24,7 @@ import {
   getGoalAmountInUnit,
   saveMeasurementUnit,
   saveReduceMotion,
+  saveLogSoundEnabled,
   saveShareAnonymousDiagnostics,
   saveStartOfDay,
   saveThemePreference,
@@ -94,6 +96,10 @@ export const useSettings = () => {
     saveReduceMotion(reduceMotion);
   }, []);
 
+  const updateLogSoundEnabled = useCallback((enabled: boolean) => {
+    saveLogSoundEnabled(enabled);
+  }, []);
+
   const updateShareAnonymousDiagnostics = useCallback(
     async (shareAnonymousDiagnostics: boolean) => {
       await saveShareAnonymousDiagnostics(shareAnonymousDiagnostics);
@@ -140,6 +146,7 @@ export const useSettings = () => {
         await refreshDataSummary();
         await dispatch(loadTodayHydration()).unwrap();
         await refreshHydrationWidgets('database_import');
+        void queueBestEffortHealthConnectSync();
         trackEvent('import_completed', { result: 'success', source: 'app' });
       } finally {
         setIsBusy(false);
@@ -156,6 +163,7 @@ export const useSettings = () => {
       await refreshDataSummary();
       await dispatch(loadTodayHydration()).unwrap();
       await refreshHydrationWidgets('history_reset');
+      void queueBestEffortHealthConnectSync();
     } finally {
       setIsBusy(false);
     }
@@ -169,6 +177,10 @@ export const useSettings = () => {
         didSchedule
           ? 'Test reminder scheduled.'
           : 'Test reminder could not be scheduled right now.',
+      );
+    } catch (error) {
+      setStatusMessage(
+        error instanceof Error ? error.message : 'Test reminder could not be scheduled.',
       );
     } finally {
       setIsBusy(false);
@@ -198,6 +210,7 @@ export const useSettings = () => {
     updateGoalAmount,
     updateMeasurementUnit,
     updateReduceMotion,
+    updateLogSoundEnabled,
     updateShareAnonymousDiagnostics,
     updateStartOfDay,
     updateThemePreference,

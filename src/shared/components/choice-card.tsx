@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, Text, View, type PressableProps } from 'react-native';
+import { StyleSheet, Text, View, type PressableProps } from 'react-native';
 import { useTheme } from 'react-native-paper';
 
 import type { AppTheme } from '@shared/theme';
+import { GlassPressable, GlassSurface } from './glass-surface';
 
 type ChoiceCardProps = PressableProps & {
   description?: string;
@@ -23,8 +24,6 @@ export function ChoiceCard({
   const baseStyle = [
     styles.card,
     {
-      backgroundColor: selected ? theme.colors.primaryContainer : theme.colors.surface,
-      borderColor: selected ? theme.colors.primary : theme.app.colors.borderSubtle,
       borderRadius: theme.app.radius.md,
     },
   ];
@@ -77,14 +76,19 @@ export function ChoiceCard({
 
   if (onPress === undefined) {
     return (
-      <View style={[...baseStyle, typeof style === 'function' ? undefined : style]} {...props}>
+      <GlassSurface
+        selected={selected}
+        style={[...baseStyle, typeof style === 'function' ? undefined : style]}
+        {...props}
+      >
         {content}
-      </View>
+      </GlassSurface>
     );
   }
 
   return (
-    <Pressable
+    <GlassPressable
+      selected={selected}
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
@@ -96,7 +100,7 @@ export function ChoiceCard({
       {...props}
     >
       {content}
-    </Pressable>
+    </GlassPressable>
   );
 }
 

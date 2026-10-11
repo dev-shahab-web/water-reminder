@@ -31,6 +31,16 @@ export const playGoalCompleteHaptic = async (): Promise<void> => {
   });
 };
 
+export const playWaterRippleHaptic = async (): Promise<void> => {
+  await safelyPlayHaptic(async () => {
+    if (Platform.OS === 'android') {
+      await Haptics.performAndroidHapticsAsync(Haptics.AndroidHaptics.Segment_Frequent_Tick);
+      return;
+    }
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
+  });
+};
+
 export const playErrorHaptic = async (): Promise<void> => {
   await safelyPlayHaptic(async () => {
     if (Platform.OS === 'android') {

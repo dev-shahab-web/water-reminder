@@ -1,10 +1,11 @@
+import { useAppReduceMotion } from '@shared/motion/motion-provider';
 import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { Easing, FadeInDown, FadeOutUp, useReducedMotion } from 'react-native-reanimated';
+import { Easing, FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import { useTheme } from 'react-native-paper';
 
 import { IconButton, SectionHeader } from '@shared/components';
-import { EmptyState } from '@shared/motion';
+import { AnimatedCard, EmptyState } from '@shared/motion';
 import type { AppTheme } from '@shared/theme';
 
 import type { HydrationEntry } from '../types';
@@ -22,7 +23,7 @@ export const HydrationTimeline = memo(function HydrationTimeline({
   onEditEntry,
 }: HydrationTimelineProps) {
   const theme = useTheme<AppTheme>();
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useAppReduceMotion();
   const entering = reduceMotion
     ? undefined
     : FadeInDown.duration(180).easing(Easing.out(Easing.cubic));
@@ -51,15 +52,13 @@ export const HydrationTimeline = memo(function HydrationTimeline({
       <SectionHeader subtitle="Recent entries from today." title="Today's timeline" />
       <View style={styles.list}>
         {entries.map((entry) => (
-          <Animated.View
+          <AnimatedCard
             key={entry.id}
             entering={entering}
             exiting={exiting}
             style={[
               styles.item,
               {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.app.colors.borderSubtle,
                 borderRadius: theme.app.radius.md,
               },
             ]}
@@ -106,7 +105,7 @@ export const HydrationTimeline = memo(function HydrationTimeline({
                 }}
               />
             </View>
-          </Animated.View>
+          </AnimatedCard>
         ))}
       </View>
     </View>

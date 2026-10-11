@@ -41,8 +41,6 @@ export const CompactReminderCard = memo(function CompactReminderCard({
       style={[
         styles.card,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.app.colors.borderSubtle,
           borderRadius: theme.app.radius.lg,
         },
       ]}

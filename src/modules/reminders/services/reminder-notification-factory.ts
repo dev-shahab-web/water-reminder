@@ -5,6 +5,7 @@ import {
 } from '@platform/notifications/notification-channels';
 import {
   REMINDER_NOTIFICATION_CATEGORY,
+  REMINDER_NOTIFICATION_CATEGORY_WITHOUT_SNOOZE,
   buildReminderNotificationData,
   type ReminderNotificationData,
 } from '@platform/notifications/notification-actions';
@@ -19,6 +20,8 @@ import {
 export type ReminderNotificationSource = ReminderNotificationData['source'];
 
 export type ReminderNotificationFactoryInput = {
+  glass?: { amountMl: number; amountLabel: string };
+  defaultSnoozeMinutes?: number;
   copyKey: ReminderCopyKey;
   mode: ReminderMode;
   occurrenceId?: string;
@@ -42,6 +45,8 @@ export type ReminderNotificationContent = {
 const activeReminderVibrationPattern = [0, 240, 160, 240] as const;
 
 export const buildReminderNotificationContent = ({
+  defaultSnoozeMinutes = 10,
+  glass = { amountMl: 250, amountLabel: '250 mL' },
   copyKey,
   mode,
   occurrenceId,
@@ -58,13 +63,18 @@ export const buildReminderNotificationContent = ({
 
   return {
     androidChannelId: getReminderChannelId({ mode, sound: effectiveSound }),
-    body: resolveReminderCopy(copyKey),
-    ...(snoozeEnabled ? { categoryIdentifier: REMINDER_NOTIFICATION_CATEGORY } : {}),
+    body: `${resolveReminderCopy(copyKey)} Your ${glass.amountLabel} glass is ready.`,
+    categoryIdentifier: snoozeEnabled
+      ? REMINDER_NOTIFICATION_CATEGORY
+      : REMINDER_NOTIFICATION_CATEGORY_WITHOUT_SNOOZE,
     copyKey,
-    data: buildReminderNotificationData({
-      occurrenceId: sanitizedOccurrenceId,
-      source,
-    }),
+    data: {
+      ...buildReminderNotificationData({ occurrenceId: sanitizedOccurrenceId, source }),
+      ...glass,
+      presentationVersion: 1,
+      snoozeEnabled,
+      snoozeMinutes: defaultSnoozeMinutes,
+    },
     sound: isAudibleReminder ? 'default' : false,
     title: reminderNotificationTitle,
     ...(shouldVibrate ? { vibrate: [...activeReminderVibrationPattern] } : {}),
