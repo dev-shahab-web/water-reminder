@@ -1,7 +1,7 @@
 {
   "name": "water-reminder",
   "main": "expo-router/entry",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
     "@react-native-firebase/analytics": "^25.1.0",
@@ -58,6 +58,10 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
+    "android:release": "node scripts/android-release.cjs",
+    "android:sync-validation": "node scripts/android-sync-validation.cjs",
+    "android:verify-release": "node scripts/verify-android-release.cjs",
+    "test:release": "node --test scripts/verify-android-release.test.cjs",
     "start": "expo start --dev-client",
     "android": "expo run:android",
     "prebuild": "expo prebuild --platform android",

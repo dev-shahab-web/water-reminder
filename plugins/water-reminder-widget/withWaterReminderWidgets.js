@@ -85,6 +85,23 @@ const withWidgetDependencies = (config) =>
 
     let contents = gradleConfig.modResults.contents;
 
+    if (!contents.includes('waterReminderSyncValidation')) {
+      contents = contents.replace(
+        /defaultConfig\s*\{/,
+        `defaultConfig {
+        manifestPlaceholders += [
+            waterReminderAppLabel: "@string/app_name",
+            waterReminderWidgetLabel: "@string/water_reminder_widget_name"
+        ]
+        if (findProperty('waterReminderSyncValidation') == 'true') {
+            applicationIdSuffix ".syncvalidation"
+            versionNameSuffix "-syncvalidation"
+            manifestPlaceholders.waterReminderAppLabel = "Water Reminder Sync Validation"
+            manifestPlaceholders.waterReminderWidgetLabel = "Water Reminder Sync Validation"
+        }`,
+      );
+    }
+
     if (!contents.includes('apply plugin: "org.jetbrains.kotlin.plugin.compose"')) {
       contents = contents.replace(
         'apply plugin: "org.jetbrains.kotlin.android"',
@@ -112,6 +129,7 @@ const withWidgetDependencies = (config) =>
 const withWidgetReceiver = (config) =>
   withAndroidManifest(config, (manifestConfig) => {
     const application = AndroidConfig.Manifest.getMainApplicationOrThrow(manifestConfig.modResults);
+    application.$['android:label'] = '${waterReminderAppLabel}';
     const receivers = application.receiver ?? [];
     const hasReceiver = receivers.some(
       (receiver) => receiver.$?.['android:name'] === widgetReceiverName,
@@ -121,7 +139,7 @@ const withWidgetReceiver = (config) =>
       receivers.push({
         $: {
           'android:exported': 'true',
-          'android:label': '@string/water_reminder_widget_name',
+          'android:label': '${waterReminderWidgetLabel}',
           'android:name': widgetReceiverName,
         },
         'intent-filter': [
@@ -146,6 +164,11 @@ const withWidgetReceiver = (config) =>
       });
     }
 
+    for (const receiver of receivers) {
+      if (receiver.$?.['android:name'] === widgetReceiverName) {
+        receiver.$['android:label'] = '${waterReminderWidgetLabel}';
+      }
+    }
     application.receiver = receivers;
     return manifestConfig;
   });

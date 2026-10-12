@@ -3,6 +3,7 @@
 package __PACKAGE__.widgets
 
 import android.database.MatrixCursor
+import android.util.Log
 import expo.modules.sqlite.NativeDatabaseBinding
 import expo.modules.sqlite.NativeStatementBinding
 import java.io.Closeable
@@ -89,6 +90,10 @@ internal class WidgetDatabase private constructor(
   }
 
   companion object {
+    init {
+      Log.i("WaterReminderWidget", "WIDGET_STORAGE_ENGINE=expo_shared_v1")
+    }
+
     fun open(path: String): WidgetDatabase {
       val database = WidgetDatabase(NativeDatabaseBinding())
       try {
