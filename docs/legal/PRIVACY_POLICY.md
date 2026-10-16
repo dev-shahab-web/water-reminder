@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Effective date: July 14, 2026
+Effective date: October 16, 2026
 
 ## Summary
 
@@ -20,6 +20,16 @@ Water Reminder stores these categories on the device:
 - Local export/import content when the user chooses those actions.
 
 The user controls local retention through export, import, reset, and delete controls in Settings. Deleting app data through Android settings may also remove local app data.
+
+## Optional Plus Purchases
+
+Google Play processes optional Plus purchases. The app receives product IDs,
+purchase state, signatures and purchase tokens to verify and acknowledge purchases
+through Google Play Billing. The app does not receive payment-card details. A local
+cache stores verified product IDs and an access validity window for offline use.
+Purchase tokens, signatures and hydration data are not sent to app analytics or a
+developer billing backend. A Google Play account and internet access are required
+for purchases and restoration; core hydration tracking remains offline and free.
 
 ## Health Connect
 

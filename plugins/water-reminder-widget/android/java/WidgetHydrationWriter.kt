@@ -2,6 +2,7 @@ package __PACKAGE__.widgets
 
 import android.content.Context
 import android.util.Log
+import __PACKAGE__.premium.PremiumAccessStore
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -23,6 +24,7 @@ object WidgetHydrationWriter {
 
   @Synchronized
   fun addWater(context: Context, amountMl: Int, actionId: String): Boolean {
+    if (!PremiumAccessStore.isActive(context)) return false
     if (amountMl !in 1..5000) return false
     return try {
       val database = openDatabase(context) ?: return false

@@ -61,6 +61,8 @@ describe('telemetry sanitizer', () => {
     expect(sanitizeScreenName('/onboarding/goal')).toBe('onboarding');
     expect(sanitizeScreenName('/history/2026-07-14')).toBe('history');
     expect(sanitizeScreenName('/quick-add-presets')).toBe('quick-add-presets');
+    expect(sanitizeScreenName('/paywall')).toBe('paywall');
+    expect(sanitizeScreenName('/premium-settings')).toBe('premium-settings');
     expect(() => sanitizeScreenName('/entry/abc')).toThrow('Unsafe screen route');
   });
 

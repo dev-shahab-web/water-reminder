@@ -1,8 +1,9 @@
 package __PACKAGE__.widgets
 
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.content.res.Configuration
-import android.content.ComponentName
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -19,7 +20,7 @@ import androidx.glance.ImageProvider
 import androidx.glance.LocalSize
 import androidx.glance.currentState
 import androidx.glance.action.actionParametersOf
-import androidx.glance.action.actionStartActivity
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.SizeMode
@@ -49,6 +50,7 @@ import androidx.glance.state.GlanceStateDefinition
 import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.unit.ColorProvider
 import __PACKAGE__.MainActivity
+import __PACKAGE__.premium.PremiumAccessStore
 import __PACKAGE__.R
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -122,12 +124,18 @@ private fun WidgetContent(context: Context, state: WidgetState?) {
   Column(
     modifier = GlanceModifier.fillMaxSize().appWidgetBackground()
       .background(colors.background).cornerRadius(24.dp)
-      .clickable(actionStartActivity(openHomeIntent(context)))
+      .clickable(actionStartActivity(if (PremiumAccessStore.isActive(context)) Intent(context, MainActivity::class.java) else Intent(context, MainActivity::class.java).setAction(Intent.ACTION_VIEW).setData(Uri.parse("waterreminder://paywall"))))
       .padding(if (expanded) 16.dp else 10.dp),
     verticalAlignment = Alignment.Vertical.CenterVertically
   ) {
     if (state == null || !state.onboardingCompleted || state.goalMl <= 0) {
       FallbackContent(colors, short)
+      return@Column
+    }
+    if (!PremiumAccessStore.isActive(context)) {
+      Text("Water Reminder Plus", style = TextStyle(color = colors.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold))
+      Spacer(GlanceModifier.height(6.dp))
+      Text("Unlock home screen widgets", style = TextStyle(color = colors.textSecondary, fontSize = 12.sp))
       return@Column
     }
     if (short) {
@@ -307,8 +315,6 @@ private fun requireGlanceContainerChildren(name: String, childCount: Int) {
     "$name has $childCount direct children; Glance containers support at most $GLANCE_MAX_CONTAINER_CHILDREN."
   }
 }
-
-private fun openHomeIntent(context: Context): ComponentName = ComponentName(context, MainActivity::class.java)
 
 private fun formatAmount(amountMl: Int, unit: String): String {
   if (unit == "oz") {

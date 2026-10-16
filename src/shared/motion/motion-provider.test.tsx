@@ -10,7 +10,9 @@ function MotionState() {
   return <Text>{useAppReduceMotion() ? 'Quiet' : 'Animated'}</Text>;
 }
 
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 describe('shared motion preferences', () => {
   it('updates consumers immediately when the app preference changes', async () => {
@@ -40,8 +42,8 @@ describe('shared motion preferences', () => {
     const remove = jest.fn();
     jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
     jest.spyOn(AccessibilityInfo, 'addEventListener').mockImplementation((_event, listener) => {
-      notify = listener as (enabled: boolean) => void;
-      return { remove };
+      notify = listener as unknown as (enabled: boolean) => void;
+      return { remove } as unknown as ReturnType<typeof AccessibilityInfo.addEventListener>;
     });
     const view = render(
       <MotionProvider reduceMotion={false}>

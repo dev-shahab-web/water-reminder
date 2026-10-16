@@ -48,6 +48,8 @@ export type TelemetryParameters = Partial<{
 
 export const telemetryScreens = [
   'home',
+  'paywall',
+  'premium-settings',
   'onboarding',
   'history',
   'quick-add-presets',

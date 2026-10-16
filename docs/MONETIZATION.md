@@ -1,5 +1,15 @@
 # Monetization
 
+## Current Implementation — October 16, 2026
+
+Water Reminder Plus now has monthly, yearly and one-time plans using direct Google
+Play Billing. Widgets, premium themes and Android launcher icons are premium;
+Wear OS is explicitly marked coming soon. Core hydration tracking and Health
+Connect remain free. See [Premium setup](./PREMIUM.md) for the central config,
+localized pricing, Play Console setup, purchase validation and release checks.
+
+The sections below retain the original pre-launch planning and pricing hypotheses.
+
 ## Monetization Position
 
 Water Reminder should launch with a trustworthy free experience. Monetization should enhance personalization and convenience without blocking the core hydration habit.

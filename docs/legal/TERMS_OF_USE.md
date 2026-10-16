@@ -1,6 +1,6 @@
 # Terms Of Use
 
-Effective date: July 14, 2026
+Effective date: October 16, 2026
 
 ## General Wellness Use
 
@@ -21,6 +21,21 @@ Reminders are intended as gentle prompts. Android, device manufacturers, battery
 Health Connect is optional and Android-only. Availability, permissions, data accuracy, and sync behavior depend on Android Health Connect, user permissions, and other apps that may read or write hydration records.
 
 Water Reminder requests hydration read/write access only. Imported hydration may come from other apps. Water Reminder uses duplicate-prevention metadata, but users should still review imported data if accuracy matters to them.
+
+## Water Reminder Plus Purchases
+
+Plus offers monthly and yearly auto-renewing subscriptions and a one-time,
+non-consumable unlock. The paywall and Google Play checkout display the applicable
+local currency, total charge and billing period. Subscriptions renew until canceled
+through Google Play. A one-time purchase has no recurring charge. Refund requests
+are handled under Google Play's applicable policies and local consumer law.
+
+Widgets, premium themes and Android app icons require verified Plus access. Core
+hydration tracking remains free. Wear OS support is coming soon and is not included
+as an available feature in this release. Purchase restoration uses the Google Play
+account that owns the purchase. Internet access is required to verify ownership;
+previously verified access can be used offline for up to 24 hours in the default
+configuration. Refunds, expiration or revocation can remove premium access.
 
 ## Local Data And Backups
 

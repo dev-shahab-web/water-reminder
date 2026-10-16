@@ -1,10 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit';
 
 import { hydrationReducer } from '@modules/hydration';
+import { premiumReducer } from '@modules/premium/state/premium-slice';
 
 export const store = configureStore({
   reducer: {
     hydration: hydrationReducer,
+    premium: premiumReducer,
   },
 });
 

@@ -6,6 +6,7 @@ import { useTheme } from 'react-native-paper';
 
 import { appConfig, releaseLinks } from '@core/config';
 import { HealthConnectCard } from '@modules/health-connect';
+import { PremiumBanner } from '@modules/premium/components/premium-banner';
 import { trackEvent } from '@platform/telemetry';
 import {
   AppScreen,
@@ -272,6 +273,8 @@ export function SettingsScreen() {
         </Text>
       )}
 
+      <PremiumBanner />
+
       <SettingsSection subtitle="Daily hydration stays personal and local." title="General">
         <View style={styles.goalEditor}>
           <SettingsRow
@@ -353,6 +356,13 @@ export function SettingsScreen() {
             value={settings.themePreference}
           />
         </SettingsRow>
+        <SettingsRow
+          icon="palette-outline"
+          label="Premium themes & icons"
+          supportingText="Make Water Reminder feel like you."
+          onPress={() => router.push('/premium-settings')}
+          value="Explore"
+        />
         <SettingsRow
           icon="pause-circle-outline"
           label="Reduce motion"

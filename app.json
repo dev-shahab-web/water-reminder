@@ -57,6 +57,7 @@
       "@react-native-firebase/crashlytics",
       "./plugins/water-reminder-widget/withWaterReminderWidgets",
       "./plugins/water-reminder-notifications/withWaterReminderNotifications",
+      "./plugins/water-reminder-premium/withWaterReminderPremium",
       [
         "expo-build-properties",
         {

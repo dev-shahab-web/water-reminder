@@ -7,6 +7,9 @@ import { Provider as ReduxProvider } from 'react-redux';
 
 import { getSettingsState, subscribeToSettings } from '@modules/settings/storage/settings-storage';
 import { WidgetLiveSync } from '@modules/widgets';
+import { PremiumRuntime } from '@modules/premium/components/premium-runtime';
+import { useAppSelector } from '@state/store/hooks';
+import { applyPremiumTheme } from '@shared/theme/premium-themes';
 import { queryClient } from '@query/client';
 import {
   appDarkTheme,
@@ -19,6 +22,14 @@ import { store } from '@state/store';
 import { MotionProvider } from '@shared/motion/motion-provider';
 
 export function AppProviders({ children }: PropsWithChildren) {
+  return (
+    <ReduxProvider store={store}>
+      <ThemedProviders>{children}</ThemedProviders>
+    </ReduxProvider>
+  );
+}
+
+function ThemedProviders({ children }: PropsWithChildren) {
   const colorScheme = useColorScheme();
   const settings = useSyncExternalStore(subscribeToSettings, getSettingsState, getSettingsState);
   const isDark =
@@ -26,7 +37,12 @@ export function AppProviders({ children }: PropsWithChildren) {
       ? colorScheme === 'dark'
       : settings.themePreference === 'dark';
 
-  const paperTheme = useMemo(() => (isDark ? appDarkTheme : appLightTheme), [isDark]);
+  const { access, preferences } = useAppSelector((state) => state.premium);
+  const premiumTheme = access.active ? preferences.theme : 'default';
+  const paperTheme = useMemo(
+    () => applyPremiumTheme(isDark ? appDarkTheme : appLightTheme, premiumTheme),
+    [isDark, premiumTheme],
+  );
   const navigationTheme = useMemo(
     () => (isDark ? navigationDarkTheme : navigationLightTheme),
     [isDark],
@@ -39,7 +55,8 @@ export function AppProviders({ children }: PropsWithChildren) {
   );
 
   return (
-    <ReduxProvider store={store}>
+    <>
+      <PremiumRuntime />
       <WidgetLiveSync />
       <QueryClientProvider client={queryClient}>
         <PaperProvider settings={paperSettings} theme={paperTheme}>
@@ -48,6 +65,6 @@ export function AppProviders({ children }: PropsWithChildren) {
           </MotionProvider>
         </PaperProvider>
       </QueryClientProvider>
-    </ReduxProvider>
+    </>
   );
 }

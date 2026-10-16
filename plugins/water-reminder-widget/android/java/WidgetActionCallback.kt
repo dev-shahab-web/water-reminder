@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import android.widget.Toast
+import __PACKAGE__.premium.PremiumAccessStore
 import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
@@ -29,6 +30,13 @@ class WidgetQuickAddAction : ActionCallback {
     glanceId: GlanceId,
     parameters: ActionParameters
   ) {
+    if (!PremiumAccessStore.isActive(context)) {
+      WaterReminderWidget.syncStateAndUpdate(context, "premium_required")
+      withContext(Dispatchers.Main) {
+        Toast.makeText(context, "Open Water Reminder to unlock Plus widgets.", Toast.LENGTH_SHORT).show()
+      }
+      return
+    }
     val amountMl = parameters[WidgetActionKeys.amount] ?: return
     val nonce = parameters[WidgetActionKeys.actionNonce] ?: UUID.randomUUID().toString()
     val actionId = "quick_add_${amountMl}_${nonce}_${System.currentTimeMillis()}_${UUID.randomUUID()}"
