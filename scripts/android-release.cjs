@@ -1,6 +1,8 @@
 /* global __dirname */
 const { spawnSync } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
+const { load } = require('@expo/env');
 const {
   verifyGeneratedSources,
   verifyArtifact,
@@ -9,6 +11,15 @@ const {
 
 const root = path.resolve(__dirname, '..');
 try {
+  load(root);
+  if (fs.existsSync(path.join(root, '.env'))) {
+    fs.copyFileSync(path.join(root, '.env'), path.join(root, 'android/.env'));
+  }
+  const cachedBundle = path.join(root, 'android/app/build/generated/assets/react/release');
+  if (fs.existsSync(cachedBundle)) {
+    fs.rmSync(cachedBundle, { recursive: true, force: true });
+  }
+
   // The ignored android directory is not the source of truth. Fail before
   // building if Expo's source-controlled templates were not regenerated.
   const config = verifyGeneratedSources();
@@ -23,7 +34,7 @@ try {
       '-Pandroid.enableMinifyInReleaseBuilds=true',
       '-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=768m',
     ],
-    { cwd: path.join(root, 'android'), stdio: 'inherit' },
+    { cwd: path.join(root, 'android'), stdio: 'inherit', env: process.env },
   );
   if (result.error) throw result.error;
   if (result.status !== 0)
