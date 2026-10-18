@@ -4,10 +4,10 @@ import {
   type RefreshControlProps,
   StyleSheet,
   type StyleProp,
-  Text,
   View,
   type ViewStyle,
 } from 'react-native';
+import { Text } from '@shared/components/themed-text';
 import { useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 

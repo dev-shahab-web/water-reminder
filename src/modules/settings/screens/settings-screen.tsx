@@ -1,12 +1,15 @@
 import { GlassSurface } from '@shared/components/glass-surface';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Linking, Modal, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Linking, Modal, StyleSheet, Switch, View } from 'react-native';
+import { Text, TextInput } from '@shared/components/themed-text';
 import { useTheme } from 'react-native-paper';
 
 import { appConfig, releaseLinks } from '@core/config';
 import { HealthConnectCard } from '@modules/health-connect';
 import { PremiumBanner } from '@modules/premium/components/premium-banner';
+import { PremiumPromotionSettings } from '@modules/premium/components/premium-promotion-settings';
+import { EngagementSettings } from '@modules/app-engagement/components/engagement-settings';
 import { trackEvent } from '@platform/telemetry';
 import {
   AppScreen,
@@ -201,10 +204,7 @@ export function SettingsScreen() {
 
   const openRateApp = () => {
     trackEvent('rate_app_opened', { source: 'app' });
-    void openUrl(
-      releaseLinks.playStoreUrl,
-      'Search for Water Reminder in Google Play to rate the app.',
-    );
+    router.push('/feedback');
   };
 
   const openGitHub = () => {
@@ -434,6 +434,8 @@ export function SettingsScreen() {
             void sendTestNotification();
           }}
         />
+        <PremiumPromotionSettings />
+        <EngagementSettings />
       </SettingsSection>
 
       <View style={styles.sectionGroup}>
@@ -489,6 +491,13 @@ export function SettingsScreen() {
       >
         <SettingsRow icon="cellphone" label="Application version" value={appInformation.version} />
         <SettingsRow icon="hammer-wrench" label="Build number" value={appInformation.buildNumber} />
+        <SettingsRow
+          icon="cellphone-arrow-down"
+          label="App updates"
+          supportingText="Check for a new version on Google Play."
+          onPress={() => router.push('/updates')}
+          value="Check"
+        />
         <SettingsRow
           icon="shield-lock-outline"
           label="Privacy Policy"

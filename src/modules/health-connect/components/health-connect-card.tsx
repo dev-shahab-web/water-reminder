@@ -1,6 +1,7 @@
 import { GlassSurface } from '@shared/components/glass-surface';
 import { memo } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
+import { Text } from '@shared/components/themed-text';
 import { useTheme } from 'react-native-paper';
 
 import { PrimaryButton, SecondaryButton, SectionHeader } from '@shared/components';

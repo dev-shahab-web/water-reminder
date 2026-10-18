@@ -14,14 +14,25 @@ import {
 } from './tokens';
 
 type NavigationTheme = typeof DefaultTheme;
+export type ThemeTypography = Omit<typeof typography, 'fontFamily'> & {
+  fontFamily: { body: string; display: string; label: string; regular: string };
+};
+export type ThemePresentation = {
+  id: string;
+  iconStyle: 'original' | 'outline' | 'filled' | 'material';
+  surfaceStyle: 'glass' | 'tonal';
+  fontsReady: boolean;
+  backdrop: { first: string; second: string; highlight: string };
+};
 
 export type AppTheme = MD3Theme & {
   app: {
     colors: AppSemanticColors;
     elevation: typeof elevation;
-    radius: typeof radius;
+    radius: { [Key in keyof typeof radius]: number };
     spacing: typeof spacing;
-    typography: typeof typography;
+    typography: ThemeTypography;
+    presentation: ThemePresentation;
   };
 };
 
@@ -37,6 +48,13 @@ export const appLightTheme: AppTheme = {
   app: {
     ...appTokens,
     colors: lightSemanticColors,
+    presentation: {
+      id: 'default',
+      iconStyle: 'original',
+      surfaceStyle: 'glass',
+      fontsReady: false,
+      backdrop: { first: '#BDDFE4', second: '#CCD5EC', highlight: '#FFFFFF' },
+    },
   },
   colors: {
     ...MD3LightTheme.colors,
@@ -72,6 +90,13 @@ export const appDarkTheme: AppTheme = {
   app: {
     ...appTokens,
     colors: darkSemanticColors,
+    presentation: {
+      id: 'default',
+      iconStyle: 'original',
+      surfaceStyle: 'glass',
+      fontsReady: false,
+      backdrop: { first: '#245560', second: '#2D365B', highlight: '#566375' },
+    },
   },
   colors: {
     ...MD3DarkTheme.colors,

@@ -12,6 +12,21 @@ const product = (id: PremiumProduct['id'], price: number, currency = 'USD'): Pre
 });
 
 describe('paywall pricing', () => {
+  it('uses Play-confirmed trials with the full localized renewal amount', () => {
+    for (const id of ['monthly', 'yearly'] as const) {
+      const local = { ...product(id, 199, 'INR'), freeTrialDays: 7 };
+      const copy = getBillingDisclosure(id, [local]);
+      expect(copy).toContain(
+        `7 days free, then INR 199.00 per ${id === 'monthly' ? 'month' : 'year'}`,
+      );
+      expect(copy).toContain('Cancel in Google Play before the trial ends');
+    }
+  });
+
+  it('does not invent a trial from configuration or an ineligible base plan', () => {
+    expect(getBillingDisclosure('monthly', [])).not.toContain('days free');
+    expect(getBillingDisclosure('yearly', [product('yearly', 12.99)])).not.toContain('days free');
+  });
   it('uses the exact localized Google Play price instead of the USD preview', () => {
     const local = { ...product('monthly', 199, 'INR'), formattedPrice: '₹199.00' };
     expect(getPlanPrice('monthly', [local])).toEqual(local);

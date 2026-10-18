@@ -6,6 +6,8 @@ export type PremiumProduct = {
   price: number;
   formattedPrice: string;
   currency: string;
+  // Only present when Play returns the configured, eligible free-trial offer.
+  freeTrialDays?: number;
 };
 
 export type PremiumAccess = {
@@ -20,5 +22,5 @@ export type PremiumCatalog = {
   pending: boolean;
 };
 
-export type PremiumThemeId = 'default' | 'jade' | 'violet' | 'rose';
-export type PremiumIconId = 'default' | 'midnight' | 'jade' | 'rose';
+export type { PremiumThemeId } from '@shared/theme/premium-themes';
+export type PremiumIconId = 'default' | 'midnight' | 'jade' | 'rose' | 'violet' | 'expressive';

@@ -1,6 +1,7 @@
 import * as SplashScreen from 'expo-splash-screen';
 import { type PropsWithChildren, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { Text } from '@shared/components/themed-text';
 import { useTheme } from 'react-native-paper';
 
 import { appConfig } from '@core/config';

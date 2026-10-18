@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '@shared/components/themed-text';
 import { useTheme } from 'react-native-paper';
 
 import { GlassPressable } from '@shared/components/glass-surface';

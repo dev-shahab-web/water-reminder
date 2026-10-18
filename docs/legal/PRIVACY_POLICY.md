@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Effective date: October 16, 2026
+Effective date: October 17, 2026
 
 ## Summary
 
@@ -15,6 +15,7 @@ Water Reminder stores these categories on the device:
 - Hydration entries in SQLite.
 - Daily goal, measurement unit, theme, accessibility, onboarding, and reminder preferences in local preferences/MMKV.
 - Notification scheduling identifiers for local reminders.
+- Review reminder choices, reminder timestamps, review confirmation, and update notification/version preferences. The app reads Android's installation timestamp to time review reminders.
 - Widget snapshot data so the Android home-screen widget can show current local progress.
 - Optional Health Connect sync metadata used for duplicate prevention and sync status.
 - Local export/import content when the user chooses those actions.
@@ -22,6 +23,12 @@ Water Reminder stores these categories on the device:
 The user controls local retention through export, import, reset, and delete controls in Settings. Deleting app data through Android settings may also remove local app data.
 
 ## Optional Plus Purchases
+
+Daily Plus tips and offers are optional and off by default. The opt-in is stored
+locally. These notifications are scheduled on the device and do not send hydration
+records to a marketing service. Website links include static campaign parameters
+identifying the app and entry screen, without purchase or hydration identifiers.
+Visiting Lumarc Studio uses your browser and is subject to the website's privacy policy.
 
 Google Play processes optional Plus purchases. The app receives product IDs,
 purchase state, signatures and purchase tokens to verify and acknowledge purchases
@@ -50,6 +57,13 @@ Users can disconnect Health Connect in Settings or change permissions in Android
 Notifications are local reminders scheduled on the device. Reminder times and schedules are not included in telemetry.
 
 The Android widget reads local app data and can write hydration entries locally when the user taps a widget action. Widget hydration values are not included in telemetry.
+
+Review reminders and update notifications can be disabled separately in Settings.
+The app checks Google Play for updates on foreground entry and periodically in the
+background. Google Play manages update eligibility, downloads, and installation;
+these checks do not send hydration records to Google Play or a developer backend.
+Choosing to review opens the Play listing. Google Play does not tell the app whether
+a review was submitted; the app only stores the user's own confirmation locally.
 
 ## Optional Anonymous Diagnostics
 

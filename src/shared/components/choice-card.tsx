@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View, type PressableProps } from 'react-native';
+import { StyleSheet, View, type PressableProps } from 'react-native';
+import { Text } from '@shared/components/themed-text';
 import { useTheme } from 'react-native-paper';
 
 import type { AppTheme } from '@shared/theme';

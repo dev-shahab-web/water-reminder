@@ -1,5 +1,4 @@
 import { I18nManager, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useTheme } from 'react-native-paper';
 
 import { AnimatedPressableScale } from '@shared/motion';
@@ -7,6 +6,7 @@ import type { AppTheme } from '@shared/theme';
 import {
   type MaterialCommunityIconName,
   resolveMaterialCommunityIconName,
+  PaperMaterialCommunityIcon,
 } from './material-community-icon';
 
 type IconButtonProps = {
@@ -53,18 +53,13 @@ export function IconButton({
       style={({ pressed }) => [
         styles.button,
         {
-          borderRadius: 24,
+          borderRadius: theme.app.radius.md,
           opacity: disabled ? 0.5 : pressed ? 0.72 : 1,
         },
         style,
       ]}
     >
-      <MaterialCommunityIcons
-        color={iconColor}
-        name={resolveIconName(icon)}
-        pointerEvents="none"
-        size={size}
-      />
+      <PaperMaterialCommunityIcon color={iconColor} name={resolveIconName(icon)} size={size} />
     </AnimatedPressableScale>
   );
 }

@@ -8,10 +8,16 @@ import { useTheme } from 'react-native-paper';
 import { handleReminderNotificationResponse } from '@modules/reminders';
 import { HydrationFeedback } from '@modules/hydration/components/hydration-feedback';
 import type { AppTheme } from '@shared/theme';
-import { addNotificationResponseListener } from '@platform/notifications';
+import {
+  addNotificationResponseListener,
+  isDefaultNotificationAction,
+} from '@platform/notifications';
 import { trackEventSafely, trackScreen } from '@platform/telemetry';
 import { useAppDispatch } from '@state/store/hooks';
 import { useAppReduceMotion } from '@shared/motion/motion-provider';
+import { isPremiumNotification } from '@platform/notifications/premium-notification';
+import { hasPremiumAccess } from '@modules/premium/services/premium-service';
+import { EngagementRuntime } from '@modules/app-engagement/components/engagement-runtime';
 
 export function AppShell() {
   const theme = useTheme<AppTheme>();
@@ -26,6 +32,11 @@ export function AppShell() {
   useEffect(() => {
     const subscription = addNotificationResponseListener(async (response) => {
       try {
+        if (isPremiumNotification(response.data)) {
+          if (isDefaultNotificationAction(response.actionIdentifier))
+            router.push(hasPremiumAccess() ? '/premium-settings' : '/paywall');
+          return;
+        }
         const result = await handleReminderNotificationResponse({ dispatch, response });
         if (
           result === 'ignored' ||
@@ -64,6 +75,7 @@ export function AppShell() {
   return (
     <>
       <HydrationFeedback />
+      <EngagementRuntime />
       <Stack
         screenOptions={{
           animation: reduceMotion ? 'none' : 'slide_from_right',

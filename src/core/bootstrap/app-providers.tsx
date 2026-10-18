@@ -1,15 +1,19 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'expo-router';
-import { type PropsWithChildren, useMemo, useSyncExternalStore } from 'react';
+import { type PropsWithChildren, useEffect, useMemo, useSyncExternalStore } from 'react';
+import { useFonts } from 'expo-font';
 import { useColorScheme } from 'react-native';
 import { PaperProvider } from 'react-native-paper';
 import { Provider as ReduxProvider } from 'react-redux';
 
 import { getSettingsState, subscribeToSettings } from '@modules/settings/storage/settings-storage';
 import { WidgetLiveSync } from '@modules/widgets';
+import { usePremiumAccess } from '@modules/premium/hooks/use-premium-access';
 import { PremiumRuntime } from '@modules/premium/components/premium-runtime';
 import { useAppSelector } from '@state/store/hooks';
 import { applyPremiumTheme } from '@shared/theme/premium-themes';
+import { themeFontAssets } from '@shared/theme/theme-fonts';
+import { logger } from '@core/logger';
 import { queryClient } from '@query/client';
 import {
   appDarkTheme,
@@ -30,6 +34,10 @@ export function AppProviders({ children }: PropsWithChildren) {
 }
 
 function ThemedProviders({ children }: PropsWithChildren) {
+  const [fontsReady, fontError] = useFonts(themeFontAssets);
+  useEffect(() => {
+    if (fontError) logger.warn('Theme fonts unavailable; using system typography.');
+  }, [fontError]);
   const colorScheme = useColorScheme();
   const settings = useSyncExternalStore(subscribeToSettings, getSettingsState, getSettingsState);
   const isDark =
@@ -37,15 +45,27 @@ function ThemedProviders({ children }: PropsWithChildren) {
       ? colorScheme === 'dark'
       : settings.themePreference === 'dark';
 
-  const { access, preferences } = useAppSelector((state) => state.premium);
-  const premiumTheme = access.active ? preferences.theme : 'default';
+  const { preferences } = useAppSelector((state) => state.premium);
+  const active = usePremiumAccess();
+  const premiumTheme = active ? preferences.theme : 'default';
   const paperTheme = useMemo(
-    () => applyPremiumTheme(isDark ? appDarkTheme : appLightTheme, premiumTheme),
-    [isDark, premiumTheme],
+    () => applyPremiumTheme(isDark ? appDarkTheme : appLightTheme, premiumTheme, fontsReady),
+    [isDark, premiumTheme, fontsReady],
   );
   const navigationTheme = useMemo(
-    () => (isDark ? navigationDarkTheme : navigationLightTheme),
-    [isDark],
+    () => ({
+      ...(isDark ? navigationDarkTheme : navigationLightTheme),
+      colors: {
+        ...(isDark ? navigationDarkTheme : navigationLightTheme).colors,
+        background: paperTheme.colors.background,
+        card: paperTheme.colors.surface,
+        primary: paperTheme.colors.primary,
+        text: paperTheme.colors.onSurface,
+        border: paperTheme.app.colors.borderSubtle,
+        notification: paperTheme.colors.error,
+      },
+    }),
+    [isDark, paperTheme],
   );
   const paperSettings = useMemo(
     () => ({

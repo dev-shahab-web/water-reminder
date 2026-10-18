@@ -9,7 +9,7 @@ export const formatPrice = (amount: number, currency: string) => {
   }
 };
 
-export const getPlanPrice = (id: PremiumPlanId, products: PremiumProduct[]) => {
+export const getPlanPrice = (id: PremiumPlanId, products: PremiumProduct[]): PremiumProduct => {
   const plan = premiumConfig.plans.find((item) => item.id === id)!;
   const product = products.find((item) => item.id === id);
   return (
@@ -35,7 +35,9 @@ export const getAnnualSaving = (products: PremiumProduct[]) => {
 };
 
 export const getBillingDisclosure = (id: PremiumPlanId, products: PremiumProduct[]) => {
-  const { formattedPrice } = getPlanPrice(id, products);
+  const { formattedPrice, freeTrialDays } = getPlanPrice(id, products);
   if (id === 'lifetime') return `${formattedPrice} once. No subscription or recurring payments.`;
+  if (freeTrialDays && freeTrialDays > 0)
+    return `${freeTrialDays} days free, then ${formattedPrice} ${id === 'monthly' ? 'per month' : 'per year'}. Renews automatically. Cancel in Google Play before the trial ends to avoid being charged.`;
   return `${formattedPrice} ${id === 'monthly' ? 'per month' : 'per year'}. Renews automatically until canceled. Cancel anytime in Google Play.`;
 };

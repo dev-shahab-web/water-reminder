@@ -27,12 +27,16 @@ Changing a preview amount in this file does not change the amount Play charges.
 Changing a Play price does not require an app update; the catalog refreshes when
 the app resumes and when the paywall opens.
 
-Only ordinary, auto-renewing monthly/yearly base plans are offered. Trial and
-introductory offers are deliberately excluded so the shown amount is the full
-recurring price. Annual savings are calculated from compatible prices, never
+Monthly and yearly support a configured **7-day free trial**. The native bridge
+uses only the matching eligible Play offer: one free phase followed directly by
+the full recurring price. If that offer is missing, ineligible or has different
+terms, the regular base plan is used without a trial claim. Other introductory
+pricing phases are not supported. Annual savings compare full recurring prices, never
 across currencies or a mixture of store and preview prices. Missing products
 cannot be purchased. A missing key or unavailable store leaves the screen in a
 clearly labeled preview/unavailable state, with no local unlock button.
+
+For complete click-by-click instructions, see [paywallsetup.md](../paywallsetup.md).
 
 ## Google Play setup
 
@@ -41,6 +45,11 @@ clearly labeled preview/unavailable state, with no local unlock button.
    as a non-consumable purchase. IDs can be changed in the config.
 2. Configure target countries and USD/regional prices in Play Console. Make all
    three products grant the same Plus features.
+   Under **each** monthly/yearly base plan, create and activate an offer with ID
+   `trial-7-days`, a 7-day free phase, then the base-plan price. Select Play-managed
+   **New customer acquisition → Never had any subscription in this app** eligibility.
+   This prevents taking a second trial by switching plans. Do not use
+   developer-determined eligibility; this app has no eligibility backend.
 3. Copy the app's **Base64 RSA licensing public key** from Play Console's
    monetization/licensing settings into `.env` as
    `EXPO_PUBLIC_PLAY_BILLING_PUBLIC_KEY`. This is a public verification key;
@@ -74,6 +83,9 @@ No RevenueCat account or SDK is used.
   the launcher while the app is stopped or offline; it is cosmetic.
 - Existing members are directed to membership management rather than another
   checkout. Subscription switching/proration is not offered in this version.
+- Before checkout, re-query the selected product. If the offer token, trial,
+  currency or price changed, stop and refresh the paywall for the user to review.
+  Do not silently replace a displayed free trial with an immediate charge.
 
 This implementation uses on-device Play ownership queries and signature
 verification. There is no purchase-verification backend, Real-time Developer
@@ -86,9 +98,20 @@ credentials to the mobile app.
 ## Premium features
 
 - Android widgets: enabled by verified Plus access, including background actions.
-- Themes: Ocean (free), Jade, Dusk and Rose. Premium accents work with the existing
-  system/light/dark preference. Preferences are saved locally.
-- Android launcher icons: Original (free), Midnight, Jade and Rose. Aliases keep
+- Themes: Ocean (free), Material Expressive, Jade, Dusk and Rose. Each paid theme
+  coordinates full light/dark palettes, typography, surfaces, hydration visuals
+  and in-app icons. Preview any theme in Theme studio, then explicitly apply it.
+  Free users see an Unlock action that opens the paywall. The system/light/dark
+  setting remains independent. Preferences are saved locally and retained if
+  membership expires, while the rendered app falls back to Ocean.
+- Material Expressive uses Google's expressive color scheme, tonal surfaces,
+  rounder shapes, Google Sans Flex and Material icons within our React Native
+  components. It is not the native Android Material 3 Expressive component SDK.
+  Jade uses Nunito/outline icons; Dusk uses Google Sans Flex/filled icons;
+  Rose uses Lora headings, Google Sans Flex body and outline icons. Fonts are
+  bundled offline with their OFL licenses in `assets/fonts/`. System typography
+  is used while fonts load or if loading fails.
+- Android launcher icons: Original (free), Midnight, Jade, Rose, Dusk and Expressive. Aliases keep
   MainActivity enabled so notifications, deep links and widgets continue to work.
 - Wear OS: **coming soon**. This repository has no Wear OS companion app or data
   layer. The paywall explicitly labels this benefit as unavailable. Do not set
@@ -110,3 +133,33 @@ icon changes retain one launcher entry and working deep links.
 A sideloaded development build can verify the paywall layout and locked-state
 navigation, but cannot certify production Play checkout. Never use config preview
 prices or a local test entitlement as proof of a successful payment.
+
+## Paywall entry points and daily reminders
+
+The paywall opens when a free user taps the Settings Plus banner, Unlock in a premium theme preview
+or a locked app icon, the widget entry in Plus settings, a locked home-screen widget, or
+a Plus notification. Membership/restore rows also open the paywall. There is no
+automatic onboarding, launch, water-log or goal-completion paywall.
+
+Settings → Notifications and Your Plus contain **Daily Plus tips & offers**.
+It is opt-in, off by default, and independent of hydration reminders. After
+onboarding, a successful Play catalog/ownership check, and notification permission,
+free users who opt in receive one silent daily notification around **18:00 local
+time**. Change the hour/minute/copy or disable the feature centrally in
+`premiumConfig.promotions.dailyReminder`. Android may delay delivery in power-saving
+mode. It uses a separate low-importance channel that users can mute.
+
+One stable OS repeating schedule survives app closure. Repeated foreground
+refreshes do not add duplicates. Opt-out, paid access, pending payment, denied
+permission, or a failed billing refresh cancels its schedules and visible Plus
+notifications. Billing changes made elsewhere are recognized on the next app
+refresh; a closed/offline app cannot immediately learn of a purchase on another
+device. Hydration schedules and actions are untouched. Notifications advertise
+only currently available widgets, icons and themes, never unfinished Wear OS.
+
+Notification taps support warm and cold starts and repeated daily deliveries.
+Paid users tapping a stale notification go to Plus settings. Website links in
+the paywall and Plus settings open the configured Lumarc Studio page with static
+UTM campaign parameters, without hydration or purchase identifiers. The website
+is informational; app checkout stays with Google Play. See `PREMIUM_GROWTH.md`
+for prepared website copy and campaign setup.

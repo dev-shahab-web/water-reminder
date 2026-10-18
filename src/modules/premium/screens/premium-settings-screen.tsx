@@ -1,16 +1,22 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@shared/components/themed-text';
 import { Icon, useTheme } from 'react-native-paper';
+import Svg, { Path } from 'react-native-svg';
 
 import { premiumConfig } from '@core/config/premium-config';
 import { SettingsRow } from '@modules/settings/components/settings-row';
 import { SettingsSection } from '@modules/settings/components/settings-section';
 import { AppScreen, BrandMark, IconButton } from '@shared/components';
 import type { AppTheme } from '@shared/theme';
-import { premiumThemes } from '@shared/theme/premium-themes';
+import { isPremiumThemeId } from '@shared/theme/premium-themes';
+import { usePremiumAccess } from '../hooks/use-premium-access';
+import { ThemeStudio } from '../components/theme-studio';
 import { useAppSelector } from '@state/store/hooks';
 import { PremiumBanner } from '../components/premium-banner';
+import { PremiumPromotionSettings } from '../components/premium-promotion-settings';
+import { openPremiumWebsite } from '../services/premium-promotions';
 import {
   changePremiumIcon,
   changePremiumTheme,
@@ -23,18 +29,30 @@ const icons = [
   { id: 'midnight', name: 'Midnight', color: '#142738' },
   { id: 'jade', name: 'Jade', color: '#174B43' },
   { id: 'rose', name: 'Rose', color: '#613B50' },
+  { id: 'violet', name: 'Dusk', color: '#46365D' },
+  { id: 'expressive', name: 'Expressive', color: '#006B5A' },
 ] as const;
 
 export function PremiumSettingsScreen() {
   const theme = useTheme<AppTheme>();
-  const { access, preferences } = useAppSelector((state) => state.premium);
-  const active = access.active;
+  const { preferences } = useAppSelector((state) => state.premium);
+  const active = usePremiumAccess();
+  const { previewTheme } = useLocalSearchParams<{ previewTheme?: string }>();
+  const [themeMessage, setThemeMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const color = theme.app.colors.textPrimary;
   const openPaywall = () => router.push('/paywall');
   const selectTheme = (id: PremiumThemeId) => {
     if (id !== 'default' && !active) return openPaywall();
-    changePremiumTheme(id);
+    try {
+      changePremiumTheme(id);
+      setThemeMessage('Theme applied. Your new look is ready across the app.');
+    } catch {
+      setThemeMessage(
+        'Plus access could not be confirmed. Restore your purchase to apply this theme.',
+      );
+      openPaywall();
+    }
   };
   const selectIcon = async (id: PremiumIconId) => {
     if (id !== 'default' && !active) return openPaywall();
@@ -66,38 +84,22 @@ export function PremiumSettingsScreen() {
         </View>
       </View>
       {!active && <PremiumBanner />}
-      <SettingsSection title="Premium themes" subtitle="A new palette, in light or dark mode.">
-        <View style={styles.choices}>
-          {premiumThemes.map((item) => (
-            <Pressable
-              key={item.id}
-              testID={`premium-theme-${item.id}`}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: (active ? preferences.theme : 'default') === item.id }}
-              accessibilityLabel={`${item.name} theme${item.id !== 'default' && !active ? ', requires Plus' : ''}`}
-              onPress={() => selectTheme(item.id)}
-              style={[
-                styles.choice,
-                {
-                  borderColor:
-                    (active ? preferences.theme : 'default') === item.id
-                      ? theme.colors.primary
-                      : theme.app.colors.borderSubtle,
-                },
-              ]}
-            >
-              <View style={[styles.themeSwatch, { backgroundColor: item.tint }]}>
-                <View style={[styles.themeAccent, { backgroundColor: item.light }]} />
-                <Icon
-                  source={item.id !== 'default' && !active ? 'lock-outline' : 'water'}
-                  size={20}
-                  color={item.light}
-                />
-              </View>
-              <Text style={[styles.choiceLabel, { color }]}>{item.name}</Text>
-            </Pressable>
-          ))}
-        </View>
+      <SettingsSection
+        title="Theme studio"
+        subtitle="Color, typography and icons. Made to feel like you."
+      >
+        <ThemeStudio
+          active={active}
+          applied={active ? preferences.theme : 'default'}
+          onApply={selectTheme}
+          initialSelection={isPremiumThemeId(previewTheme) ? previewTheme : undefined}
+          onUnlock={(id) => router.push({ pathname: '/paywall', params: { previewTheme: id } })}
+        />
+        {!!themeMessage && (
+          <Text accessibilityLiveRegion="polite" style={{ color: theme.colors.onSurfaceVariant }}>
+            {themeMessage}
+          </Text>
+        )}
       </SettingsSection>
       <SettingsSection
         title="Premium app icons"
@@ -129,7 +131,19 @@ export function PremiumSettingsScreen() {
                 {item.id === 'default' ? (
                   <BrandMark size={60} />
                 ) : (
-                  <Icon source="water" color="#EED6A3" size={36} />
+                  <Svg width={60} height={60} viewBox="0 0 108 108" accessible={false}>
+                    <Path
+                      fill="#EED6A3"
+                      d="M54,23C49,36 32,51 32,65A22,22 0,0 0,76 65C76,51 59,36 54,23Z"
+                    />
+                    <Path
+                      stroke="#FFF8E8"
+                      strokeWidth={3}
+                      strokeLinecap="round"
+                      fill="none"
+                      d="M41,62C39,72 45,78 51,79"
+                    />
+                  </Svg>
                 )}
               </View>
               <Text style={[styles.choiceLabel, { color }]}>{item.name}</Text>
@@ -166,6 +180,15 @@ export function PremiumSettingsScreen() {
         />
       </SettingsSection>
       <SettingsSection title="Your membership">
+        <SettingsRow
+          icon="web"
+          label="Explore Lumarc Studio"
+          supportingText="App news, Plus benefits and promotions on our website."
+          onPress={() => {
+            void openPremiumWebsite('settings');
+          }}
+        />
+        <PremiumPromotionSettings />
         <SettingsRow
           icon="star-four-points"
           label="Water Reminder Plus"
@@ -209,16 +232,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   choiceLabel: { fontSize: 13, fontWeight: '600' },
-  themeSwatch: {
-    height: 60,
-    width: '100%',
-    borderRadius: 13,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  themeAccent: { height: 26, borderRadius: 7, flex: 1 },
   iconSwatch: {
     width: 60,
     height: 60,

@@ -1,6 +1,7 @@
 import { useAppReduceMotion } from '@shared/motion/motion-provider';
 import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@shared/components/themed-text';
 import Animated, {
   Easing,
   useAnimatedStyle,

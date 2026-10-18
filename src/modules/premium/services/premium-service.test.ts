@@ -40,7 +40,11 @@ jest.mock('@core/config/premium-config', () => ({
   },
 }));
 jest.mock('@platform/storage', () => ({
-  getStorage: () => ({ getString: () => undefined, set: () => undefined }),
+  getStorage: () => ({
+    getString: () => undefined,
+    getBoolean: () => undefined,
+    set: () => undefined,
+  }),
 }));
 jest.mock('@state/store/store', () => {
   const { configureStore } =
@@ -67,6 +71,14 @@ beforeEach(() => {
 });
 
 describe('premium access boundaries', () => {
+  it('refreshes changed offers and requires another deliberate checkout attempt', async () => {
+    mockPurchase.mockRejectedValue({ code: 'OFFER_CHANGED' });
+    mockGetCatalog.mockResolvedValue(free);
+    await expect(purchasePremium('yearly')).rejects.toEqual({ code: 'OFFER_CHANGED' });
+    expect(mockGetCatalog).toHaveBeenCalledTimes(1);
+    expect(mockPurchase).toHaveBeenCalledTimes(1);
+    expect(hasPremiumAccess()).toBe(false);
+  });
   it('unlocks only after the native verifier returns paid access', async () => {
     expect(hasPremiumAccess()).toBe(false);
     mockPurchase.mockResolvedValue(paid());

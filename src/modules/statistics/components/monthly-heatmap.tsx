@@ -1,5 +1,6 @@
 import { useAppReduceMotion } from '@shared/motion/motion-provider';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@shared/components/themed-text';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useTheme } from 'react-native-paper';
 

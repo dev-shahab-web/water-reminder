@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { logger } from '@core/logger';
+import { isPremiumNotification } from './premium-notification';
 
 import {
   DEFAULT_NOTIFICATION_ACTION,
@@ -271,6 +272,8 @@ export const addNotificationResponseListener = (
   const handled = new Set<string>();
   const responseKey = (response: Notifications.NotificationResponse): string => {
     const data = response.notification.request.content.data;
+    if (isPremiumNotification(data ?? {}))
+      return `${response.notification.request.identifier}:${response.notification.date}:${response.actionIdentifier}`;
     const occurrenceId = isReminderNotificationData(data) ? data.occurrenceId : undefined;
     return `${occurrenceId ?? response.notification.request.identifier}:${response.actionIdentifier}`;
   };
@@ -280,17 +283,24 @@ export const addNotificationResponseListener = (
     const key = responseKey(response);
     if (handled.has(key)) return;
 
-    if (data?.source === 'hydration-reminder' || isReminderNotificationData(data)) {
-      logger.info('Reminder notification action received.', {
+    if (
+      data?.source === 'hydration-reminder' ||
+      isReminderNotificationData(data) ||
+      isPremiumNotification(data ?? {})
+    ) {
+      logger.info('Notification action received.', {
         actionIdentifier: response.actionIdentifier,
         notificationIdentifier: response.notification.request.identifier,
-        source: isReminderNotificationData(data) ? data.source : 'legacy',
+        source:
+          isReminderNotificationData(data) || isPremiumNotification(data ?? {})
+            ? data?.source
+            : 'legacy',
       });
       handled.add(key);
       try {
         await listener({
           actionIdentifier: response.actionIdentifier,
-          data,
+          data: data ?? {},
           notificationIdentifier: response.notification.request.identifier,
         });
         const last = await Notifications.getLastNotificationResponseAsync();
@@ -299,7 +309,7 @@ export const addNotificationResponseListener = (
         }
       } catch (error) {
         handled.delete(key);
-        logger.warn('Unable to handle reminder notification action.', { error });
+        logger.warn('Unable to handle notification action.', { error });
       }
     }
   };

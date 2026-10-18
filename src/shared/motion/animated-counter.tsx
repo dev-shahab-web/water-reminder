@@ -8,7 +8,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { Text } from '@shared/components/themed-text';
 import { motionDuration } from './motion-tokens';
+
+const AnimatedText = Animated.createAnimatedComponent(Text);
 
 type AnimatedCounterProps = {
   style?: StyleProp<TextStyle>;
@@ -47,5 +50,5 @@ export const AnimatedCounter = memo(function AnimatedCounter({
     transform: [{ translateY: translateY.value }],
   }));
 
-  return <Animated.Text style={[style, animatedStyle]}>{value}</Animated.Text>;
+  return <AnimatedText style={[style, animatedStyle]}>{value}</AnimatedText>;
 });

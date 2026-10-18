@@ -7,12 +7,12 @@ import {
   FlatList,
   RefreshControl,
   StyleSheet,
-  Text,
   View,
   type AppStateStatus,
   type LayoutChangeEvent,
   useWindowDimensions,
 } from 'react-native';
+import { Text } from '@shared/components/themed-text';
 import { useTheme } from 'react-native-paper';
 import { Easing, FadeInDown, FadeOutUp } from 'react-native-reanimated';
 

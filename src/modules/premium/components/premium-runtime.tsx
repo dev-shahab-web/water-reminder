@@ -5,12 +5,18 @@ import { refreshHydrationWidgets } from '@modules/widgets';
 import { useAppDispatch, useAppSelector } from '@state/store/hooks';
 import { loadPremiumCatalog, syncPremiumIcon } from '../services/premium-service';
 import { accessExpired } from '../state/premium-slice';
+import { refreshPremiumPromotions } from '../services/premium-promotions';
 
 export function PremiumRuntime() {
   const dispatch = useAppDispatch();
   const access = useAppSelector((state) => state.premium.access);
   const pending = useAppSelector((state) => state.premium.pending);
   const status = useAppSelector((state) => state.premium.status);
+  const dailyOffers = useAppSelector((state) => state.premium.preferences.dailyOffers);
+
+  useEffect(() => {
+    refreshPremiumPromotions();
+  }, [access, pending, status, dailyOffers]);
 
   useEffect(() => {
     void loadPremiumCatalog();

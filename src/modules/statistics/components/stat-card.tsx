@@ -1,4 +1,5 @@
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { Text } from '@shared/components/themed-text';
 import { useTheme } from 'react-native-paper';
 
 import { AnimatedCard } from '@shared/motion';

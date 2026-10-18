@@ -30,6 +30,15 @@ local currency, total charge and billing period. Subscriptions renew until cance
 through Google Play. A one-time purchase has no recurring charge. Refund requests
 are handled under Google Play's applicable policies and local consumer law.
 
+Eligible first-time subscribers may receive a 7-day trial on monthly or yearly
+plans when offered by Google Play. The trial converts to the displayed recurring
+price unless canceled in Google Play before it ends. Eligibility and the exact
+terms appear in the paywall and checkout. One-time purchases do not include a trial.
+
+Optional daily Plus tips and offers can be enabled or disabled in Settings.
+They use a separate silent notification channel and stop when the app recognizes
+active Plus access or a pending payment.
+
 Widgets, premium themes and Android app icons require verified Plus access. Core
 hydration tracking remains free. Wear OS support is coming soon and is not included
 as an available feature in this release. Purchase restoration uses the Google Play

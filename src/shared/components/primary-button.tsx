@@ -1,4 +1,5 @@
-import { StyleSheet, Text, type PressableProps, type TextProps } from 'react-native';
+import { StyleSheet, type PressableProps, type TextProps } from 'react-native';
+import { Text } from '@shared/components/themed-text';
 import { Icon, useTheme } from 'react-native-paper';
 
 import { AnimatedPressableScale } from '@shared/motion';

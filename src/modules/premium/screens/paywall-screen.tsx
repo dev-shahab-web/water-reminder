@@ -1,4 +1,5 @@
-import { router } from 'expo-router';
+import { isPremiumThemeId } from '@shared/theme/premium-themes';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -7,10 +8,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
   useWindowDimensions,
 } from 'react-native';
+import { Text } from '@shared/components/themed-text';
 import { Icon } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -28,8 +29,16 @@ import {
   restorePremium,
 } from '../services/premium-service';
 import { formatPrice, getAnnualSaving, getBillingDisclosure, getPlanPrice } from '../utils/pricing';
+import { openPremiumWebsite } from '../services/premium-promotions';
 
 export function PaywallScreen() {
+  const { previewTheme } = useLocalSearchParams<{ previewTheme?: string }>();
+  const explorePlus = () =>
+    router.replace(
+      isPremiumThemeId(previewTheme)
+        ? { pathname: '/premium-settings', params: { previewTheme } }
+        : '/premium-settings',
+    );
   const { fontScale, width } = useWindowDimensions();
   const compact = fontScale <= 1.2 && width < 600;
   const { products, status, access, pending } = useAppSelector((state) => state.premium);
@@ -44,6 +53,7 @@ export function PaywallScreen() {
   const saving = getAnnualSaving(products);
   const selectedProduct = products.find((product) => product.id === selected);
   const canBuy = status === 'ready' && Boolean(selectedProduct) && !pending;
+  const trialDays = selectedProduct?.freeTrialDays;
 
   useEffect(() => {
     void loadPremiumCatalog();
@@ -61,7 +71,7 @@ export function PaywallScreen() {
         Alert.alert(
           action === 'restore' ? 'Plus restored' : 'Welcome to Plus',
           'Your premium features are ready.',
-          [{ text: 'Explore Plus', onPress: () => router.replace('/premium-settings') }],
+          [{ text: 'Explore Plus', onPress: explorePlus }],
         );
       } else {
         Alert.alert(
@@ -183,11 +193,13 @@ export function PaywallScreen() {
                     <Text style={styles.planDetail}>
                       {unavailable
                         ? 'Currently unavailable'
-                        : plan.id === 'yearly'
-                          ? `${formatPrice(price.price / 12, price.currency)} / month, billed yearly`
-                          : plan.id === 'lifetime'
-                            ? 'Yours to keep. Pay once.'
-                            : 'A little more, month by month.'}
+                        : price.freeTrialDays
+                          ? `${price.freeTrialDays} days free, then ${price.formattedPrice} / ${plan.id === 'monthly' ? 'month' : 'year'}`
+                          : plan.id === 'yearly'
+                            ? `${formatPrice(price.price / 12, price.currency)} / month, billed yearly`
+                            : plan.id === 'lifetime'
+                              ? 'Yours to keep. Pay once.'
+                              : 'A little more, month by month.'}
                     </Text>
                   </View>
                   <View style={styles.priceCopy}>
@@ -228,6 +240,16 @@ export function PaywallScreen() {
           </View>
         )}
         <Text style={styles.freeNote}>Your everyday hydration essentials stay free.</Text>
+        <Pressable
+          testID="premium-website"
+          accessibilityRole="link"
+          onPress={() => {
+            void openPremiumWebsite('paywall');
+          }}
+          style={styles.linkButton}
+        >
+          <Text style={styles.link}>App news & offers at Lumarc Studio ↗</Text>
+        </Pressable>
       </ScrollView>
       <View style={styles.footer}>
         <Pressable
@@ -236,14 +258,16 @@ export function PaywallScreen() {
           accessibilityLabel={
             active
               ? 'Explore premium features'
-              : `Continue with ${selected === 'lifetime' ? 'one-time purchase' : selected} plan`
+              : trialDays
+                ? `Start ${trialDays}-day free trial. ${getBillingDisclosure(selected, products)}`
+                : `Continue with ${selected === 'lifetime' ? 'one-time purchase' : selected} plan`
           }
           accessibilityState={{
             disabled: !active && (!canBuy || busy !== null),
             busy: busy === 'purchase',
           }}
           disabled={!active && (!canBuy || busy !== null)}
-          onPress={() => (active ? router.replace('/premium-settings') : void perform('purchase'))}
+          onPress={() => (active ? explorePlus() : void perform('purchase'))}
           style={({ pressed }) => [
             styles.cta,
             !active && (!canBuy || busy !== null) && styles.disabledCta,
@@ -257,7 +281,9 @@ export function PaywallScreen() {
               <Text style={styles.ctaText}>
                 {active
                   ? 'Explore Plus'
-                  : `Get ${selected === 'lifetime' ? 'lifetime' : selected} Plus`}
+                  : trialDays
+                    ? `Start ${trialDays}-day free trial`
+                    : `Get ${selected === 'lifetime' ? 'lifetime' : selected} Plus`}
               </Text>
               <Icon source="arrow-right" color={colors.goldText} size={21} />
             </>

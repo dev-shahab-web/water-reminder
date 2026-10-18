@@ -1,6 +1,7 @@
 import { GlassSurface } from '@shared/components/glass-surface';
 import { useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { Alert, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text, TextInput } from '@shared/components/themed-text';
 import { router } from 'expo-router';
 import { useTheme } from 'react-native-paper';
 

@@ -8,6 +8,16 @@ export const premiumConfig = {
   previewCurrency: 'USD',
   playPublicKey: process.env.EXPO_PUBLIC_PLAY_BILLING_PUBLIC_KEY ?? '',
   offlineAccessHours: 24,
+  promotions: {
+    websiteUrl: 'https://lumarcstudio.com/apps/water-reminder/',
+    dailyReminder: {
+      enabled: true,
+      hour: 18,
+      minute: 0,
+      title: 'Make Water Reminder yours',
+      body: 'Unlock home screen widgets, exclusive themes and premium app icons with Plus. Explore your plans.',
+    },
+  },
   features: {
     widgets: {
       title: 'Home screen widgets',
@@ -29,7 +39,7 @@ export const premiumConfig = {
     },
     themes: {
       title: 'Exclusive themes',
-      description: 'Find a color that feels like you.',
+      description: 'Expressive colors, fonts and icons, made yours.',
       icon: 'palette-outline',
       available: true,
     },
@@ -43,6 +53,7 @@ export const premiumConfig = {
       type: 'subs',
       period: 'P1M',
       previewPrice: 1.99,
+      trial: { offerId: 'trial-7-days', days: 7 },
     },
     {
       id: 'yearly',
@@ -52,6 +63,7 @@ export const premiumConfig = {
       type: 'subs',
       period: 'P1Y',
       previewPrice: 12.99,
+      trial: { offerId: 'trial-7-days', days: 7 },
     },
     {
       id: 'lifetime',
@@ -70,6 +82,7 @@ export const premiumConfig = {
     type: 'subs' | 'inapp';
     period: string;
     previewPrice: number;
+    trial?: { offerId: string; days: number };
   }[],
 } as const;
 

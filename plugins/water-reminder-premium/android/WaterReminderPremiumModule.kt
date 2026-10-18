@@ -18,8 +18,8 @@ import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 
 private class BillingFailure(val code: String, message: String) : Exception(message)
-private data class Plan(val id: String, val productId: String, val type: String, val basePlanId: String, val period: String)
-private data class StoreProduct(val plan: Plan, val details: ProductDetails, val offerToken: String?, val amount: Long, val currency: String, val formatted: String)
+private data class Plan(val id: String, val productId: String, val type: String, val basePlanId: String, val period: String, val trialOfferId: String, val trialDays: Int)
+private data class StoreProduct(val plan: Plan, val details: ProductDetails, val offerToken: String?, val amount: Long, val currency: String, val formatted: String, val trialDays: Int = 0)
 
 class WaterReminderPremiumModule(private val context: ReactApplicationContext) : ReactContextBaseJavaModule(context), PurchasesUpdatedListener {
   private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -139,6 +139,7 @@ class WaterReminderPremiumModule(private val context: ReactApplicationContext) :
         putDouble("price", product.amount / 1_000_000.0)
         putString("formattedPrice", product.formatted)
         putString("currency", product.currency)
+        if (product.trialDays > 0) putInt("freeTrialDays", product.trialDays)
       }) }
     })
     putMap("access", Arguments.createMap().apply {
@@ -163,26 +164,48 @@ class WaterReminderPremiumModule(private val context: ReactApplicationContext) :
     offlineHours = config.optInt("offlineAccessHours", 24)
     val configured = config.getJSONArray("plans")
     plans = (0 until configured.length()).map { index -> configured.getJSONObject(index).let {
-      Plan(it.getString("id"), it.getString("productId"), it.getString("type"), it.getString("basePlanId"), it.getString("period"))
+      val trial = it.optJSONObject("trial")
+      Plan(it.getString("id"), it.getString("productId"), it.getString("type"), it.getString("basePlanId"), it.getString("period"), trial?.optString("offerId") ?: "", trial?.optInt("days", 0) ?: 0)
     } }
     require(publicKey.isNotEmpty()) { "Google Play public key is required." }
     connect()
+    products = fetchStoreProducts()
+    val pending = reconcile()
+    promise.resolve(snapshot(pending))
+  }
+
+  private suspend fun fetchStoreProducts(): List<StoreProduct> {
     val details = queryProducts(BillingClient.ProductType.SUBS) + queryProducts(BillingClient.ProductType.INAPP)
-    products = plans.mapNotNull { plan ->
+    return plans.mapNotNull { plan ->
       val product = details.find { it.productId == plan.productId && it.productType == plan.type } ?: return@mapNotNull null
       if (plan.type == BillingClient.ProductType.SUBS) {
-        // Use the regular auto-renewing base plan; never accidentally advertise
-        // a trial or introductory phase as the recurring price.
-        val offer = product.subscriptionOfferDetails?.find { it.basePlanId == plan.basePlanId && it.offerId == null } ?: return@mapNotNull null
-        val phase = offer.pricingPhases.pricingPhaseList.singleOrNull { it.recurrenceMode == ProductDetails.RecurrenceMode.INFINITE_RECURRING && it.billingPeriod == plan.period } ?: return@mapNotNull null
-        StoreProduct(plan, product, offer.offerToken, phase.priceAmountMicros, phase.priceCurrencyCode, phase.formattedPrice)
+        val offers = product.subscriptionOfferDetails.orEmpty().filter { it.basePlanId == plan.basePlanId }
+        fun isRecurring(phase: ProductDetails.PricingPhase) =
+          phase.recurrenceMode == ProductDetails.RecurrenceMode.INFINITE_RECURRING && phase.billingPeriod == plan.period && phase.priceAmountMicros > 0
+        // Play filters new-customer eligibility. Accept only the configured trial
+        // followed directly by the full recurring price; never hide paid intro phases.
+        val trial = offers.find { offer ->
+          val phases = offer.pricingPhases.pricingPhaseList
+          val free = phases.firstOrNull()
+          val freeDays = free?.billingPeriod?.let { period ->
+            Regex("P(\\d+)D").matchEntire(period)?.groupValues?.get(1)?.toIntOrNull()
+              ?: Regex("P(\\d+)W").matchEntire(period)?.groupValues?.get(1)?.toIntOrNull()?.times(7)
+          }
+          plan.trialOfferId.isNotBlank() && plan.trialDays > 0 && offer.offerId == plan.trialOfferId &&
+            phases.size == 2 && free?.priceAmountMicros == 0L && freeDays == plan.trialDays &&
+            free.billingCycleCount == 1 && free.recurrenceMode == ProductDetails.RecurrenceMode.FINITE_RECURRING &&
+            isRecurring(phases.last()) && free.priceCurrencyCode == phases.last().priceCurrencyCode
+        }
+        val offer = trial ?: offers.find {
+          it.offerId == null && it.pricingPhases.pricingPhaseList.let { phases -> phases.size == 1 && isRecurring(phases.single()) }
+        } ?: return@mapNotNull null
+        val phase = offer.pricingPhases.pricingPhaseList.last()
+        StoreProduct(plan, product, offer.offerToken, phase.priceAmountMicros, phase.priceCurrencyCode, phase.formattedPrice, if (trial != null) plan.trialDays else 0)
       } else {
         val price = product.oneTimePurchaseOfferDetails ?: return@mapNotNull null
         StoreProduct(plan, product, null, price.priceAmountMicros, price.priceCurrencyCode, price.formattedPrice)
       }
     }
-    val pending = reconcile()
-    promise.resolve(snapshot(pending))
   }
 
   @ReactMethod
@@ -207,7 +230,13 @@ class WaterReminderPremiumModule(private val context: ReactApplicationContext) :
     if (reconcile()) throw BillingFailure("PURCHASE_PENDING", "An existing payment is pending.")
     // Plan changes need a replacement/proration flow. Avoid duplicate charges.
     if (PremiumAccessStore.isActive(context)) throw BillingFailure("ITEM_ALREADY_OWNED", "Plus is already active.")
-    val product = products.find { it.plan.id == planId } ?: throw BillingFailure("BILLING_UNAVAILABLE", "The plan is unavailable.")
+    val displayed = products.find { it.plan.id == planId } ?: throw BillingFailure("BILLING_UNAVAILABLE", "The plan is unavailable.")
+    val fresh = fetchStoreProducts()
+    val product = fresh.find { it.plan.id == planId }
+    products = fresh
+    if (product == null || product.offerToken != displayed.offerToken || product.amount != displayed.amount || product.currency != displayed.currency || product.trialDays != displayed.trialDays) {
+      throw BillingFailure("OFFER_CHANGED", "Review the updated price and trial before continuing.")
+    }
     val activity = context.currentActivity ?: throw BillingFailure("BILLING_UNAVAILABLE", "No foreground activity.")
     val params = BillingFlowParams.ProductDetailsParams.newBuilder().setProductDetails(product.details).apply {
       product.offerToken?.let { setOfferToken(it) }
@@ -236,7 +265,7 @@ class WaterReminderPremiumModule(private val context: ReactApplicationContext) :
   }
 
   private fun applyIcon(name: String) {
-    val names = listOf("default", "midnight", "jade", "rose")
+    val names = listOf("default", "midnight", "jade", "rose", "violet", "expressive")
     require(name in names) { "Unknown app icon." }
     val manager = context.packageManager
     // Enable the new alias before disabling the old one; leave MainActivity enabled.

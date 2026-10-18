@@ -6,6 +6,7 @@ import {
   type PremiumPlanId,
 } from '@core/config/premium-config';
 import { store } from '@state/store/store';
+import { isPremiumThemeId } from '@shared/theme/premium-themes';
 
 import {
   catalogLoading,
@@ -70,9 +71,14 @@ export const loadPremiumCatalog = (): Promise<void> => {
 
 export const purchasePremium = async (plan: PremiumPlanId) => {
   if (!native || !isBillingConfigured()) throw new Error('BILLING_UNAVAILABLE');
-  const result = await native.purchase(plan);
-  store.dispatch(catalogReceived(result));
-  return result;
+  try {
+    const result = await native.purchase(plan);
+    store.dispatch(catalogReceived(result));
+    return result;
+  } catch (error) {
+    if ((error as { code?: string })?.code === 'OFFER_CHANGED') await loadPremiumCatalog();
+    throw error;
+  }
 };
 
 export const restorePremium = async () => {
@@ -93,6 +99,7 @@ export const changePremiumIcon = async (icon: PremiumIconId) => {
 };
 
 export const changePremiumTheme = (theme: PremiumThemeId) => {
+  if (!isPremiumThemeId(theme)) throw new Error('Unknown theme.');
   if (theme !== 'default' && !canUsePremiumFeature('themes'))
     throw new Error('Premium is required.');
   const preferences = { ...store.getState().premium.preferences, theme };
@@ -102,6 +109,8 @@ export const changePremiumTheme = (theme: PremiumThemeId) => {
 
 export const billingErrorMessage = (error: unknown): string => {
   const code = (error as { code?: string })?.code;
+  if (code === 'OFFER_CHANGED')
+    return 'Your Google Play offer has changed. Review the updated price and trial details, then continue when you are ready.';
   if (code === 'PURCHASE_PENDING')
     return 'Your payment is pending. Plus will unlock after Google Play confirms it.';
   if (code === 'ITEM_ALREADY_OWNED')

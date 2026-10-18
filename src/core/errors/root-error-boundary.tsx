@@ -1,6 +1,7 @@
 import { type ErrorBoundaryProps } from 'expo-router';
 import { useEffect } from 'react';
-import { Button, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { Button, StyleSheet, useColorScheme, View } from 'react-native';
+import { Text } from '@shared/components/themed-text';
 
 import { logger } from '@core/logger';
 import { BrandMark } from '@shared/components';

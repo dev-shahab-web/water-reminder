@@ -46,6 +46,8 @@ const SceneBackdrop = supportsBlur ? BlurTargetView : View;
 /** A shared, background-only blur target keeps content and the water animation crisp. */
 export function GlassScene({ children }: { children: ReactNode }) {
   const theme = useTheme<AppTheme>();
+  const backdrop = theme.app.presentation?.backdrop;
+  const tonal = theme.app.presentation?.surfaceStyle === 'tonal';
   const blurTarget = useRef<View>(null);
   const [reduceTransparency, setReduceTransparency] = useState(false);
   const id = useId().replace(/:/g, '');
@@ -81,25 +83,51 @@ export function GlassScene({ children }: { children: ReactNode }) {
         importantForAccessibility="no-hide-descendants"
         style={[StyleSheet.absoluteFill, { backgroundColor: theme.app.colors.surfaceBase }]}
       >
-        <Svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 400 900">
-          <Defs>
-            <RadialGradient id={`${id}-a`} cx="-8%" cy="18%" rx="100%" ry="55%">
-              <Stop offset="0" stopColor={theme.dark ? '#245560' : '#BDDFE4'} stopOpacity="0.65" />
-              <Stop offset="1" stopColor={theme.dark ? '#245560' : '#BDDFE4'} stopOpacity="0" />
-            </RadialGradient>
-            <RadialGradient id={`${id}-b`} cx="112%" cy="78%" rx="98%" ry="56%">
-              <Stop offset="0" stopColor={theme.dark ? '#2D365B' : '#CCD5EC'} stopOpacity="0.62" />
-              <Stop offset="1" stopColor={theme.dark ? '#2D365B' : '#CCD5EC'} stopOpacity="0" />
-            </RadialGradient>
-            <RadialGradient id={`${id}-c`} cx="90%" cy="0%" rx="90%" ry="44%">
-              <Stop offset="0" stopColor={theme.dark ? '#566375' : '#FFFFFF'} stopOpacity="0.28" />
-              <Stop offset="1" stopColor={theme.dark ? '#566375' : '#FFFFFF'} stopOpacity="0" />
-            </RadialGradient>
-          </Defs>
-          <Rect width="400" height="900" fill={`url(#${id}-a)`} />
-          <Rect width="400" height="900" fill={`url(#${id}-b)`} />
-          <Rect width="400" height="900" fill={`url(#${id}-c)`} />
-        </Svg>
+        {!tonal && (
+          <Svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 400 900">
+            <Defs>
+              <RadialGradient id={`${id}-a`} cx="-8%" cy="18%" rx="100%" ry="55%">
+                <Stop
+                  offset="0"
+                  stopColor={backdrop?.first ?? (theme.dark ? '#245560' : '#BDDFE4')}
+                  stopOpacity="0.65"
+                />
+                <Stop
+                  offset="1"
+                  stopColor={backdrop?.first ?? (theme.dark ? '#245560' : '#BDDFE4')}
+                  stopOpacity="0"
+                />
+              </RadialGradient>
+              <RadialGradient id={`${id}-b`} cx="112%" cy="78%" rx="98%" ry="56%">
+                <Stop
+                  offset="0"
+                  stopColor={backdrop?.second ?? (theme.dark ? '#2D365B' : '#CCD5EC')}
+                  stopOpacity="0.62"
+                />
+                <Stop
+                  offset="1"
+                  stopColor={backdrop?.second ?? (theme.dark ? '#2D365B' : '#CCD5EC')}
+                  stopOpacity="0"
+                />
+              </RadialGradient>
+              <RadialGradient id={`${id}-c`} cx="90%" cy="0%" rx="90%" ry="44%">
+                <Stop
+                  offset="0"
+                  stopColor={backdrop?.highlight ?? (theme.dark ? '#566375' : '#FFFFFF')}
+                  stopOpacity="0.28"
+                />
+                <Stop
+                  offset="1"
+                  stopColor={backdrop?.highlight ?? (theme.dark ? '#566375' : '#FFFFFF')}
+                  stopOpacity="0"
+                />
+              </RadialGradient>
+            </Defs>
+            <Rect width="400" height="900" fill={`url(#${id}-a)`} />
+            <Rect width="400" height="900" fill={`url(#${id}-b)`} />
+            <Rect width="400" height="900" fill={`url(#${id}-c)`} />
+          </Svg>
+        )}
       </SceneBackdrop>
       {children}
     </GlassSceneContext.Provider>
@@ -108,11 +136,14 @@ export function GlassScene({ children }: { children: ReactNode }) {
 
 function useGlassMaterial(style: StyleProp<ViewStyle>, tone: GlassTone, selected: boolean) {
   const theme = useTheme<AppTheme>();
+  const tonal = theme.app.presentation?.surfaceStyle === 'tonal';
+  const premium = !!theme.app.presentation && theme.app.presentation.id !== 'default';
   const insideGlass = useContext(InsideGlassContext);
   const { blurTarget, reduceTransparency } = useContext(GlassSceneContext);
   const inset = tone === 'inset' || (insideGlass && tone !== 'elevated');
   // Android modal windows cannot sample a target in another native window.
-  const blur = supportsBlur && !reduceTransparency && !inset && tone !== 'elevated' && !!blurTarget;
+  const blur =
+    supportsBlur && !tonal && !reduceTransparency && !inset && tone !== 'elevated' && !!blurTarget;
   const suppliedRadius = StyleSheet.flatten(style)?.borderRadius;
   const radius =
     typeof suppliedRadius === 'number' || typeof suppliedRadius === 'string'
@@ -120,7 +151,7 @@ function useGlassMaterial(style: StyleProp<ViewStyle>, tone: GlassTone, selected
       : theme.app.radius.lg;
   const dark = theme.dark;
   const elevated = tone === 'elevated';
-  const backgroundColor = reduceTransparency
+  const originalBackground = reduceTransparency
     ? selected
       ? theme.colors.primaryContainer
       : theme.colors.surface
@@ -139,30 +170,42 @@ function useGlassMaterial(style: StyleProp<ViewStyle>, tone: GlassTone, selected
           : dark
             ? '#1B2A38'
             : '#F3F8FC';
+  const backgroundColor = premium
+    ? selected
+      ? theme.colors.primaryContainer
+      : tonal || reduceTransparency
+        ? inset
+          ? theme.colors.elevation.level3
+          : theme.colors.elevation.level1
+        : `${inset ? theme.colors.surfaceVariant : theme.colors.surface}${inset ? '60' : 'df'}`
+    : originalBackground;
 
   return useMemo(() => {
     const materialStyle: ViewStyle = {
       backgroundColor: 'transparent',
       borderColor: selected
         ? theme.colors.primary
-        : dark
-          ? 'rgba(200, 224, 248, 0.14)'
-          : 'rgba(110, 140, 163, 0.18)',
+        : premium
+          ? theme.app.colors.borderSubtle
+          : dark
+            ? 'rgba(200, 224, 248, 0.14)'
+            : 'rgba(110, 140, 163, 0.18)',
       borderCurve: 'continuous',
       borderRadius: radius,
       borderWidth: 1,
       // boxShadow is supported by this app's new-architecture RN runtime on both platforms.
-      boxShadow: inset
-        ? []
-        : [
-            {
-              offsetX: 0,
-              offsetY: elevated ? 20 : 8,
-              blurRadius: elevated ? 32 : 16,
-              spreadDistance: elevated ? -12 : -10,
-              color: dark ? 'rgba(0, 4, 12, 0.42)' : 'rgba(40, 67, 94, 0.16)',
-            },
-          ],
+      boxShadow:
+        inset || tonal
+          ? []
+          : [
+              {
+                offsetX: 0,
+                offsetY: elevated ? 20 : 8,
+                blurRadius: elevated ? 32 : 16,
+                spreadDistance: elevated ? -12 : -10,
+                color: dark ? 'rgba(0, 4, 12, 0.42)' : 'rgba(40, 67, 94, 0.16)',
+              },
+            ],
       elevation: 0,
       shadowOpacity: 0,
     };
@@ -176,6 +219,8 @@ function useGlassMaterial(style: StyleProp<ViewStyle>, tone: GlassTone, selected
       materialStyle,
       radius,
       reduceTransparency,
+      tonal,
+      edge: premium ? theme.app.colors.borderSubtle : undefined,
     };
   }, [
     backgroundColor,
@@ -187,14 +232,16 @@ function useGlassMaterial(style: StyleProp<ViewStyle>, tone: GlassTone, selected
     radius,
     reduceTransparency,
     selected,
-    theme.colors.primary,
+    theme,
+    tonal,
+    premium,
   ]);
 }
 
 type Material = ReturnType<typeof useGlassMaterial>;
 
 const GlassLayers = memo(function GlassLayers({ material }: { material: Material }) {
-  if (Platform.OS !== 'android' && !material.inset) {
+  if (Platform.OS !== 'android' && !material.inset && !material.tonal) {
     return <RichGlassLayers material={material} />;
   }
 
@@ -210,8 +257,9 @@ const GlassLayers = memo(function GlassLayers({ material }: { material: Material
         {
           backgroundColor: material.backgroundColor,
           borderRadius: material.radius,
-          borderWidth: material.reduceTransparency ? 0 : StyleSheet.hairlineWidth,
-          borderColor: material.dark ? 'rgba(220,240,255,0.14)' : 'rgba(255,255,255,0.8)',
+          borderWidth: material.reduceTransparency || material.tonal ? 0 : StyleSheet.hairlineWidth,
+          borderColor:
+            material.edge ?? (material.dark ? 'rgba(220,240,255,0.14)' : 'rgba(255,255,255,0.8)'),
         },
       ]}
     />

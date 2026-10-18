@@ -50,6 +50,8 @@ export const telemetryScreens = [
   'home',
   'paywall',
   'premium-settings',
+  'updates',
+  'feedback',
   'onboarding',
   'history',
   'quick-add-presets',

@@ -8,7 +8,13 @@ const {
   withMainApplication,
 } = require('expo/config-plugins');
 
-const variants = { midnight: '#142738', jade: '#174B43', rose: '#613B50' };
+const variants = {
+  midnight: '#142738',
+  jade: '#174B43',
+  rose: '#613B50',
+  violet: '#46365D',
+  expressive: '#006B5A',
+};
 
 module.exports = function withWaterReminderPremium(config) {
   config = withAppBuildGradle(config, (mod) => {

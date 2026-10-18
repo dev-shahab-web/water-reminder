@@ -1,5 +1,6 @@
 import { type ReactNode, memo } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '@shared/components/themed-text';
 import { Icon, useTheme } from 'react-native-paper';
 
 import type { AppTheme } from '@shared/theme';

@@ -3,12 +3,12 @@ import {
   Platform,
   StyleSheet,
   Switch,
-  Text,
   View,
   type LayoutChangeEvent,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { Text } from '@shared/components/themed-text';
 import { useTheme } from 'react-native-paper';
 
 import {

@@ -1,5 +1,9 @@
 # Notification Architecture
 
+Review reminders and Google Play update notifications use a separate native
+WorkManager pipeline. See [Play reviews and app updates](APP_ENGAGEMENT.md) for
+their cadence, channels, preferences, deep links, and testing requirements.
+
 ## Purpose
 
 Notifications are platform capabilities exposed through a stable app service layer.

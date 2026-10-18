@@ -1,5 +1,6 @@
 import { memo, useEffect, useId, useRef } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Text } from '@shared/components/themed-text';
 import Animated, {
   Easing,
   cancelAnimation,
@@ -76,10 +77,17 @@ export const HydrationRing = memo(function HydrationRing({
   const previousFeedback = useRef(feedback?.id);
   const previousAttention = useRef(attentionKey);
   const previousTotal = useRef(totalAmount);
-  const foreground = theme.dark ? '#ECFFFD' : '#123F48';
-  const secondary = theme.dark ? '#A5D9DB' : '#397080';
-  const waterTop = theme.dark ? '#278BA2' : '#A2E7ED';
-  const waterBottom = theme.dark ? '#06465D' : '#56BCCF';
+  const premium = theme.app.presentation.id !== 'default';
+  const foreground = premium ? theme.colors.onSurface : theme.dark ? '#ECFFFD' : '#123F48';
+  const secondary = premium ? theme.colors.onSurfaceVariant : theme.dark ? '#A5D9DB' : '#397080';
+  const waterTop = premium ? theme.colors.primaryContainer : theme.dark ? '#278BA2' : '#A2E7ED';
+  const waterBottom = premium
+    ? theme.colors.secondaryContainer
+    : theme.dark
+      ? '#06465D'
+      : '#56BCCF';
+
+  const highlight = premium ? theme.colors.onPrimaryContainer : '#C1F5FA';
 
   const frame = useFrameCallback(({ timeSincePreviousFrame }) => {
     phase.value = (phase.value + Math.min(timeSincePreviousFrame ?? 16, 40) * 0.00155) % TAU;
@@ -172,7 +180,13 @@ export const HydrationRing = memo(function HydrationRing({
           pointerEvents="none"
           style={[
             styles.halo,
-            { borderColor: complete ? theme.app.colors.hydrationComplete : '#44BCD0' },
+            {
+              borderColor: complete
+                ? theme.app.colors.hydrationComplete
+                : premium
+                  ? theme.colors.primary
+                  : '#44BCD0',
+            },
             haloStyle,
           ]}
         />
@@ -187,7 +201,7 @@ export const HydrationRing = memo(function HydrationRing({
             height: (218 * size) / SIZE,
             borderRadius: (109 * size) / SIZE,
             overflow: 'hidden',
-            backgroundColor: theme.dark ? '#102E3C' : '#EDF8FA',
+            backgroundColor: premium ? theme.colors.surface : theme.dark ? '#102E3C' : '#EDF8FA',
           }}
         >
           <WaterLayer
@@ -195,8 +209,9 @@ export const HydrationRing = memo(function HydrationRing({
             progress={progress}
             size={size}
             rear
-            topColor={theme.dark ? '#3AB2BA' : '#62CBD7'}
+            topColor={premium ? theme.colors.tertiaryContainer : theme.dark ? '#3AB2BA' : '#62CBD7'}
             bottomColor={waterBottom}
+            highlightColor={highlight}
           />
           <WaterLayer
             phase={phase}
@@ -204,6 +219,7 @@ export const HydrationRing = memo(function HydrationRing({
             size={size}
             topColor={waterTop}
             bottomColor={waterBottom}
+            highlightColor={highlight}
           />
         </View>
         <Svg width="100%" height="100%" viewBox="0 0 260 260" accessible={false}>
@@ -212,9 +228,24 @@ export const HydrationRing = memo(function HydrationRing({
               <Circle cx="130" cy="130" r="109" />
             </ClipPath>
             <LinearGradient id={`${id}-rim`} x1="0" x2="1" y1="0" y2="1">
-              <Stop offset="0" stopColor={theme.dark ? '#458898' : '#FFFFFF'} />
-              <Stop offset="0.5" stopColor={theme.dark ? '#1A5365' : '#D1EBF0'} />
-              <Stop offset="1" stopColor={theme.dark ? '#1D5868' : '#ABCED7'} />
+              <Stop
+                offset="0"
+                stopColor={
+                  premium ? theme.colors.primaryContainer : theme.dark ? '#458898' : '#FFFFFF'
+                }
+              />
+              <Stop
+                offset="0.5"
+                stopColor={
+                  premium ? theme.colors.secondaryContainer : theme.dark ? '#1A5365' : '#D1EBF0'
+                }
+              />
+              <Stop
+                offset="1"
+                stopColor={
+                  premium ? theme.colors.tertiaryContainer : theme.dark ? '#1D5868' : '#ABCED7'
+                }
+              />
             </LinearGradient>
           </Defs>
           <Circle
@@ -222,7 +253,7 @@ export const HydrationRing = memo(function HydrationRing({
             cy="130"
             r="123"
             fill="none"
-            stroke={theme.dark ? '#25414A' : '#E0EDF0'}
+            stroke={premium ? theme.colors.surfaceVariant : theme.dark ? '#25414A' : '#E0EDF0'}
             strokeWidth="4"
           />
           <AnimatedCircle
@@ -230,7 +261,13 @@ export const HydrationRing = memo(function HydrationRing({
             cy="130"
             r="123"
             fill="none"
-            stroke={complete ? theme.app.colors.hydrationComplete : '#269AAF'}
+            stroke={
+              complete
+                ? theme.app.colors.hydrationComplete
+                : premium
+                  ? theme.colors.primary
+                  : '#269AAF'
+            }
             strokeWidth="4"
             strokeLinecap="round"
             strokeDasharray={`${CIRCUMFERENCE} ${CIRCUMFERENCE}`}
@@ -250,17 +287,23 @@ export const HydrationRing = memo(function HydrationRing({
             <AnimatedPath
               animatedProps={pourProps}
               fill="none"
-              stroke="#C1F5FA"
+              stroke={highlight}
               strokeLinecap="round"
             />
             <AnimatedEllipse
               animatedProps={rippleProps}
               fill="none"
-              stroke="#D9FCFF"
+              stroke={premium ? highlight : '#D9FCFF'}
               strokeWidth="1.5"
             />
             {DROPS.map((index) => (
-              <SplashDroplet key={index} index={index} splash={splash} progress={progress} />
+              <SplashDroplet
+                key={index}
+                index={index}
+                splash={splash}
+                progress={progress}
+                color={premium ? highlight : '#E5FCFF'}
+              />
             ))}
             <Path
               d="M49 105 A88 88 0 0 1 104 46"
@@ -296,7 +339,13 @@ export const HydrationRing = memo(function HydrationRing({
           <View
             style={[
               styles.percentPill,
-              { backgroundColor: theme.dark ? '#103C4BE6' : '#FFFFFFB8' },
+              {
+                backgroundColor: premium
+                  ? theme.colors.surface
+                  : theme.dark
+                    ? '#103C4BE6'
+                    : '#FFFFFFB8',
+              },
             ]}
           >
             <Text maxFontSizeMultiplier={1.2} style={[styles.percent, { color: foreground }]}>
@@ -308,11 +357,18 @@ export const HydrationRing = memo(function HydrationRing({
           pointerEvents="none"
           style={[
             styles.addedBadge,
-            { backgroundColor: theme.dark ? '#DDFBFA' : '#164F5A' },
+            {
+              backgroundColor: premium ? theme.colors.primary : theme.dark ? '#DDFBFA' : '#164F5A',
+            },
             badgeStyle,
           ]}
         >
-          <Text style={[styles.addedText, { color: theme.dark ? '#164F5A' : '#FFFFFF' }]}>
+          <Text
+            style={[
+              styles.addedText,
+              { color: premium ? theme.colors.onPrimary : theme.dark ? '#164F5A' : '#FFFFFF' },
+            ]}
+          >
             {feedback
               ? `+ ${formatMeasurementAmount(feedback.amount, measurementUnit).replace(' ml', ' mL')}`
               : ''}
@@ -337,6 +393,7 @@ const WaterLayer = memo(function WaterLayer({
   size,
   topColor,
   bottomColor,
+  highlightColor,
   rear = false,
 }: {
   phase: SharedValue<number>;
@@ -344,6 +401,7 @@ const WaterLayer = memo(function WaterLayer({
   size: number;
   topColor: string;
   bottomColor: string;
+  highlightColor: string;
   rear?: boolean;
 }) {
   const id = useId().replace(/:/g, '');
@@ -377,7 +435,7 @@ const WaterLayer = memo(function WaterLayer({
         <Path
           d="M0 10 Q65 0 130 10 T260 10 T390 10 T520 10 T650 10 T780 10"
           fill="none"
-          stroke="#C1F5FA"
+          stroke={highlightColor}
           strokeWidth="1.5"
           opacity={0.8}
         />
@@ -387,10 +445,12 @@ const WaterLayer = memo(function WaterLayer({
 });
 
 function SplashDroplet({
+  color,
   index,
   splash,
   progress,
 }: {
+  color: string;
   index: number;
   splash: SharedValue<number>;
   progress: SharedValue<number>;
@@ -407,7 +467,7 @@ function SplashDroplet({
       opacity: t > 0 && t < 1 ? Math.sin(t * Math.PI) * 0.85 : 0,
     };
   });
-  return <AnimatedCircle animatedProps={props} fill="#E5FCFF" />;
+  return <AnimatedCircle animatedProps={props} fill={color} />;
 }
 
 const styles = StyleSheet.create({
