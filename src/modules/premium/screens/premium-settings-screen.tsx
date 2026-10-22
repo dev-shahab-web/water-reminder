@@ -176,7 +176,8 @@ export function PremiumSettingsScreen() {
           icon="watch-variant"
           label="Wear OS companion"
           value={premiumConfig.features.wearOs.available ? 'Plus' : 'Coming soon'}
-          supportingText="Watch support is in development. It is not available in this version."
+          supportingText="Daily progress and quick water logging, with your phone’s theme."
+          onPress={() => router.push('/wear-settings')}
         />
       </SettingsSection>
       <SettingsSection title="Your membership">

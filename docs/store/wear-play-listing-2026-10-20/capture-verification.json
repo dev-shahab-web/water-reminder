@@ -1,0 +1,29 @@
+{
+  "device": "Samsung Galaxy Watch4 Classic SM-R895F",
+  "package": "com.shahab.waterreminder",
+  "watchVersion": "1.0.0 (1000010)",
+  "phoneVersion": "2.0.4 (10)",
+  "captureDatesLocal": ["2026-10-20", "2026-10-21"],
+  "newPlayTestPurchaseVerified": true,
+  "checkoutPayment": "Test card, always approves",
+  "checkoutDisclosure": "This is a test subscription. You will not be charged.",
+  "offlineRestartTotalMl": 250,
+  "offlinePendingLabel": "1 saved on watch",
+  "oneMidnightRolloverObserved": true,
+  "phoneRadiosRestored": { "wifi_on": "1", "mobile_data": "1", "bluetooth_on": "1" },
+  "restoredTheme": "Ocean",
+  "restoredUnit": "ml",
+  "restoredWatchSettings": {
+    "screen_off_timeout": 60000,
+    "font_scale": 1.0,
+    "stay_on_while_plugged_in": 2
+  },
+  "captureSessionDrinksRemovedOnPhone": [
+    { "amountMl": 500, "date": "2026-10-20", "time": "23:43" },
+    { "amountMl": 250, "date": "2026-10-21", "time": "00:07" }
+  ],
+  "phoneHistoryVerifiedAfterCleanup": { "2026-10-20": 500, "2026-10-21": 0 },
+  "unitsScreenshot": "05-daily-hydration-tile.png",
+  "watchLockedAtFinalCleanup": true,
+  "securitySettingsChanged": false
+}

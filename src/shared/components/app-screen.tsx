@@ -1,6 +1,7 @@
 import { type ReactElement, type ReactNode } from 'react';
 import {
   ScrollView,
+  type ScrollViewProps,
   type RefreshControlProps,
   StyleSheet,
   type StyleProp,
@@ -18,6 +19,7 @@ type AppScreenProps = {
   children: ReactNode;
   error?: ReactNode;
   loading?: ReactNode;
+  onScroll?: ScrollViewProps['onScroll'];
   refreshControl?: ReactElement<RefreshControlProps>;
   scrollable?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -29,6 +31,7 @@ export function AppScreen({
   children,
   error,
   loading,
+  onScroll,
   refreshControl,
   scrollable = false,
   style,
@@ -94,6 +97,8 @@ export function AppScreen({
               ]}
               keyboardDismissMode="on-drag"
               keyboardShouldPersistTaps="handled"
+              onScroll={onScroll}
+              scrollEventThrottle={onScroll ? 64 : undefined}
               refreshControl={refreshControl}
             >
               {header}

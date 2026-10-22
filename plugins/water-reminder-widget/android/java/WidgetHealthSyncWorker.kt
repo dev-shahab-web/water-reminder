@@ -31,7 +31,7 @@ class WidgetHealthSyncWorker(context: Context, parameters: WorkerParameters) : C
         val entries = mutableListOf<PendingHydration>()
         database.rawQuery("""
           SELECT id, timestamp, amount, updatedAt FROM hydration_entries
-          WHERE source = 'widget' AND healthConnectRecordId IS NULL ORDER BY timestamp;
+          WHERE source IN ('widget', 'wear_os') AND healthConnectRecordId IS NULL ORDER BY timestamp;
         """.trimIndent(), null).use { cursor ->
           while (cursor.moveToNext()) entries.add(PendingHydration(cursor.getString(0), cursor.getString(1), cursor.getInt(2), cursor.getString(3)))
         }
@@ -63,6 +63,21 @@ class WidgetHealthSyncWorker(context: Context, parameters: WorkerParameters) : C
             // A foreground removal can commit while insertRecords is suspended.
             client.deleteRecords(HydrationRecord::class, listOf(recordId), listOf(entry.id))
           }
+        }
+        // Watch undo also works while React Native is stopped. The existing
+        // database trigger records remote deletion intent in the same commit.
+        val removed = mutableListOf<Triple<String, String?, String?>>()
+        database.rawQuery("""
+          SELECT entryId, recordId, clientRecordId FROM health_connect_deletions
+          WHERE pending = 1 AND deleteRemote = 1 AND substr(entryId, 1, 5) = 'wear_';
+        """.trimIndent(), null).use { cursor ->
+          while (cursor.moveToNext()) removed.add(Triple(cursor.getString(0),
+            if (cursor.isNull(1)) null else cursor.getString(1),
+            if (cursor.isNull(2)) null else cursor.getString(2)))
+        }
+        for ((id, recordId, clientId) in removed) {
+          client.deleteRecords(HydrationRecord::class, listOfNotNull(recordId), listOfNotNull(clientId))
+          database.execSQL("UPDATE health_connect_deletions SET pending = 0 WHERE entryId = ?", arrayOf(id))
         }
       }
       Result.success()

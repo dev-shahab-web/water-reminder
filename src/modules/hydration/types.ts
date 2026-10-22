@@ -4,6 +4,7 @@ export const HYDRATION_ENTRY_SOURCES = [
   'edit',
   'health_connect',
   'widget',
+  'wear_os',
 ] as const;
 
 export type HydrationEntrySource = (typeof HYDRATION_ENTRY_SOURCES)[number];

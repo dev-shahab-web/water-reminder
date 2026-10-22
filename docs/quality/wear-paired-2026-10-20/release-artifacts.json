@@ -1,0 +1,31 @@
+{
+  "package": "com.shahab.waterreminder",
+  "phoneApkSha256": "8ffdb1d0536b0e592bc4b411802f0c1ed34a5a7a3e977fb76677e84adf142caa",
+  "watchApkSha256": "496dbb8562069aaac72861203fcac95871aad3f5a21f34f6f77c56066d318d9d",
+  "watchAabSha256": "390b3761f731a73e0b203726f7a031263dc169bb9be91c579256a1d538fc5d8d",
+  "phoneVersion": "2.0.4 (10)",
+  "watchVersion": "1.0.0 (1000010)",
+  "matchingCertificates": true,
+  "watchDebugFixtureAbsent": true,
+  "watchReleaseBuildAndLint": "passed",
+  "finalBaselineMl": 500,
+  "finalGoalMl": 2000,
+  "surfaceChecks": [
+    "live tile total updates and opens app without logging",
+    "Radar SHORT_TEXT complication updates and opens app without logging",
+    "final droplet icon and accessibility percentage present",
+    "final complication rounds 750/2000 to 38 percent",
+    "150 percent font scale dashboard, picker and undo accessible",
+    "final surface-test drink undone and acknowledged"
+  ],
+  "restored": {
+    "theme": "Ocean",
+    "watchFontScale": 1.0,
+    "watchScreenTimeoutMs": 60000,
+    "watchChargingStayAwake": 2,
+    "phoneChargingStayAwake": 2,
+    "phoneWifi": true,
+    "phoneMobileData": true,
+    "phoneBluetooth": true
+  }
+}

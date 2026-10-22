@@ -8,6 +8,7 @@ import { Provider as ReduxProvider } from 'react-redux';
 
 import { getSettingsState, subscribeToSettings } from '@modules/settings/storage/settings-storage';
 import { WidgetLiveSync } from '@modules/widgets';
+import { WearRuntime } from '@modules/wear/components/wear-runtime';
 import { usePremiumAccess } from '@modules/premium/hooks/use-premium-access';
 import { PremiumRuntime } from '@modules/premium/components/premium-runtime';
 import { useAppSelector } from '@state/store/hooks';
@@ -78,6 +79,7 @@ function ThemedProviders({ children }: PropsWithChildren) {
     <>
       <PremiumRuntime />
       <WidgetLiveSync />
+      <WearRuntime />
       <QueryClientProvider client={queryClient}>
         <PaperProvider settings={paperSettings} theme={paperTheme}>
           <MotionProvider reduceMotion={settings.reduceMotion}>

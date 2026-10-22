@@ -47,6 +47,7 @@ class WidgetQuickAddAction : ActionCallback {
     Log.d(tag, "Glance state sync requested didAdd=$didAdd")
     if (didAdd) {
       WidgetHealthSyncWorker.enqueue(context)
+      __PACKAGE__.wear.PhoneWearSyncWorker.enqueue(context, true)
     }
     WaterReminderWidget.syncStateAndUpdate(context, "widget_quick_add")
     if (didAdd) {

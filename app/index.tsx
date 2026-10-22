@@ -1,7 +1,7 @@
 import { useAppReduceMotion } from '@shared/motion/motion-provider';
 import { GlassSurface } from '@shared/components/glass-surface';
 import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AppState,
   FlatList,
@@ -10,6 +10,8 @@ import {
   View,
   type AppStateStatus,
   type LayoutChangeEvent,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   useWindowDimensions,
 } from 'react-native';
 import { Text } from '@shared/components/themed-text';
@@ -53,6 +55,11 @@ export default function HomeScreen() {
   const reduceMotion = useAppReduceMotion();
   const settings = useSettingsSnapshot();
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
+  const [windowFocused, setWindowFocused] = useState(true);
+  const [heroVisible, setHeroVisible] = useState(true);
+  const heroBottom = useRef(Number.POSITIVE_INFINITY);
+  const scrollOffset = useRef(0);
+  const visibleHero = useRef(true);
   const [actionRowWidth, setActionRowWidth] = useState(0);
   const { presets } = useQuickAddPresets();
   const {
@@ -96,11 +103,39 @@ export default function HomeScreen() {
     setActionRowWidth((currentWidth) => (currentWidth === nextWidth ? currentWidth : nextWidth));
   }, []);
 
+  const updateHeroVisibility = useCallback(() => {
+    const visible = scrollOffset.current < heroBottom.current;
+    // Scroll events never render the screen unless visibility changes.
+    if (visible !== visibleHero.current) {
+      visibleHero.current = visible;
+      setHeroVisible(visible);
+    }
+  }, []);
+  const handleHeroLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      const { y, height } = event.nativeEvent.layout;
+      heroBottom.current = y + height;
+      updateHeroVisibility();
+    },
+    [updateHeroVisibility],
+  );
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      scrollOffset.current = event.nativeEvent.contentOffset.y;
+      updateHeroVisibility();
+    },
+    [updateHeroVisibility],
+  );
+
   useEffect(() => {
     const subscription = AppState.addEventListener('change', setAppState);
+    const blur = AppState.addEventListener('blur', () => setWindowFocused(false));
+    const focus = AppState.addEventListener('focus', () => setWindowFocused(true));
 
     return () => {
       subscription.remove();
+      blur.remove();
+      focus.remove();
     };
   }, []);
 
@@ -139,6 +174,7 @@ export default function HomeScreen() {
 
   return (
     <AppScreen
+      onScroll={handleScroll}
       refreshControl={
         <RefreshControl
           accessibilityLabel={isRefreshing ? 'Refreshing hydration data' : 'Pull to refresh'}
@@ -155,6 +191,7 @@ export default function HomeScreen() {
       style={styles.screen}
     >
       <AnimatedCard
+        onLayout={handleHeroLayout}
         style={[
           styles.heroCard,
           {
@@ -206,11 +243,16 @@ export default function HomeScreen() {
         <HydrationRing
           feedback={lastLogFeedback}
           attentionKey={params.reminderPulse}
-          continuousMotionEnabled={shouldUseContinuousMotion({
-            appState,
-            isScreenFocused: isFocused,
-            reduceMotion,
-          })}
+          continuousMotionEnabled={
+            heroVisible &&
+            windowFocused &&
+            amountModal === undefined &&
+            shouldUseContinuousMotion({
+              appState,
+              isScreenFocused: isFocused,
+              reduceMotion,
+            })
+          }
           goalAmount={summary.goalAmount}
           message={ringMessage}
           measurementUnit={settings.measurementUnit}

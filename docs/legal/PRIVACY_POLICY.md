@@ -1,6 +1,6 @@
 # Privacy Policy
 
-Effective date: October 17, 2026
+Effective date: October 20, 2026
 
 ## Summary
 
@@ -37,6 +37,18 @@ cache stores verified product IDs and an access validity window for offline use.
 Purchase tokens, signatures and hydration data are not sent to app analytics or a
 developer billing backend. A Google Play account and internet access are required
 for purchases and restoration; core hydration tracking remains offline and free.
+
+## Optional Wear OS Companion
+
+When you install and connect the watch companion, Google Play services Data Layer
+transfers your daily hydration total, goal, unit, quick amounts, theme, verified
+Plus validity window, and watch-entered drinks/undo acknowledgments between your
+paired devices. Google may route these transfers over Bluetooth or its cloud
+relay. They are not sent to a developer hydration server or Firebase analytics.
+The watch stores a local snapshot and unsynced entries; confirmed watch entries
+are retained locally for up to 30 days while the full history stays on the phone.
+Clearing watch app data removes its cache and any unsynced entries. Sync first to
+preserve those drinks. Removing the companion stops further watch use.
 
 ## Health Connect
 

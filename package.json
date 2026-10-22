@@ -58,6 +58,8 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
+    "android:wear": "node scripts/android-wear.cjs",
+    "test:wear-migration": "node --test scripts/wear-migration.test.cjs",
     "android:release": "node scripts/android-release.cjs",
     "android:sync-validation": "node scripts/android-sync-validation.cjs",
     "android:verify-release": "node scripts/verify-android-release.cjs",

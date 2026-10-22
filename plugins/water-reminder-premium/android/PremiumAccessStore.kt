@@ -8,6 +8,7 @@ import org.json.JSONArray
 object PremiumAccessStore {
   private fun preferences(context: Context) = context.getSharedPreferences("water_reminder_premium", Context.MODE_PRIVATE)
   fun accessUntil(context: Context): Long = preferences(context).getLong("accessUntil", 0)
+  fun checkedAt(context: Context): Long = preferences(context).getLong("checkedAt", 0)
   fun isActive(context: Context): Boolean {
     val checkedAt = preferences(context).getLong("checkedAt", 0)
     val now = System.currentTimeMillis()
@@ -23,5 +24,6 @@ object PremiumAccessStore {
       .putLong("checkedAt", now)
       .putLong("accessUntil", if (productIds.isEmpty()) 0 else now + offlineHours.coerceIn(1, 72) * 3_600_000L)
       .putString("products", JSONArray(productIds).toString()).commit())
+    __PACKAGE__.wear.PhoneWearSyncWorker.enqueue(context, true)
   }
 }

@@ -1,6 +1,6 @@
 # Store Assets
 
-Do not generate graphics during this audit. Use this checklist for final asset production.
+Use this checklist for final asset production. Wear OS screenshots were captured from the connected release watch on October 20–21, 2026; see `wear-play-listing-2026-10-20/README.md` for the upload order and coverage.
 
 ## Required Assets
 

@@ -113,10 +113,11 @@ credentials to the mobile app.
   is used while fonts load or if loading fails.
 - Android launcher icons: Original (free), Midnight, Jade, Rose, Dusk and Expressive. Aliases keep
   MainActivity enabled so notifications, deep links and widgets continue to work.
-- Wear OS: **coming soon**. This repository has no Wear OS companion app or data
-  layer. The paywall explicitly labels this benefit as unavailable. Do not set
-  `features.wearOs.available` to true until the companion and its entitlement
-  verification are implemented.
+- Wear OS: native companion and Data Layer integration are implemented in `wear/`
+  and `plugins/water-reminder-wear/`. See [WEAR_OS.md](WEAR_OS.md). The marketing
+  flag remains **coming soon** until paired physical-watch verification and the
+  Wear Play release are complete. Native phone verification supplies watch access;
+  the debug-only emulator fixture is never shipped in release builds.
 
 Widgets were previously free; this change moves existing widgets behind Plus.
 Communicate that change in release notes before shipping to existing users.

@@ -24,6 +24,7 @@ const sourceLabels: Record<HydrationEntry['source'], string> = {
   health_connect: 'Health Connect',
   quick_add: 'Quick add',
   widget: 'Widget',
+  wear_os: 'Watch',
 };
 
 export function HistoryEntryList({

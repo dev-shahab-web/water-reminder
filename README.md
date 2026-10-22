@@ -11,11 +11,13 @@ Hydration records and Health Connect data are stored locally and are never inclu
 ## Product Highlights
 
 - Fast quick-add and custom hydration logging.
-- Calm Home dashboard with animated water progress.
+- Calm Home dashboard with gravity-responsive water that tilts, ripples, and settles.
 - Local reminder engine with pause and quiet-hour behavior.
 - History and statistics.
 - Android home-screen widget with quick actions.
 - Optional Health Connect hydration read/write sync.
+- Native Wear OS companion with matching themes, durable offline logging, undo,
+  a tile and watch-face complications. [Build and validation status](docs/WEAR_OS.md).
 - Local export, import, reset, and delete controls.
 - No mandatory account, ads, subscriptions, or cloud hydration backend.
 

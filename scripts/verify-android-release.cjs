@@ -48,6 +48,39 @@ function verifyGeneratedSources(projectRoot = root) {
       throw new Error(`${name} must use the same SQLite engine as Expo.`);
     }
   }
+  for (const family of ['wear', 'premium']) {
+    const source = path.join(projectRoot, `plugins/water-reminder-${family}/android`);
+    const target = path.join(
+      projectRoot,
+      'android/app/src/main/java',
+      ...config.android.package.split('.'),
+      family,
+    );
+    for (const name of fs.readdirSync(source).filter((name) => name.endsWith('.kt'))) {
+      const expected = fs
+        .readFileSync(path.join(source, name), 'utf8')
+        .replaceAll('__PACKAGE__', config.android.package);
+      if (
+        !fs.existsSync(path.join(target, name)) ||
+        fs.readFileSync(path.join(target, name), 'utf8') !== expected
+      )
+        throw new Error(`Generated ${family}/${name} is stale. Run npm run prebuild.`);
+    }
+  }
+  const sharedProtocol = fs.readFileSync(
+    path.join(projectRoot, 'wear-protocol/WearProtocol.kt'),
+    'utf8',
+  );
+  if (
+    fs.readFileSync(
+      path.join(
+        projectRoot,
+        'android/app/src/main/java/com/shahab/waterreminder/wear/protocol/WearProtocol.kt',
+      ),
+      'utf8',
+    ) !== sharedProtocol
+  )
+    throw new Error('Generated watch protocol is stale. Run npm run prebuild.');
   const gradle = fs.readFileSync(path.join(projectRoot, 'android/app/build.gradle'), 'utf8');
   if (
     !gradle.includes(`versionCode ${config.android.versionCode}`) ||
@@ -101,7 +134,15 @@ function releaseIntegrity(validation = false) {
       hash.update(relative).update('\0').update(fs.readFileSync(full)).update('\0');
     }
   }
-  for (const name of ['src', 'plugins', 'app', 'app.json', 'package.json', 'package-lock.json'])
+  for (const name of [
+    'src',
+    'plugins',
+    'wear-protocol',
+    'app',
+    'app.json',
+    'package.json',
+    'package-lock.json',
+  ])
     visit(name);
   return {
     applicationId: config.android.package + (validation ? '.syncvalidation' : ''),

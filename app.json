@@ -59,6 +59,7 @@
       "./plugins/water-reminder-notifications/withWaterReminderNotifications",
       "./plugins/water-reminder-premium/withWaterReminderPremium",
       "./plugins/water-reminder-engagement/withWaterReminderEngagement",
+      "./plugins/water-reminder-wear/withWaterReminderWear",
       [
         "expo-build-properties",
         {

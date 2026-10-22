@@ -20,6 +20,7 @@ const validSources = new Set<HydrationEntrySource>([
   'edit',
   'health_connect',
   'widget',
+  'wear_os',
 ]);
 
 const isExportEntry = (value: unknown): value is HydrationDataExportEntry => {

@@ -24,6 +24,7 @@ jest.mock('expo-font', () => ({
 }));
 jest.mock('@modules/widgets', () => ({ WidgetLiveSync: () => null }));
 jest.mock('@modules/premium/components/premium-runtime', () => ({ PremiumRuntime: () => null }));
+jest.mock('@modules/wear/components/wear-runtime', () => ({ WearRuntime: () => null }));
 jest.mock('@modules/settings/storage/settings-storage', () => {
   const settings = { themePreference: 'light', reduceMotion: true };
   return { getSettingsState: () => settings, subscribeToSettings: () => () => undefined };

@@ -7,6 +7,9 @@ import type { HydrationWidgetState } from '../types';
 const mockBuildHydrationWidgetState = jest.fn<() => Promise<HydrationWidgetState>>();
 const mockRefreshNativeWidgets = jest.fn<() => Promise<void>>();
 const mockWriteNativeWidgetState = jest.fn<(stateJson: string) => Promise<void>>();
+const mockRequestWearSync = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+
+jest.mock('@platform/wear/wear-native-module', () => ({ requestWearSync: mockRequestWearSync }));
 
 jest.mock('./widget-state-builder', () => ({
   buildHydrationWidgetState: mockBuildHydrationWidgetState,
@@ -60,6 +63,7 @@ describe('widget refresh coordinator', () => {
 
     expect(callOrder).toEqual(['build', 'write', 'refresh']);
     expect(mockWriteNativeWidgetState).toHaveBeenCalledWith(JSON.stringify(createWidgetState(250)));
+    expect(mockRequestWearSync).toHaveBeenCalled();
   });
 
   it('queues rapid refresh requests so each mutation gets a fresh snapshot', async () => {

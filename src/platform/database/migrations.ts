@@ -17,7 +17,7 @@ export const runDatabaseMigrations = async (database: AppDatabase): Promise<void
       id TEXT PRIMARY KEY NOT NULL,
       timestamp TEXT NOT NULL,
       amount INTEGER NOT NULL CHECK (amount > 0),
-      source TEXT NOT NULL CHECK (source IN ('quick_add', 'custom', 'edit', 'health_connect', 'widget')),
+      source TEXT NOT NULL CHECK (source IN ('quick_add', 'custom', 'edit', 'health_connect', 'widget', 'wear_os')),
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL,
       healthConnectRecordId TEXT UNIQUE,
@@ -104,6 +104,29 @@ export const runDatabaseMigrations = async (database: AppDatabase): Promise<void
       DROP TABLE hydration_entries;
       ALTER TABLE hydration_entries_v3 RENAME TO hydration_entries;
     `);
+  }
+
+  if (sourceSql?.sql.includes("'widget'") && !sourceSql.sql.includes("'wear_os'")) {
+    // Preserve every record and Health Connect id. The native watch writer uses
+    // Expo's same SQLite engine and only runs once phone setup has completed.
+    try {
+      await database.execAsync(`
+        BEGIN IMMEDIATE;
+        ${createHydrationEntriesSql.replace('hydration_entries', 'hydration_entries_wear')}
+        INSERT INTO hydration_entries_wear
+          (id, timestamp, amount, source, createdAt, updatedAt, healthConnectRecordId,
+           healthConnectClientRecordId, healthConnectDataOrigin, healthConnectSyncedAt)
+        SELECT id, timestamp, amount, source, createdAt, updatedAt, healthConnectRecordId,
+          healthConnectClientRecordId, healthConnectDataOrigin, healthConnectSyncedAt
+        FROM hydration_entries;
+        DROP TABLE hydration_entries;
+        ALTER TABLE hydration_entries_wear RENAME TO hydration_entries;
+        COMMIT;
+      `);
+    } catch (error) {
+      await database.execAsync('ROLLBACK;').catch(() => undefined);
+      throw error;
+    }
   }
 
   await database.execAsync(`

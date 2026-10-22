@@ -1,0 +1,59 @@
+{
+  "device": "Samsung Galaxy Watch4 Classic SM-R895F",
+  "serial": "192.168.1.16:45725",
+  "package": "com.shahab.waterreminder",
+  "version": "1.0.0 (1000010)",
+  "captureDatesLocal": ["2026-10-20", "2026-10-21"],
+  "preparation": "native 450x450 screenshots converted to opaque RGB PNG; no added overlays, masks, frames or UI edits",
+  "files": [
+    {
+      "file": "01-daily-progress-quick-add.png",
+      "dimensions": [450, 450],
+      "mode": "RGB",
+      "bytes": 81876,
+      "sha256": "761f1b606087c6e4767481185de4a76133f38a3abdc19b6307be0f9fc999d31c"
+    },
+    {
+      "file": "02-choose-water-amount.png",
+      "dimensions": [450, 450],
+      "mode": "RGB",
+      "bytes": 64179,
+      "sha256": "377e97d2ee775b510aa904af3e38c5a976046b8cbb6c94cffc059a548aa8e0a9"
+    },
+    {
+      "file": "03-recent-drinks-undo.png",
+      "dimensions": [450, 450],
+      "mode": "RGB",
+      "bytes": 74736,
+      "sha256": "8da3c76ee7c00e0a6509f79085691876d51048645e894a3a46840f7e75a839c9"
+    },
+    {
+      "file": "04-saved-on-watch-offline.png",
+      "dimensions": [450, 450],
+      "mode": "RGB",
+      "bytes": 69674,
+      "sha256": "7667a5c0d485466be7a977ff5bc0f4ca5c12721320e10e9e6a75b6a27afd44ed"
+    },
+    {
+      "file": "05-daily-hydration-tile.png",
+      "dimensions": [450, 450],
+      "mode": "RGB",
+      "bytes": 44377,
+      "sha256": "8639466701c5fe0d89c552e916762e3ef4e7b8cf4105423eb90bcae5a3c1dff5"
+    },
+    {
+      "file": "06-watch-face-complication.png",
+      "dimensions": [450, 450],
+      "mode": "RGB",
+      "bytes": 268286,
+      "sha256": "aa6dd28ffb7dd67efe3cd05b8aa5175809d3df112febad4020d7fbc9641def1d"
+    },
+    {
+      "file": "07-jade-theme.png",
+      "dimensions": [450, 450],
+      "mode": "RGB",
+      "bytes": 76004,
+      "sha256": "e7ba23b9009879cbda0d04901737a3df15a47c0da5c4270397ba5b0e9c17c1f9"
+    }
+  ]
+}

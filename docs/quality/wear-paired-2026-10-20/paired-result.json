@@ -1,0 +1,15 @@
+{
+  "package": "com.shahab.waterreminder",
+  "phone": "35201FDH2006ET",
+  "watch": "192.168.1.16:44443",
+  "baselineMl": 500,
+  "passed": [
+    "real Plus, same starting total, no pending watch commands",
+    "watch add synchronizes while phone UI is closed",
+    "watch undo synchronizes and foreground phone refreshes",
+    "two offline drinks and amount picker survive process restart",
+    "offline undo survives process restart before add acknowledgment",
+    "reconnection reconciles desired states without double counting",
+    "all smoke-test drinks undone; original total restored"
+  ]
+}
